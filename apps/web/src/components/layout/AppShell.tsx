@@ -11,8 +11,8 @@ function Logo({ className = "h-6 w-6" }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#D4AF37" />
-          <stop offset="100%" stopColor="#FFA500" />
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#1d4ed8" />
         </linearGradient>
       </defs>
       <rect x="2" y="2" width="20" height="20" rx="4" stroke="url(#logo-grad)" strokeWidth="2" />
@@ -45,7 +45,7 @@ export default function AppShell({ children }: AppShellProps) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-all ${
                 isActive 
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary pl-2' 
+                  ? 'bg-studio-900 text-white border-l-2 border-primary pl-2' 
                   : 'text-muted-foreground hover:bg-studio-900/50 hover:text-foreground'
               }`
             }
@@ -58,7 +58,7 @@ export default function AppShell({ children }: AppShellProps) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-all ${
                 isActive 
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary pl-2' 
+                  ? 'bg-studio-900 text-white border-l-2 border-primary pl-2' 
                   : 'text-muted-foreground hover:bg-studio-900/50 hover:text-foreground'
               }`
             }
@@ -71,7 +71,7 @@ export default function AppShell({ children }: AppShellProps) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-all ${
                 isActive 
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary pl-2' 
+                  ? 'bg-studio-900 text-white border-l-2 border-primary pl-2' 
                   : 'text-muted-foreground hover:bg-studio-900/50 hover:text-foreground'
               }`
             }
@@ -84,7 +84,7 @@ export default function AppShell({ children }: AppShellProps) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-all ${
                 isActive 
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary pl-2' 
+                  ? 'bg-studio-900 text-white border-l-2 border-primary pl-2' 
                   : 'text-muted-foreground hover:bg-studio-900/50 hover:text-foreground'
               }`
             }

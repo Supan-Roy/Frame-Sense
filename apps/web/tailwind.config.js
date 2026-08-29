@@ -60,11 +60,6 @@ export default {
           800: "#454545",
           900: "#3d3d3d",
           950: "#0c0c0e", // Deep cinematic black
-        },
-        gold: {
-          DEFAULT: "#D4AF37",
-          muted: "#aa8a24",
-          bright: "#FFDF00",
         }
       },
       borderRadius: {
