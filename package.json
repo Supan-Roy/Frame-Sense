@@ -1,0 +1,14 @@
+{
+  "name": "frame-sense-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"web,api\" -c \"blue,green\" \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
+    "build": "pnpm --filter web build",
+    "install:api": "py -3.11 -m venv apps\\api\\.venv && apps\\api\\.venv\\Scripts\\pip install -r apps\\api\\requirements.txt",
+    "setup": "pnpm install && pnpm install:api"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

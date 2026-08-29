@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+
+    --card: #121214;
+    --card-foreground: #fafafa;
+
+    --popover: #0c0c0e;
+    --popover-foreground: #fafafa;
+
+    --primary: #d4af37; /* Cinematic Gold */
+    --primary-foreground: #09090b;
+
+    --secondary: #1f1f23;
+    --secondary-foreground: #fafafa;
+
+    --muted: #1f1f23;
+    --muted-foreground: #8e8e93;
+
+    --accent: #2c2c30;
+    --accent-foreground: #fafafa;
+
+    --destructive: #e11d48;
+    --destructive-foreground: #fafafa;
+
+    --border: #242427;
+    --input: #1f1f23;
+    --ring: #d4af37;
+
+    --radius: 0.375rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(28, 28, 30, 0.4) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  
+  ::selection {
+    background-color: rgba(212, 175, 55, 0.2);
+    color: #d4af37;
+  }
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #242427;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
