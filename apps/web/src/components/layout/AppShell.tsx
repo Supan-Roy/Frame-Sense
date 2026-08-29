@@ -77,16 +77,7 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header bar */}
-        <header className="h-14 border-b flex items-center justify-between px-8 bg-studio-950/20 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs text-muted-foreground font-medium">API Core Online</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Session: <span className="font-semibold text-foreground">DEMO_WORKSPACE</span>
-          </div>
-        </header>
+
 
         {/* View container */}
         <main className="flex-1 overflow-y-auto px-8 py-8">
