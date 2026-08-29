@@ -71,12 +71,12 @@ export default function Settings() {
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Primary Multimodal Model</label>
               <select 
-                defaultValue="gemini-1.5-pro"
+                defaultValue="gemini-3.6-pro"
                 disabled
                 className="w-full bg-studio-900/50 border rounded px-3 py-1.5 text-sm text-muted-foreground cursor-not-allowed"
               >
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Recommended)</option>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                <option value="gemini-3.6-pro">Gemini 3.6 Pro (Recommended)</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
               </select>
             </div>
             <div className="space-y-1.5">
