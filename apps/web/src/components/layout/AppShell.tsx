@@ -6,6 +6,27 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+function Logo({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#D4AF37" />
+          <stop offset="100%" stopColor="#FFA500" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="20" height="20" rx="4" stroke="url(#logo-grad)" strokeWidth="2" />
+      <rect x="5" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <rect x="11" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <rect x="17" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <rect x="5" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <rect x="11" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <rect x="17" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
+      <path d="M6 12H9L11 9L13 15L15 12H18" stroke="url(#logo-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground">
@@ -13,7 +34,7 @@ export default function AppShell({ children }: AppShellProps) {
       <aside className="flex h-full w-64 flex-col border-r bg-studio-950/70 backdrop-blur-sm px-4 py-6">
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-2 mb-8">
-          <Film className="h-6 w-6 text-primary" />
+          <Logo className="h-6 w-6" />
           <span className="font-semibold tracking-wider text-md uppercase">Frame Sense</span>
         </div>
 
@@ -93,12 +114,16 @@ export default function AppShell({ children }: AppShellProps) {
                 <div className="space-y-4 col-span-1 md:col-span-1">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 bg-studio-900 border border-border/80 rounded-lg shadow-sm">
-                      <Film className="h-5 w-5 text-primary" />
+                      <Logo className="h-5 w-5" />
                     </div>
                     <div>
                       <div className="font-semibold tracking-wider text-sm text-foreground uppercase">Frame Sense</div>
                       <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Post-Production Intelligence</div>
                     </div>
+                  </div>
+
+                  <div className="text-[11px] text-muted-foreground/75">
+                    &copy; {new Date().getFullYear()} Frame Sense. All rights reserved.
                   </div>
                   
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
@@ -149,15 +174,6 @@ export default function AppShell({ children }: AppShellProps) {
                     <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
                     <a href="#" className="hover:text-primary transition-colors">License Agreement</a>
                   </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col md:flex-row items-center justify-between border-t border-border/40 pt-6 text-[11px] text-muted-foreground/70">
-                <div>
-                  &copy; {new Date().getFullYear()} Frame Sense. All rights reserved.
-                </div>
-                <div className="mt-2 md:mt-0">
-                  Autonomous Post-Production Intelligence System
                 </div>
               </div>
             </footer>
