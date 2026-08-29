@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     
+    # Gemini API Key configuration
+    GEMINI_API_KEY: str = ""
+    
     # CORS Configuration
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",  # default Vite port
