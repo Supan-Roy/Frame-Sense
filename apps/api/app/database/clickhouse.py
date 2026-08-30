@@ -123,8 +123,51 @@ def get_global_stats() -> Dict[str, Any]:
 def delete_screening_events(screening_id: str):
     client = get_client()
     try:
-        # ALTER TABLE DELETE mutations run asynchronously in ClickHouse
         client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{screening_id}'")
     except Exception as e:
         print(f"Error executing ClickHouse delete events for {screening_id}: {e}")
+
+
+def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
+    """
+    Rolls back the most recent telemetry run/batch for a screening.
+    Deletes sessions created in the latest timestamp window, restoring state prior to that run.
+    """
+    client = get_client()
+    sid = screening_id.replace("'", "")
+
+    # 1. Query latest event server_timestamp for this screening
+    max_ts_res = client.query(f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}'")
+    if not max_ts_res.result_rows or not max_ts_res.result_rows[0][0]:
+        return {"status": "empty", "message": "No telemetry data to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
+
+    max_ts = max_ts_res.result_rows[0][0]
+
+    # 2. Find sessions created within 10s of the max server_timestamp
+    sessions_query = f"""
+    SELECT DISTINCT session_id, anonymous_viewer_id
+    FROM viewer_events
+    WHERE screening_id = '{sid}'
+      AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -10)
+    """
+    s_res = client.query(sessions_query)
+    target_sessions = [row[0] for row in s_res.result_rows]
+    target_viewers = list({row[1] for row in s_res.result_rows})
+
+    if not target_sessions:
+        return {"status": "empty", "message": "No recent session batch found.", "deleted_sessions": 0, "deleted_viewers": 0}
+
+    sess_str = ", ".join([f"'{s}'" for s in target_sessions])
+
+    # 3. Issue ClickHouse deletion mutation for target sessions
+    client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{sid}' AND session_id IN ({sess_str})")
+
+    return {
+        "status": "success",
+        "message": f"Rolled back latest batch ({len(target_sessions)} session(s) across {len(target_viewers)} viewer(s)).",
+        "deleted_sessions": len(target_sessions),
+        "deleted_viewers": len(target_viewers),
+        "latest_timestamp": str(max_ts),
+    }
+
 

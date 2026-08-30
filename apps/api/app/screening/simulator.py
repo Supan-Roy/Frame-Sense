@@ -54,10 +54,11 @@ def _make_event(
     event_type: str,
     timecode: float,
     rng: random.Random,
+    run_timestamp: Optional[datetime.datetime] = None,
 ) -> Dict[str, Any]:
-    base_ts = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-    ts_offset = datetime.timedelta(seconds=rng.uniform(0, 3600))
-    ts = base_ts + ts_offset
+    if not run_timestamp:
+        run_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    ts = run_timestamp + datetime.timedelta(milliseconds=rng.uniform(0, 500))
     return {
         "event_id": str(uuid.uuid4()),
         "screening_id": screening_id,

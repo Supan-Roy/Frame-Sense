@@ -3,7 +3,7 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart, RotateCcw
+  CircleDot, BarChart, RotateCcw, History
 } from 'lucide-react';
 
 interface Screening {
@@ -298,6 +298,7 @@ export default function Screenings() {
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resettingAudience, setResettingAudience] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const fetchScreenings = async () => {
@@ -373,6 +374,24 @@ export default function Screenings() {
       alert(err.message);
     } finally {
       setResettingAudience(false);
+    }
+  };
+
+  const handleRollbackAudience = async () => {
+    if (!aiScreening) return;
+    setRollingBack(true);
+    try {
+      const res = await fetch(`/api/v1/screenings/${aiScreening.screening_id}/audience/rollback`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to roll back latest run.');
+      setSimResult(null);
+      setShowResetConfirmModal(false);
+      setResetConfirmText('');
+      await loadAIData(aiScreening.screening_id);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setRollingBack(false);
     }
   };
 
@@ -810,63 +829,97 @@ export default function Screenings() {
           <div className="w-full max-w-md bg-studio-950 border border-rose-500/30 rounded-xl shadow-2xl p-6 relative space-y-4">
             <button onClick={() => { setShowResetConfirmModal(false); setResetConfirmText(''); }} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             <div className="flex items-start gap-3">
-              <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 mt-0.5">
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 mt-0.5">
                 <RotateCcw className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-rose-400">Reset Audience Telemetry?</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-amber-400">Reset or Rollback Telemetry</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{aiScreening.title}</p>
               </div>
             </div>
-            <div className="bg-studio-900/50 rounded-lg p-3.5 border border-rose-500/10 text-xs text-rose-400 space-y-2">
-              <p className="font-semibold">This will permanently clear:</p>
-              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                <li>All real &amp; synthetic viewer telemetry from ClickHouse</li>
-                <li>Retention time-series curves and behavioral signals</li>
-                <li>Detected behavioral anomalies and engagement spikes</li>
-              </ul>
-            </div>
-            <div className="space-y-1.5 pt-1 select-none">
-              <label className="text-[11px] text-muted-foreground block select-none">
-                Type <strong className="text-rose-400 font-mono select-none">RESET</strong> to confirm reset:
-              </label>
-              <input
-                type="text"
-                value={resetConfirmText}
-                onChange={e => setResetConfirmText(e.target.value.toUpperCase())}
-                onPaste={e => e.preventDefault()}
-                placeholder="RESET"
-                className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground italic">* Screening room &amp; public access links remain active.</p>
-            <div className="flex justify-end gap-2 pt-2">
+
+            {/* SAFE OPTION: Rollback Last Generation */}
+            <div className="bg-amber-500/[0.04] border border-amber-500/20 rounded-lg p-3.5 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
+                <History className="h-4 w-4 text-amber-400" />
+                <span>Option 1: Safe Time Travel (Undo Last Run)</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Rolls back ONLY the most recent simulation run or viewer batch. Brings audience telemetry back to its state before that run, leaving earlier real viewers intact.
+              </p>
               <button
                 type="button"
-                onClick={() => { setShowResetConfirmModal(false); setResetConfirmText(''); }}
-                disabled={resettingAudience}
-                className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50"
+                onClick={handleRollbackAudience}
+                disabled={rollingBack || resettingAudience}
+                className="w-full py-2 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold rounded text-xs flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleResetAudience}
-                disabled={resettingAudience || resetConfirmText !== 'RESET'}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {resettingAudience ? (
+                {rollingBack ? (
                   <>
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Clearing...</span>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Rolling back latest run...</span>
                   </>
                 ) : (
                   <>
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>Confirm &amp; Clear Telemetry</span>
+                    <History className="h-3.5 w-3.5" />
+                    <span>Undo Last Run (Time Travel)</span>
                   </>
                 )}
               </button>
+            </div>
+
+            {/* DESTRUCTIVE OPTION: Complete Telemetry Wipe */}
+            <div className="border-t border-white/10 pt-3 space-y-3">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-rose-400">
+                Option 2: Full Telemetry Reset (Complete Wipe)
+              </div>
+              <div className="bg-studio-900/50 rounded-lg p-3 border border-rose-500/10 text-xs text-rose-400 space-y-1">
+                <p className="font-semibold text-[11px]">Permanently clears all telemetry from ClickHouse:</p>
+                <ul className="list-disc pl-4 text-[10px] space-y-0.5 text-muted-foreground">
+                  <li>All real &amp; synthetic viewer telemetry records</li>
+                  <li>Retention time-series curves and behavioral signals</li>
+                </ul>
+              </div>
+              <div className="space-y-1.5 select-none">
+                <label className="text-[11px] text-muted-foreground block select-none">
+                  Type <strong className="text-rose-400 font-mono select-none">RESET</strong> to confirm full wipe:
+                </label>
+                <input
+                  type="text"
+                  value={resetConfirmText}
+                  onChange={e => setResetConfirmText(e.target.value.toUpperCase())}
+                  onPaste={e => e.preventDefault()}
+                  placeholder="RESET"
+                  className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowResetConfirmModal(false); setResetConfirmText(''); }}
+                  disabled={resettingAudience || rollingBack}
+                  className="px-4 py-1.5 border rounded text-xs hover:bg-studio-900 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetAudience}
+                  disabled={resettingAudience || rollingBack || resetConfirmText !== 'RESET'}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {resettingAudience ? (
+                    <>
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Clearing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Confirm &amp; Clear All</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

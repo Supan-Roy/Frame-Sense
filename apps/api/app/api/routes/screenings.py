@@ -213,6 +213,23 @@ def reset_screening_audience_data(screening_id: str):
         raise HTTPException(status_code=500, detail=f"Reset error: {e}")
 
 
+@router.post("/{screening_id}/audience/rollback")
+def rollback_screening_audience_batch(screening_id: str):
+    """
+    Rolls back the most recent audience telemetry run/batch for a screening.
+    Deletes events generated in the latest simulation run or viewer cluster,
+    restoring telemetry to its state prior to that run.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.database.clickhouse import rollback_last_batch
+        return rollback_last_batch(screening_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rollback error: {e}")
+
+
 @router.get("/{screening_id}/audience/fingerprint")
 def get_screening_audience_fingerprint(screening_id: str, bucket_sec: int = Query(default=10, ge=1, le=60)):
     """
