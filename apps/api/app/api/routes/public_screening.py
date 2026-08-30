@@ -27,8 +27,13 @@ def stream_screening_media(public_token: str):
         
     try:
         file_path = storage_backend.get_file_path(record["media_filename"])
-        # Fast API's FileResponse naturally handles range seeks on local files
-        return FileResponse(file_path, media_type="video/mp4")
+        return FileResponse(
+            file_path,
+            media_type="video/mp4",
+            headers={
+                "Accept-Ranges": "bytes",
+            }
+        )
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

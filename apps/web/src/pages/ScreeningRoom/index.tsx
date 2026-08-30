@@ -41,7 +41,6 @@ export default function ScreeningRoom() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [videoReady, setVideoReady] = useState(false); // true once HAVE_METADATA loaded
 
   // Refs that mirror state for use inside callbacks without stale closures
   const isPlayingRef = useRef(false);
@@ -78,6 +77,11 @@ export default function ScreeningRoom() {
         }
         const data = await res.json();
         setScreening(data);
+        if (data.media_duration) {
+          const dur = Number(data.media_duration);
+          durationRef.current = dur;
+          setDuration(dur);
+        }
         setError(null);
       } catch (err: any) {
         setError(err.message || "Invalid or expired screening link.");
@@ -259,17 +263,17 @@ export default function ScreeningRoom() {
   const safeSeek = (target: number) => {
     const vid = videoRef.current;
     if (!vid) return;
-    const clamped = Math.min(Math.max(target, 0), durationRef.current || Infinity);
-    // readyState >= 1 means we have at least metadata (duration)
-    // Actual seek requires readyState >= 2 (HAVE_CURRENT_DATA) ideally
-    if (vid.readyState >= 1) {
+    const totalDuration = durationRef.current || (screening?.media_duration ? Number(screening.media_duration) : Infinity);
+    const clamped = Math.min(Math.max(target, 0), totalDuration);
+    if (isNaN(clamped)) return;
+
+    try {
       vid.currentTime = clamped;
-    } else {
-      // Queue the seek to execute as soon as metadata arrives
-      const onReady = () => { vid.currentTime = clamped; vid.removeEventListener('loadedmetadata', onReady); };
-      vid.addEventListener('loadedmetadata', onReady);
+    } catch (err) {
+      console.warn("Direct seek failed:", err);
     }
     setCurrentTime(clamped);
+    setScrubTime(clamped);
   };
 
   const skipTime = (amount: number) => {
@@ -343,10 +347,10 @@ export default function ScreeningRoom() {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       const d = videoRef.current.duration;
-      durationRef.current = d;
-      setDuration(d);
-      setVideoReady(true);
-      // Now it is safe to attach the preview video src (deferred to avoid double-buffering on load)
+      if (d && !isNaN(d) && Number.isFinite(d)) {
+        durationRef.current = d;
+        setDuration(d);
+      }
       if (previewVideoRef.current && !previewVideoRef.current.src) {
         previewVideoRef.current.src = videoRef.current.src;
       }
@@ -366,7 +370,8 @@ export default function ScreeningRoom() {
     if (!seekbarRef.current) return 0;
     const rect = seekbarRef.current.getBoundingClientRect();
     const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
-    return percent * duration;
+    const totalDuration = durationRef.current || (screening?.media_duration ? Number(screening.media_duration) : 0);
+    return percent * totalDuration;
   };
 
   const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -374,7 +379,6 @@ export default function ScreeningRoom() {
     setIsHoveringSeek(true);
     const time = getSeekTimeFromX(e.clientX);
     setHoverTime(time);
-    // Only seek preview if the hidden video is ready (avoids errors before deferred load)
     if (previewVideoRef.current && previewVideoRef.current.readyState >= 1) {
       previewVideoRef.current.currentTime = time;
     }
@@ -386,12 +390,12 @@ export default function ScreeningRoom() {
   };
 
   const handleSeekMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoReady) return; // don't allow seek before video is ready
     isScrubbingRef.current = true;
     setIsScrubbing(true);
     const time = getSeekTimeFromX(e.clientX);
     scrubTimeRef.current = time;
     setScrubTime(time);
+    safeSeek(time);
     if (videoRef.current && isPlayingRef.current) {
       videoRef.current.pause();
     }
