@@ -100,7 +100,9 @@ def _generate_real_anchored_events(
     events: List[Dict[str, Any]] = []
 
     def emit(event_type: str, t: float):
-        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng, run_timestamp=run_timestamp))
+        # Apply organic micro-jitter (±1.5s) to prevent rigid 10s step alignment
+        jittered_t = max(0.0, min(duration, round(t + rng.uniform(-1.5, 1.5), 2)))
+        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, jittered_t, rng, run_timestamp=run_timestamp))
 
     emit("TAB_VISIBLE", 0)
     emit("PLAY", 0)
@@ -211,7 +213,8 @@ def _generate_cold_start_events(
     events: List[Dict[str, Any]] = []
 
     def emit(event_type: str, t: float):
-        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng, run_timestamp=run_timestamp))
+        jittered_t = max(0.0, min(duration, round(t + rng.uniform(-1.5, 1.5), 2)))
+        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, jittered_t, rng, run_timestamp=run_timestamp))
 
     emit("TAB_VISIBLE", 0)
     emit("PLAY", 0)

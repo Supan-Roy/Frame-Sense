@@ -278,11 +278,13 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         evidence = []
         sev_score = 1.0
         cat_title = "Behavioral Spike"
+        domain = "COGNITIVE"
 
         if c_replays > max(1, c_exits * 2) and c_replays >= 1:
-            cat_title = "Scene Replay Peak"
+            cat_title = "Emotional Scene Replay Hotspot"
+            domain = "EMOTIONAL"
             ratio = replay_rate / (baselines["replays"][0] / max(1, unique_viewers) + eps)
-            evidence.append(f"Replay peak at {_fmt_time(peak_t)} ({c_replays} replay events, {ratio:.1f}x above baseline)")
+            evidence.append(f"High emotional impact or memorable scene replay peak at {_fmt_time(peak_t)} ({c_replays} replay events, {ratio:.1f}x above baseline)")
             exceptional_engagement.append({
                 "anomaly_id": f"eng_{uuid.uuid4().hex[:12]}",
                 "screening_id": screening_id,
@@ -291,6 +293,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                 "peak_time_sec": peak_t,
                 "window_duration_sec": dur,
                 "title": cat_title,
+                "domain": domain,
                 "type": "EXCEPTIONAL_ENGAGEMENT",
                 "severity": "HIGH" if c_replays >= 5 else "MEDIUM",
                 "signals": {
@@ -304,37 +307,49 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             continue
 
         if c_pauses > 0 and c_rewinds > 0:
-            cat_title = "Comprehension Freeze"
-            evidence.append(f"Micro-burst peak at {_fmt_time(peak_t)}: {c_pauses} pause(s) & {c_rewinds} rewind(s) in {dur}s window")
+            cat_title = "Cognitive Comprehension Barrier"
+            domain = "COGNITIVE"
+            evidence.append(f"Cognitive overload peak at {_fmt_time(peak_t)}: {c_pauses} pause(s) & {c_rewinds} rewind(s) in {dur}s window (dense dialogue or plot friction)")
+            sev_score = max(sev_score, 2.0)
+        elif c_tabs > 0 and (c_pauses > 0 or c_exits > 0 or c_tabs >= 2):
+            cat_title = "Psychological Attention Loss"
+            domain = "PSYCHOLOGICAL"
+            evidence.append(f"Psychological disengagement peak at {_fmt_time(peak_t)}: {c_tabs} tab switch / hide event(s) recorded (loss of visual immersion)")
             sev_score = max(sev_score, 2.0)
         elif c_skips > 0 and c_exits > 0:
             cat_title = "Dead Zone Pacing Skip"
-            evidence.append(f"Pacing friction peak at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s) in {dur}s window")
+            domain = "PACING"
+            evidence.append(f"Pacing friction peak at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s) in {dur}s window (slow narrative pace)")
             sev_score = max(sev_score, 2.5)
         elif c_exits > 0:
-            cat_title = "Abandonment Drop"
-            evidence.append(f"Audience exit peak at {_fmt_time(peak_t)} ({c_exits} exit events, {exit_rate*100:.1f}%)")
+            cat_title = "Critical Scene Exit Drop"
+            domain = "RETENTION"
+            evidence.append(f"Audience exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit events, {exit_rate*100:.1f}%)")
             sev_score = max(sev_score, 2.5)
+        elif c_vol > 0:
+            cat_title = "Audio Mix Perception Spike"
+            domain = "PERCEPTUAL"
+            evidence.append(f"Sound mix perception peak at {_fmt_time(peak_t)} ({c_vol} volume change events, dialogue/music imbalance)")
+            sev_score = max(sev_score, 1.5)
         elif c_pauses > 0:
             cat_title = "Scene Pause Spike"
+            domain = "COGNITIVE"
             evidence.append(f"Pause micro-burst peak at {_fmt_time(peak_t)} ({c_pauses} pause events)")
             sev_score = max(sev_score, 1.5)
         elif c_rewinds > 0:
             cat_title = "Rewind Hotspot"
+            domain = "COGNITIVE"
             evidence.append(f"Rewind micro-burst peak at {_fmt_time(peak_t)} ({c_rewinds} rewind events)")
             sev_score = max(sev_score, 1.5)
-        elif c_vol > 0:
-            cat_title = "Audio Mix Friction"
-            evidence.append(f"Volume adjustment peak at {_fmt_time(peak_t)} ({c_vol} volume change events)")
-            sev_score = max(sev_score, 1.5)
         elif c_tabs > 0:
-            cat_title = "Attention Flicker"
-            evidence.append(f"Tab hide / blur peak at {_fmt_time(peak_t)} ({c_tabs} tab switch events)")
+            cat_title = "Psychological Attention Shift"
+            domain = "PSYCHOLOGICAL"
+            evidence.append(f"Tab hide / window blur peak at {_fmt_time(peak_t)} ({c_tabs} tab switch events)")
             sev_score = max(sev_score, 1.5)
 
         if c_vol > 0 and "Audio" not in cat_title:
             evidence.append(f"Audio adjustment co-occurred ({c_vol} volume events)")
-        if c_tabs > 0 and "Attention" not in cat_title:
+        if c_tabs > 0 and "Psychological" not in cat_title:
             evidence.append(f"Attention shift co-occurred ({c_tabs} tab hides)")
 
         sev_label = "HIGH" if sev_score >= 2.5 else ("MEDIUM" if sev_score >= 2.0 else "LOW")
@@ -347,6 +362,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             "peak_time_sec": peak_t,
             "window_duration_sec": dur,
             "title": cat_title,
+            "domain": domain,
             "type": "BEHAVIORAL_ANOMALY",
             "severity": sev_label,
             "signals": {

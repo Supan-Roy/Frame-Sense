@@ -76,6 +76,7 @@ interface Anomaly {
   peak_time_sec?: number;
   window_duration_sec?: number;
   title?: string;
+  domain?: 'COGNITIVE' | 'PSYCHOLOGICAL' | 'PACING' | 'PERCEPTUAL' | 'EMOTIONAL' | 'RETENTION';
   type: 'BEHAVIORAL_ANOMALY' | 'EXCEPTIONAL_ENGAGEMENT';
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
   signals: AnomalySignals;
@@ -371,7 +372,16 @@ function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEn
 
   const peakSec = anomaly.peak_time_sec !== undefined ? anomaly.peak_time_sec : anomaly.start_time_sec;
   const windowDur = anomaly.window_duration_sec !== undefined ? anomaly.window_duration_sec : (anomaly.end_time_sec - anomaly.start_time_sec);
-  const cardTitle = anomaly.title || (isEngagement ? 'Exceptional Engagement Peak' : 'Behavioral Anomaly');
+  const cardTitle = anomaly.title || (isEngagement ? 'Emotional Scene Replay Hotspot' : 'Behavioral Anomaly');
+
+  const domain = anomaly.domain || (isEngagement ? 'EMOTIONAL' : 'COGNITIVE');
+  const domainCls = 
+    domain === 'COGNITIVE' ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' :
+    domain === 'PSYCHOLOGICAL' ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30' :
+    domain === 'PACING' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' :
+    domain === 'PERCEPTUAL' ? 'bg-sky-500/10 text-sky-300 border-sky-500/30' :
+    domain === 'EMOTIONAL' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
+    'bg-rose-500/10 text-rose-300 border-rose-500/30';
 
   return (
     <div className={`border rounded-lg overflow-hidden cursor-pointer ${border} bg-studio-900/30 transition-all`} onClick={() => setExpanded(e => !e)}>
@@ -384,7 +394,10 @@ function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEn
               {windowDur}s window &middot; Peak at {fmtTime(peakSec)}
             </span>
             <SeverityBadge severity={anomaly.severity} />
-            <span className="text-[11px] font-semibold text-sky-300">{cardTitle}</span>
+            <span className={`text-[9px] font-mono font-semibold px-2 py-0.5 rounded border uppercase tracking-wider ${domainCls}`}>
+              {domain}
+            </span>
+            <span className="text-[11px] font-semibold text-sky-200">{cardTitle}</span>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1 truncate">{anomaly.evidence[0]}</p>
         </div>
