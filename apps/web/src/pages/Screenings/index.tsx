@@ -781,14 +781,15 @@ export default function Screenings() {
               <p className="font-semibold">Permanently destroys:</p>
               <ul className="list-disc pl-4 space-y-1 text-muted-foreground"><li>Screening room and access links</li><li>Uploaded video file from disk</li><li>All ClickHouse telemetry records</li></ul>
             </div>
-            <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] text-muted-foreground block">
-                Type <strong className="text-rose-400 font-mono">DELETE</strong> to confirm deletion:
+            <div className="space-y-1.5 pt-1 select-none">
+              <label className="text-[11px] text-muted-foreground block select-none">
+                Type <strong className="text-rose-400 font-mono select-none">DELETE</strong> to confirm deletion:
               </label>
               <input
                 type="text"
                 value={deleteConfirmText}
                 onChange={e => setDeleteConfirmText(e.target.value.toUpperCase())}
+                onPaste={e => e.preventDefault()}
                 placeholder="DELETE"
                 className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
               />
@@ -825,14 +826,15 @@ export default function Screenings() {
                 <li>Detected behavioral anomalies and engagement spikes</li>
               </ul>
             </div>
-            <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] text-muted-foreground block">
-                Type <strong className="text-rose-400 font-mono">RESET</strong> to confirm reset:
+            <div className="space-y-1.5 pt-1 select-none">
+              <label className="text-[11px] text-muted-foreground block select-none">
+                Type <strong className="text-rose-400 font-mono select-none">RESET</strong> to confirm reset:
               </label>
               <input
                 type="text"
                 value={resetConfirmText}
                 onChange={e => setResetConfirmText(e.target.value.toUpperCase())}
+                onPaste={e => e.preventDefault()}
                 placeholder="RESET"
                 className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
               />
