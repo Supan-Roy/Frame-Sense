@@ -41,16 +41,15 @@ import datetime
 from typing import List, Dict, Any, Optional
 from app.database.clickhouse import get_client, insert_events
 
-# ---------------------------------------------------------------------------
-# Default ground truth configuration (demo / stress test)
-# ---------------------------------------------------------------------------
-
-DEFAULT_GROUND_TRUTH = [
-    {"label": "pacing",               "start": 72,  "end": 84},
-    {"label": "exceptional_engagement","start": 96,  "end": 104},
-    {"label": "comprehension",         "start": 151, "end": 163},
-    {"label": "audio",                 "start": 221, "end": 230},
-]
+# Dynamic ground truth helper (scales anomaly windows to video duration)
+def get_default_ground_truth(duration: float) -> List[Dict[str, Any]]:
+    d = max(10.0, float(duration))
+    return [
+        {"label": "pacing",                "start": round(d * 0.22, 1), "end": round(d * 0.32, 1)},
+        {"label": "exceptional_engagement", "start": round(d * 0.40, 1), "end": round(d * 0.48, 1)},
+        {"label": "comprehension",          "start": round(d * 0.56, 1), "end": round(d * 0.64, 1)},
+        {"label": "audio",                  "start": round(d * 0.74, 1), "end": round(d * 0.82, 1)},
+    ]
 
 # Viewer profile distribution weights (must sum to 1.0)
 PROFILE_WEIGHTS = {
@@ -237,7 +236,7 @@ def run_simulation(
     Returns summary dict with generated stats.
     """
     if ground_truth is None:
-        ground_truth = DEFAULT_GROUND_TRUTH
+        ground_truth = get_default_ground_truth(duration)
 
     rng = random.Random(seed)
     profiles = list(PROFILE_WEIGHTS.keys())

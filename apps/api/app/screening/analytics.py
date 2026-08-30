@@ -156,12 +156,19 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
     Returns structured anomaly objects suitable for future Gemini agent consumption.
     Evidence strings are observational ONLY - no semantic interpretation.
     """
-    signals_data = get_behavioral_signals(screening_id, bucket_sec)
+    b = max(1, int(bucket_sec))
+    signals_data = get_behavioral_signals(screening_id, b)
     buckets = signals_data["signals"]
     unique_viewers = signals_data["unique_viewers"]
 
+    # For short videos (< 60s), if 10s buckets produce fewer than 4 buckets, auto-reduce to 5s buckets for higher resolution
+    if len(buckets) < 4 and b > 4 and unique_viewers > 0:
+        b = 5
+        signals_data = get_behavioral_signals(screening_id, b)
+        buckets = signals_data["signals"]
+
     if unique_viewers == 0 or len(buckets) < 3:
-        return {"screening_id": screening_id, "bucket_sec": bucket_sec, "unique_viewers": unique_viewers,
+        return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": unique_viewers,
                 "reliability": _reliability(unique_viewers), "anomalies": [], "exceptional_engagement": []}
 
     metrics = ["exit_rate", "rewind_rate", "pause_rate", "skip_rate", "replay_rate"]
