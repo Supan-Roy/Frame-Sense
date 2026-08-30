@@ -91,3 +91,22 @@ def get_screening_stats(screening_id: str) -> Dict[str, Any]:
         "completed_sessions": completed_sessions,
         "event_breakdown": event_breakdown
     }
+
+def get_global_stats() -> Dict[str, Any]:
+    client = get_client()
+    try:
+        total_sessions = client.command("SELECT count(DISTINCT session_id) FROM viewer_events")
+        total_viewers = client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events")
+        total_events = client.command("SELECT count() FROM viewer_events")
+        return {
+            "total_sessions": int(total_sessions),
+            "total_viewers": int(total_viewers),
+            "total_events": int(total_events)
+        }
+    except Exception as e:
+        print(f"Error querying global stats from ClickHouse: {e}")
+        return {
+            "total_sessions": 0,
+            "total_viewers": 0,
+            "total_events": 0
+        }

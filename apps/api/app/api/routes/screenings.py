@@ -8,6 +8,21 @@ from app.database.clickhouse import get_screening_stats
 
 router = APIRouter()
 
+@router.get("/dashboard/stats")
+def get_dashboard_stats():
+    screenings_list = screening_repo.get_all()
+    total_screenings = len(screenings_list)
+    
+    from app.database.clickhouse import get_global_stats
+    db_stats = get_global_stats()
+    
+    return {
+        "active_projects": total_screenings,
+        "total_sessions": db_stats["total_sessions"],
+        "total_events": db_stats["total_events"],
+        "unique_viewers": db_stats["total_viewers"]
+    }
+
 @router.get("", response_model=List[ScreeningResponse])
 def list_screenings():
     records = screening_repo.get_all()
