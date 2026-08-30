@@ -485,7 +485,7 @@ export default function ScreeningRoom() {
               onMouseMove={handleUserActivity}
               onMouseLeave={() => isPlaying && setShowControls(false)}
               onContextMenu={handleContextMenu}
-              className="w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black relative shadow-2xl group flex items-center justify-center"
+              className={`w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black relative shadow-2xl group flex items-center justify-center ${showControls ? 'cursor-default' : 'cursor-none'}`}
             >
               {/* Hidden Sprite Preloader Player with copy protection */}
               <video
@@ -506,7 +506,7 @@ export default function ScreeningRoom() {
                 preload="auto"
                 controlsList="nodownload noRemotePlayback"
                 disablePictureInPicture
-                className="w-full h-full object-contain cursor-none"
+                className={`w-full h-full object-contain ${showControls ? 'cursor-default' : 'cursor-none'}`}
                 onClick={togglePlay}
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
