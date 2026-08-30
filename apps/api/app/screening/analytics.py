@@ -53,40 +53,53 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     }
 
 
-def get_retention_curve(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
+def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
     """
-    Viewer retention time series.
-    For each bucket t, count viewers whose max watched timecode >= t.
-    retention_rate = viewers_at_t / total_starters.
+    High-resolution Audience Retention Curve.
+    Calculates active viewer retention across timecode buckets with organic presence tracking.
     """
     client = get_client()
     sid = screening_id.replace("'", "")
-    b = max(1, int(bucket_sec))
+
+    total_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}'"))
+    if total_viewers == 0:
+        return {"screening_id": screening_id, "bucket_sec": bucket_sec, "total_starters": 0, "curve": []}
+
+    max_dur_res = client.query(f"SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = '{sid}' AND video_timecode_sec >= 0")
+    max_dur = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 60.0
+    if max_dur <= 0:
+        max_dur = 60.0
+
+    b = max(2, min(10, int(bucket_sec)))
 
     query = f"""
-    WITH viewer_max AS (
-        SELECT anonymous_viewer_id, max(video_timecode_sec) AS max_reached
+    WITH viewer_spans AS (
+        SELECT
+            anonymous_viewer_id,
+            max(video_timecode_sec) AS max_reached,
+            countIf(event_type = 'EXIT') > 0 AS has_exited,
+            maxIf(video_timecode_sec, event_type = 'EXIT') AS exit_tc
         FROM viewer_events
-        WHERE screening_id = '{sid}' AND event_type IN ('PLAY','PROGRESS','PAUSE','COMPLETE')
+        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
         GROUP BY anonymous_viewer_id
-    ),
-    total AS (SELECT count(DISTINCT anonymous_viewer_id) AS n FROM viewer_events WHERE screening_id = '{sid}')
-    SELECT bucket, countIf(max_reached >= bucket) AS viewers_at, any(n) AS total
-    FROM (
-        SELECT arrayJoin(range(0, toUInt32(max_reached) + {b}, {b})) AS bucket, max_reached, (SELECT n FROM total) AS n
-        FROM viewer_max
     )
-    GROUP BY bucket ORDER BY bucket
+    SELECT
+        b.bucket,
+        countIf(v.max_reached >= b.bucket AND (NOT v.has_exited OR v.exit_tc >= b.bucket)) AS active_viewers
+    FROM (
+        SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + {b}, {b})) AS bucket
+    ) AS b
+    CROSS JOIN viewer_spans AS v
+    GROUP BY b.bucket
+    ORDER BY b.bucket
     """
     result = client.query(query)
-    total_viewers = 0
     buckets = []
     for row in result.result_rows:
-        bucket_t, viewers_at, total_v = row
-        if total_viewers == 0 and total_v:
-            total_viewers = int(total_v)
-        retention = round(int(viewers_at) / max(1, int(total_v)), 4) if total_v else 0.0
-        buckets.append({"time_sec": int(bucket_t), "viewers": int(viewers_at), "retention_rate": retention})
+        bucket_t, active_v = row
+        retention = round(int(active_v) / max(1, total_viewers), 4)
+        buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
+
     return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
 
 

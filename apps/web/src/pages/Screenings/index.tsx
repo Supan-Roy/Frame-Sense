@@ -100,37 +100,183 @@ function fmtPct(n: number): string {
 }
 
 function RetentionChart({ data }: { data: RetentionData }) {
-  const W = 520, H = 200;
-  const PAD = { top: 16, right: 20, bottom: 36, left: 44 };
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const W = 560, H = 220;
+  const PAD = { top: 20, right: 24, bottom: 40, left: 48 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
   const curve = data.curve.filter(p => p.time_sec >= 0);
-  if (curve.length === 0) return <div className="text-xs text-muted-foreground italic text-center py-6">No retention data.</div>;
+
+  if (curve.length === 0) return <div className="text-xs text-muted-foreground italic text-center py-8">No retention telemetry recorded yet.</div>;
+
   const maxT = curve[curve.length - 1].time_sec || 1;
   const xS = (t: number) => (t / maxT) * plotW;
   const yS = (r: number) => plotH - r * plotH;
-  const pathD = curve.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xS(p.time_sec).toFixed(1)} ${yS(p.retention_rate).toFixed(1)}`).join(' ');
-  const fillD = `${pathD} L ${xS(maxT).toFixed(1)} ${plotH.toFixed(1)} L 0 ${plotH.toFixed(1)} Z`;
+
+  const points = curve.map(p => ({ x: xS(p.time_sec), y: yS(p.retention_rate), point: p }));
+
+  const getSmoothPath = (pts: { x: number; y: number }[]) => {
+    if (pts.length === 0) return '';
+    if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i];
+      const p1 = pts[i + 1];
+      const cp1x = p0.x + (p1.x - p0.x) * 0.45;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) * 0.45;
+      const cp2y = p1.y;
+      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+    }
+    return d;
+  };
+
+  const smoothLinePath = getSmoothPath(points);
+  const fillPath = `${smoothLinePath} L ${plotW.toFixed(1)} ${plotH.toFixed(1)} L 0 ${plotH.toFixed(1)} Z`;
+
   const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
   const xTicks = Array.from({ length: 6 }, (_, i) => Math.round((maxT / 5) * i));
+
+  const hoveredPoint = hoverIndex !== null ? points[hoverIndex] : null;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      <defs>
-        <linearGradient id="ret-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <g transform={`translate(${PAD.left}, ${PAD.top})`}>
-        {yTicks.map(t => <line key={t} x1={0} y1={yS(t).toFixed(1)} x2={plotW} y2={yS(t).toFixed(1)} stroke="#ffffff10" strokeWidth="1" />)}
-        <path d={fillD} fill="url(#ret-fill)" />
-        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
-        {yTicks.map(t => <text key={t} x={-8} y={yS(t) + 4} textAnchor="end" fontSize="9" fill="#888">{Math.round(t * 100)}%</text>)}
-        {xTicks.map(t => <text key={t} x={xS(t)} y={plotH + 18} textAnchor="middle" fontSize="9" fill="#888">{fmtTime(t)}</text>)}
-        <line x1={0} y1={0} x2={0} y2={plotH} stroke="#333" strokeWidth="1" />
-        <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="#333" strokeWidth="1" />
-      </g>
-    </svg>
+    <div className="relative w-full group/ret">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto overflow-visible select-none"
+        onMouseLeave={() => setHoverIndex(null)}
+      >
+        <defs>
+          <linearGradient id="ret-fill-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
+            <stop offset="60%" stopColor="#0284c7" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#0369a1" stopOpacity="0.0" />
+          </linearGradient>
+          <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g transform={`translate(${PAD.left}, ${PAD.top})`}>
+          {yTicks.map(t => (
+            <line
+              key={t}
+              x1={0}
+              y1={yS(t).toFixed(1)}
+              x2={plotW}
+              y2={yS(t).toFixed(1)}
+              stroke="#ffffff12"
+              strokeDasharray={t === 0 ? 'none' : '3 3'}
+              strokeWidth="1"
+            />
+          ))}
+
+          <path d={fillPath} fill="url(#ret-fill-grad)" />
+
+          <path
+            d={smoothLinePath}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#neon-glow)"
+          />
+
+          {yTicks.map(t => (
+            <text
+              key={t}
+              x={-10}
+              y={yS(t) + 3}
+              textAnchor="end"
+              fontSize="9"
+              className="fill-muted-foreground font-mono font-medium"
+            >
+              {Math.round(t * 100)}%
+            </text>
+          ))}
+
+          {xTicks.map(t => (
+            <text
+              key={t}
+              x={xS(t)}
+              y={plotH + 20}
+              textAnchor="middle"
+              fontSize="9"
+              className="fill-muted-foreground font-mono font-medium"
+            >
+              {fmtTime(t)}
+            </text>
+          ))}
+
+          <line x1={0} y1={0} x2={0} y2={plotH} stroke="#ffffff20" strokeWidth="1" />
+          <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="#ffffff20" strokeWidth="1" />
+
+          {hoveredPoint && (
+            <g>
+              <line
+                x1={hoveredPoint.x}
+                y1={0}
+                x2={hoveredPoint.x}
+                y2={plotH}
+                stroke="#38bdf8"
+                strokeWidth="1"
+                strokeDasharray="4 4"
+                className="opacity-80"
+              />
+              <circle
+                cx={hoveredPoint.x}
+                cy={hoveredPoint.y}
+                r="5"
+                fill="#0284c7"
+                stroke="#ffffff"
+                strokeWidth="2"
+                className="drop-shadow-lg"
+              />
+            </g>
+          )}
+
+          {points.map((pt, idx) => {
+            const colW = plotW / Math.max(1, points.length);
+            return (
+              <rect
+                key={idx}
+                x={pt.x - colW / 2}
+                y={0}
+                width={colW}
+                height={plotH}
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoverIndex(idx)}
+              />
+            );
+          })}
+        </g>
+      </svg>
+
+      {hoveredPoint && (
+        <div
+          className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full bg-studio-950/95 border border-sky-500/30 rounded-lg p-2.5 shadow-2xl backdrop-blur-md space-y-1 font-mono text-[11px]"
+          style={{
+            left: `${PAD.left + hoveredPoint.x}px`,
+            top: `${PAD.top + hoveredPoint.y - 12}px`,
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 text-muted-foreground border-b border-white/10 pb-1 text-[10px]">
+            <span>Time: <strong className="text-foreground">{fmtTime(hoveredPoint.point.time_sec)}</strong></span>
+            <span className="text-sky-400 font-semibold">{fmtPct(hoveredPoint.point.retention_rate)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 text-foreground font-semibold pt-0.5">
+            <span className="text-[10px] text-muted-foreground font-normal">Active Viewers:</span>
+            <span className="text-sky-300">{hoveredPoint.point.viewers.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
