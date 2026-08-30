@@ -27,7 +27,7 @@ function Logo({ className = "h-6 w-6" }: { className?: string }) {
   );
 }
 
-function LogoWordmark({ className = "h-8 w-auto" }: { className?: string }) {
+function LogoWordmark({ className = "h-8 w-auto select-none pointer-events-none" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 170 30" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -52,7 +52,7 @@ function LogoWordmark({ className = "h-8 w-auto" }: { className?: string }) {
   );
 }
 
-function LogoText({ className = "h-5 w-auto" }: { className?: string }) {
+function LogoText({ className = "h-5 w-auto select-none pointer-events-none" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 130 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <text x="0" y="15" fill="#ffffff" fontFamily="'Sofia Sans', sans-serif" fontSize="12" fontWeight="800" letterSpacing="0.08em">FRAME</text>
@@ -68,7 +68,7 @@ export default function AppShell({ children }: AppShellProps) {
       <aside className="flex h-full w-64 flex-col border-r bg-studio-950/70 backdrop-blur-sm px-4 py-6">
         {/* Logo */}
         <div className="px-2 mb-8 flex items-center">
-          <LogoWordmark className="h-7 w-auto" />
+          <LogoWordmark className="h-9 w-auto select-none pointer-events-none" />
         </div>
 
         {/* Navigation */}
@@ -146,12 +146,12 @@ export default function AppShell({ children }: AppShellProps) {
                 {/* Column 1: Brand & Developer Info */}
                 <div className="space-y-4 col-span-1 md:col-span-1">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-studio-900 border border-border/80 rounded-lg shadow-sm">
-                      <Logo className="h-5 w-5" />
+                    <div className="p-2 bg-studio-900 border border-border/80 rounded-lg shadow-sm select-none pointer-events-none">
+                      <Logo className="h-5 w-5 select-none pointer-events-none" />
                     </div>
                     <div>
-                      <LogoText className="h-4 w-auto block" />
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Post-Production Intelligence</div>
+                      <LogoText className="h-[18px] w-auto block select-none pointer-events-none" />
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5 select-none pointer-events-none">Post-Production Intelligence</div>
                     </div>
                   </div>
 
