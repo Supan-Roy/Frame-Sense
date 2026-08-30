@@ -123,7 +123,7 @@ def get_global_stats() -> Dict[str, Any]:
 def delete_screening_events(screening_id: str):
     client = get_client()
     try:
-        client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{screening_id}'")
+        client.command(f"DELETE FROM viewer_events WHERE screening_id = '{screening_id}'")
     except Exception as e:
         print(f"Error executing ClickHouse delete events for {screening_id}: {e}")
 
@@ -174,7 +174,7 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
         return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
     sess_str = ", ".join([f"'{s}'" for s in target_sessions])
-    client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{sid}' AND session_id IN ({sess_str})")
+    client.command(f"DELETE FROM viewer_events WHERE screening_id = '{sid}' AND session_id IN ({sess_str})")
 
     return {
         "status": "success",

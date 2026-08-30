@@ -388,6 +388,7 @@ export default function Screenings() {
       setShowResetConfirmModal(false);
       setResetConfirmText('');
       await loadAIData(aiScreening.screening_id);
+      alert(data.message || 'Latest run rolled back successfully.');
     } catch (err: any) {
       alert(err.message);
     } finally {
