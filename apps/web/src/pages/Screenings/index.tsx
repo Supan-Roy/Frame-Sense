@@ -73,6 +73,9 @@ interface Anomaly {
   screening_id: string;
   start_time_sec: number;
   end_time_sec: number;
+  peak_time_sec?: number;
+  window_duration_sec?: number;
+  title?: string;
   type: 'BEHAVIORAL_ANOMALY' | 'EXCEPTIONAL_ENGAGEMENT';
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
   signals: AnomalySignals;
@@ -365,27 +368,35 @@ function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEn
     : anomaly.severity === 'MEDIUM' ? 'border-amber-500/25 hover:border-amber-500/50' : 'border-blue-500/25 hover:border-blue-500/50';
   const Icon = isEngagement ? Zap : TrendingDown;
   const ic = isEngagement ? 'text-emerald-400' : 'text-rose-400';
+
+  const peakSec = anomaly.peak_time_sec !== undefined ? anomaly.peak_time_sec : anomaly.start_time_sec;
+  const windowDur = anomaly.window_duration_sec !== undefined ? anomaly.window_duration_sec : (anomaly.end_time_sec - anomaly.start_time_sec);
+  const cardTitle = anomaly.title || (isEngagement ? 'Exceptional Engagement Peak' : 'Behavioral Anomaly');
+
   return (
-    <div className={`border rounded-lg overflow-hidden cursor-pointer ${border} bg-studio-900/30`} onClick={() => setExpanded(e => !e)}>
+    <div className={`border rounded-lg overflow-hidden cursor-pointer ${border} bg-studio-900/30 transition-all`} onClick={() => setExpanded(e => !e)}>
       <div className="flex items-center gap-3 px-4 py-3">
         <Icon className={`h-4 w-4 shrink-0 ${ic}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-foreground">{fmtTime(anomaly.start_time_sec)} &ndash; {fmtTime(anomaly.end_time_sec)}</span>
+            <span className="text-xs font-bold text-foreground">{fmtTime(anomaly.start_time_sec)} &ndash; {fmtTime(anomaly.end_time_sec)}</span>
+            <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-studio-950/90 border border-cyan-500/30 text-cyan-300">
+              {windowDur}s window &middot; Peak at {fmtTime(peakSec)}
+            </span>
             <SeverityBadge severity={anomaly.severity} />
-            {isEngagement && <span className="text-[10px] text-emerald-400 font-medium">Exceptional Engagement</span>}
+            <span className="text-[11px] font-semibold text-sky-300">{cardTitle}</span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{anomaly.evidence[0]}</p>
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">{anomaly.evidence[0]}</p>
         </div>
         {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
       </div>
       {expanded && (
         <div className="border-t border-white/5 px-4 py-3 space-y-3 bg-studio-950/40">
           <div className="space-y-1">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Observed Evidence</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Observed Micro-Burst Evidence</div>
             {anomaly.evidence.map((ev, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
-                <span className="text-primary mt-0.5">•</span><span>{ev}</span>
+              <div key={i} className="flex items-start gap-2 text-xs text-foreground/90 font-mono">
+                <span className="text-sky-400 mt-0.5">&bull;</span><span>{ev}</span>
               </div>
             ))}
           </div>
