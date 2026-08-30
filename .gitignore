@@ -39,3 +39,6 @@ htmlcov/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Local media uploads and database files
+apps/api/data/

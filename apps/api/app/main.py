@@ -23,6 +23,15 @@ if settings.BACKEND_CORS_ORIGINS:
 # Root API router inclusion
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.on_event("startup")
+def on_startup():
+    from app.database.clickhouse import init_db
+    try:
+        init_db()
+    except Exception as e:
+        print(f"Warning: ClickHouse connection failed during startup: {e}. Real-time analytics insertion will fail until ClickHouse is online.")
+
+
 
 @app.get("/health", tags=["health"])
 def health_check():

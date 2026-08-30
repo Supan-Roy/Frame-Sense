@@ -10,6 +10,14 @@ class Settings(BaseSettings):
     # Gemini API Key configuration
     GEMINI_API_KEY: str = ""
     
+    # ClickHouse Configuration
+    CLICKHOUSE_HOST: str = "localhost"
+    CLICKHOUSE_PORT: int = 8123
+    CLICKHOUSE_USER: str = "default"
+    CLICKHOUSE_PASSWORD: str = ""
+    CLICKHOUSE_DATABASE: str = "default"
+    
+    
     # CORS Configuration
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",  # default Vite port

@@ -1,12 +1,16 @@
 from fastapi import APIRouter
+from app.api.routes import screenings, public_screening, telemetry
 
 api_router = APIRouter()
 
-# Placeholder for screening routes
-# api_router.include_router(screenings.router, prefix="/screenings", tags=["screenings"])
+# Register core studio screening routes
+api_router.include_router(screenings.router, prefix="/screenings", tags=["screenings"])
 
-# Placeholder for findings routes
-# api_router.include_router(findings.router, prefix="/findings", tags=["findings"])
+# Register public viewing routes
+api_router.include_router(public_screening.router, prefix="/screening", tags=["public_screening"])
+
+# Register telemetry events pipelines
+api_router.include_router(telemetry.router, prefix="/telemetry", tags=["telemetry"])
 
 @api_router.get("/status")
 def get_status():
@@ -15,7 +19,7 @@ def get_status():
         "message": "Frame Sense services are running",
         "modules": {
             "agent_orchestrator": "disabled",
-            "clickhouse_mcp": "disabled",
-            "telemetry_analytics": "disabled"
+            "clickhouse_mcp": "active",
+            "telemetry_analytics": "active"
         }
     }
