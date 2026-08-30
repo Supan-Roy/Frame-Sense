@@ -277,6 +277,7 @@ export default function Screenings() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [screeningToDelete, setScreeningToDelete] = useState<Screening | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [aiScreening, setAiScreening] = useState<Screening | null>(null);
   const [aiTab, setAiTab] = useState<AITab>('overview');
@@ -295,6 +296,7 @@ export default function Screenings() {
   const [simResult, setSimResult] = useState<any>(null);
   const [simError, setSimError] = useState<string | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
   const [resettingAudience, setResettingAudience] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -308,13 +310,14 @@ export default function Screenings() {
   };
 
   const handleDeleteScreening = async () => {
-    if (!screeningToDelete) return;
+    if (!screeningToDelete || deleteConfirmText !== 'DELETE') return;
     try {
       setDeletingId(screeningToDelete.screening_id);
       const res = await fetch(`/api/v1/screenings/${screeningToDelete.screening_id}`, { method: 'DELETE' });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed to delete'); }
       setScreenings(prev => prev.filter(s => s.screening_id !== screeningToDelete.screening_id));
       setScreeningToDelete(null);
+      setDeleteConfirmText('');
     } catch (err: any) { alert(err.message); } finally { setDeletingId(null); }
   };
 
@@ -354,7 +357,7 @@ export default function Screenings() {
   };
 
   const handleResetAudience = async () => {
-    if (!aiScreening) return;
+    if (!aiScreening || resetConfirmText !== 'RESET') return;
     setResettingAudience(true);
     try {
       const res = await fetch(`/api/v1/screenings/${aiScreening.screening_id}/audience`, { method: 'DELETE' });
@@ -364,6 +367,7 @@ export default function Screenings() {
       }
       setSimResult(null);
       setShowResetConfirmModal(false);
+      setResetConfirmText('');
       await loadAIData(aiScreening.screening_id);
     } catch (err: any) {
       alert(err.message);
@@ -768,7 +772,7 @@ export default function Screenings() {
       {screeningToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-studio-950 border border-rose-500/20 rounded-xl shadow-2xl p-6 relative space-y-4">
-            <button onClick={() => setScreeningToDelete(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            <button onClick={() => { setScreeningToDelete(null); setDeleteConfirmText(''); }} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-full bg-rose-500/10 text-rose-500 mt-1"><AlertTriangle className="h-6 w-6" /></div>
               <div><h2 className="text-sm font-semibold uppercase tracking-wider text-rose-500">Delete Screening Room?</h2><p className="text-xs text-muted-foreground mt-0.5">Permanently deletes <strong>{screeningToDelete.title}</strong>.</p></div>
@@ -777,10 +781,22 @@ export default function Screenings() {
               <p className="font-semibold">Permanently destroys:</p>
               <ul className="list-disc pl-4 space-y-1 text-muted-foreground"><li>Screening room and access links</li><li>Uploaded video file from disk</li><li>All ClickHouse telemetry records</li></ul>
             </div>
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[11px] text-muted-foreground block">
+                Type <strong className="text-rose-400 font-mono">DELETE</strong> to confirm deletion:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value.toUpperCase())}
+                placeholder="DELETE"
+                className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
+              />
+            </div>
             <p className="text-xs text-muted-foreground italic">* This action cannot be undone.</p>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setScreeningToDelete(null)} disabled={deletingId !== null} className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50">Cancel</button>
-              <button onClick={handleDeleteScreening} disabled={deletingId !== null} className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 flex items-center gap-1.5 disabled:opacity-50">
+              <button onClick={() => { setScreeningToDelete(null); setDeleteConfirmText(''); }} disabled={deletingId !== null} className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50">Cancel</button>
+              <button onClick={handleDeleteScreening} disabled={deletingId !== null || deleteConfirmText !== 'DELETE'} className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
                 {deletingId ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Deleting...</span></>) : <span>Permanently Delete</span>}
               </button>
             </div>
@@ -791,7 +807,7 @@ export default function Screenings() {
       {showResetConfirmModal && aiScreening && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-studio-950 border border-rose-500/30 rounded-xl shadow-2xl p-6 relative space-y-4">
-            <button onClick={() => setShowResetConfirmModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            <button onClick={() => { setShowResetConfirmModal(false); setResetConfirmText(''); }} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             <div className="flex items-start gap-3">
               <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 mt-0.5">
                 <RotateCcw className="h-5 w-5" />
@@ -809,11 +825,23 @@ export default function Screenings() {
                 <li>Detected behavioral anomalies and engagement spikes</li>
               </ul>
             </div>
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[11px] text-muted-foreground block">
+                Type <strong className="text-rose-400 font-mono">RESET</strong> to confirm reset:
+              </label>
+              <input
+                type="text"
+                value={resetConfirmText}
+                onChange={e => setResetConfirmText(e.target.value.toUpperCase())}
+                placeholder="RESET"
+                className="w-full bg-studio-900 border border-rose-500/20 rounded px-3 py-1.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-1 focus:ring-rose-500"
+              />
+            </div>
             <p className="text-xs text-muted-foreground italic">* Screening room &amp; public access links remain active.</p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowResetConfirmModal(false)}
+                onClick={() => { setShowResetConfirmModal(false); setResetConfirmText(''); }}
                 disabled={resettingAudience}
                 className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50"
               >
@@ -822,8 +850,8 @@ export default function Screenings() {
               <button
                 type="button"
                 onClick={handleResetAudience}
-                disabled={resettingAudience}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs flex items-center gap-1.5 disabled:opacity-50"
+                disabled={resettingAudience || resetConfirmText !== 'RESET'}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {resettingAudience ? (
                   <>
