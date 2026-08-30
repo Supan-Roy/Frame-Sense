@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Dict, Any
 import clickhouse_connect
 from clickhouse_connect.driver.client import Client
@@ -37,8 +38,12 @@ def insert_events(events: List[Dict[str, Any]]):
     client = get_client()
     data = []
     for e in events:
+        # Convert event_id string to a Python UUID object for ClickHouse UUID serializer
+        raw_event_id = e["event_id"]
+        clickhouse_uuid = uuid.UUID(raw_event_id) if isinstance(raw_event_id, str) else raw_event_id
+        
         data.append([
-            e["event_id"],
+            clickhouse_uuid,
             e["screening_id"],
             e["session_id"],
             e["anonymous_viewer_id"],
