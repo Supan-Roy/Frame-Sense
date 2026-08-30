@@ -3,16 +3,16 @@ import pytest
 from app.screening.repository import ScreeningRepository
 
 # Place test data file inside apps/api/data to avoid root clutter
-TEST_JSON = os.path.abspath(os.path.join(os.path.dirname(__file__), "../apps/api/data/test_screenings.json"))
+TEST_DB = os.path.abspath(os.path.join(os.path.dirname(__file__), "../apps/api/data/test_metadata.db"))
 
 @pytest.fixture
 def temp_repo():
-    if os.path.exists(TEST_JSON):
-        os.remove(TEST_JSON)
-    repo = ScreeningRepository(data_file=TEST_JSON)
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
+    repo = ScreeningRepository(db_file=TEST_DB)
     yield repo
-    if os.path.exists(TEST_JSON):
-        os.remove(TEST_JSON)
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
 
 def test_create_and_get_screening(temp_repo):
     record = temp_repo.create(
