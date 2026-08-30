@@ -136,11 +136,11 @@ def test_severity_medium():
 
 
 def test_severity_low():
-    assert analytics._severity(1.7) == "LOW"
+    assert analytics._severity(1.4) == "LOW"
 
 
 def test_severity_none():
-    assert analytics._severity(1.0) is None
+    assert analytics._severity(0.8) is None
     assert analytics._severity(0.5) is None
 
 

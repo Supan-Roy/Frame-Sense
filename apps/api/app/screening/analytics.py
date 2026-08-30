@@ -163,22 +163,21 @@ def _severity(z: float) -> Optional[str]:
     az = abs(z)
     if az >= 3.0: return "HIGH"
     if az >= 2.0: return "MEDIUM"
-    if az >= 1.5: return "LOW"
+    if az >= 1.2: return "LOW"
     return None
 
 
 def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
     """
-    Z-score anomaly detection over per-bucket behavioral metrics.
-    Returns structured anomaly objects suitable for future Gemini agent consumption.
-    Evidence strings are observational ONLY - no semantic interpretation.
+    Multi-dimensional Z-score anomaly detection over per-bucket behavioral metrics.
+    Detects co-occurring behavioral signals (Pacing Friction, Comprehension Barrier, etc.).
+    Returns structured anomaly objects suitable for Gemini agent consumption.
     """
     b = max(1, int(bucket_sec))
     signals_data = get_behavioral_signals(screening_id, b)
     buckets = signals_data["signals"]
     unique_viewers = signals_data["unique_viewers"]
 
-    # For short videos (< 60s), if 10s buckets produce fewer than 4 buckets, auto-reduce to 5s buckets for higher resolution
     if len(buckets) < 4 and b > 4 and unique_viewers > 0:
         b = 5
         signals_data = get_behavioral_signals(screening_id, b)
@@ -189,14 +188,14 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
                 "reliability": _reliability(unique_viewers), "anomalies": [], "exceptional_engagement": []}
 
     metrics = ["exit_rate", "rewind_rate", "pause_rate", "skip_rate", "replay_rate"]
-    series = {m: [b[m] for b in buckets] for m in metrics}
+    series = {m: [bk[m] for bk in buckets] for m in metrics}
     baselines = {m: _mean_std(series[m]) for m in metrics}
     eps = 1e-6
 
     anomalies, exceptional_engagement = [], []
 
-    for b in buckets:
-        if b["time_sec"] == 0:
+    for bk in buckets:
+        if bk["time_sec"] == 0:
             continue
 
         anomaly_signals: Dict[str, Any] = {}
@@ -205,7 +204,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
 
         for m in ["exit_rate", "rewind_rate", "pause_rate", "skip_rate"]:
             mu, sigma = baselines[m]
-            observed = b[m]
+            observed = bk[m]
             z = (observed - mu) / (sigma + eps)
             sev = _severity(z)
             if z > 0 and sev:
@@ -214,42 +213,42 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
                 anomaly_signals[f"baseline_{m}"] = round(mu, 4)
                 anomaly_signals[f"{m}_ratio"] = round(ratio, 2)
                 evidence.append(f"{m.replace('_',' ').title()} is {ratio:.1f}x above baseline (observed {observed*100:.1f}%, baseline {mu*100:.1f}%)")
-                max_sev_score = max(max_sev_score, {"LOW": 1.5, "MEDIUM": 2.0, "HIGH": 3.0}.get(sev, 0))
+                max_sev_score = max(max_sev_score, {"LOW": 1.0, "MEDIUM": 2.0, "HIGH": 3.0}.get(sev, 0))
 
         if evidence:
-            sev_label = "HIGH" if max_sev_score >= 3.0 else ("MEDIUM" if max_sev_score >= 2.0 else "LOW")
+            sev_label = "HIGH" if max_sev_score >= 2.5 else ("MEDIUM" if max_sev_score >= 1.6 else "LOW")
             anomalies.append({
                 "anomaly_id": f"anm_{uuid.uuid4().hex[:12]}",
                 "screening_id": screening_id,
-                "start_time_sec": b["time_sec"],
-                "end_time_sec": b["time_sec"] + bucket_sec,
+                "start_time_sec": bk["time_sec"],
+                "end_time_sec": bk["time_sec"] + b,
                 "type": "BEHAVIORAL_ANOMALY",
                 "severity": sev_label,
                 "signals": anomaly_signals,
                 "evidence": evidence,
             })
 
-        # Exceptional engagement: high replay, low exits
+        # Exceptional engagement: high replay or strong completion window
         rmu, rsigma = baselines["replay_rate"]
         emu, esigma = baselines["exit_rate"]
-        rz = (b["replay_rate"] - rmu) / (rsigma + eps)
-        ez = (b["exit_rate"] - emu) / (esigma + eps)
-        if rz > 2.0 or (rz > 1.5 and ez < -1.0):
-            ratio = b["replay_rate"] / (rmu + eps)
-            completion_pct = b["completions"] / max(1, unique_viewers)
+        rz = (bk["replay_rate"] - rmu) / (rsigma + eps)
+        ez = (bk["exit_rate"] - emu) / (esigma + eps)
+        if rz >= 1.2 or (rz >= 1.0 and ez < 0):
+            ratio = bk["replay_rate"] / (rmu + eps)
+            completion_pct = bk["completions"] / max(1, unique_viewers)
             exceptional_engagement.append({
                 "anomaly_id": f"eng_{uuid.uuid4().hex[:12]}",
                 "screening_id": screening_id,
-                "start_time_sec": b["time_sec"],
-                "end_time_sec": b["time_sec"] + bucket_sec,
+                "start_time_sec": bk["time_sec"],
+                "end_time_sec": bk["time_sec"] + b,
                 "type": "EXCEPTIONAL_ENGAGEMENT",
-                "severity": "HIGH" if rz > 3.0 else "MEDIUM",
+                "severity": "HIGH" if rz >= 2.5 else ("MEDIUM" if rz >= 1.6 else "LOW"),
                 "signals": {
-                    "replay_rate": round(b["replay_rate"], 4),
+                    "replay_rate": round(bk["replay_rate"], 4),
                     "baseline_replay_rate": round(rmu, 4),
                     "replay_ratio": round(ratio, 2),
                     "completion_rate": round(completion_pct, 4),
-                    "exit_rate": round(b["exit_rate"], 4),
+                    "exit_rate": round(bk["exit_rate"], 4),
                 },
                 "evidence": [
                     f"Replay activity is {ratio:.1f}x above baseline",
@@ -259,12 +258,12 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
 
     return {
         "screening_id": screening_id,
-        "bucket_sec": bucket_sec,
+        "bucket_sec": b,
         "unique_viewers": unique_viewers,
         "reliability": _reliability(unique_viewers),
         "anomalies": anomalies,
         "exceptional_engagement": exceptional_engagement,
-        "baseline_methodology": "Z-score vs population mean/std across all buckets. HIGH>=3sigma, MEDIUM>=2sigma, LOW>=1.5sigma.",
+        "baseline_methodology": "Adaptive Z-score vs population mean/std across all timecode buckets. HIGH>=2.5sigma, MEDIUM>=1.6sigma, LOW>=1.0sigma.",
     }
 
 

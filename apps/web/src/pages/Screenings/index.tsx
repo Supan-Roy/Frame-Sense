@@ -1006,7 +1006,7 @@ interface ToastNotification {
             <div className="bg-amber-500/[0.04] border border-amber-500/20 rounded-lg p-3.5 space-y-2.5">
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
                 <History className="h-4 w-4 text-amber-400" />
-                <span>Option 1: Safe Time Travel (Undo Last Run)</span>
+                <span>Option 1: Safe Rollback (Undo Last Run)</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Rolls back ONLY the most recent simulation run or viewer batch. Brings audience telemetry back to its state before that run, leaving earlier real viewers intact.
@@ -1025,7 +1025,7 @@ interface ToastNotification {
                 ) : (
                   <>
                     <History className="h-3.5 w-3.5" />
-                    <span>Undo Last Run (Time Travel)</span>
+                    <span>Undo Last Run</span>
                   </>
                 )}
               </button>
