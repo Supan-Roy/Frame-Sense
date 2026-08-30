@@ -83,17 +83,48 @@ export default function ScreeningRoom() {
     }
   }, [token]);
 
-  // Prevent right-click downloading and key combinations
+  // Keyboard shortcut listener and anti-saving protection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Block Ctrl+S (Save), Ctrl+U (View Source)
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'u')) {
         e.preventDefault();
+        return;
+      }
+
+      // Check active element to avoid intercepting keydowns if they focus input/textarea
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      // Space or Enter: Play/Pause
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault(); // prevent scroll on Space
+        togglePlay();
+      }
+
+      // ArrowLeft: Seek backward 5s
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        skipTime(-5);
+      }
+
+      // ArrowRight: Seek forward 5s
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        skipTime(5);
+      }
+
+      // M or m key: Mute/Unmute toggle
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleMute();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isPlaying, isMuted, volume, duration, currentTime]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -598,9 +629,9 @@ export default function ScreeningRoom() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-5">
                       <button 
-                        onClick={() => skipTime(-10)}
+                        onClick={() => skipTime(-5)}
                         className="text-zinc-400 hover:text-white transition-colors"
-                        title="Skip back 10s"
+                        title="Skip back 5s"
                       >
                         <RotateCcw className="h-4 w-4" />
                       </button>
@@ -610,9 +641,9 @@ export default function ScreeningRoom() {
                       </button>
 
                       <button 
-                        onClick={() => skipTime(10)}
+                        onClick={() => skipTime(5)}
                         className="text-zinc-400 hover:text-white transition-colors"
-                        title="Skip forward 10s"
+                        title="Skip forward 5s"
                       >
                         <RotateCw className="h-4 w-4" />
                       </button>
