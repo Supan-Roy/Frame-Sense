@@ -16,26 +16,26 @@ export default function Dashboard() {
             <span className="text-xs font-medium uppercase tracking-wider">Active Projects</span>
             <Film className="h-4 w-4 text-primary" />
           </div>
-          <div className="text-2xl font-semibold">12</div>
-          <p className="text-xs text-muted-foreground">3 screenings this week</p>
+          <div className="text-2xl font-semibold">0</div>
+          <p className="text-xs text-muted-foreground">0 screenings this week</p>
         </div>
 
         <div className="rounded-lg bg-card border p-6 space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">Telemetry Ingestion</span>
-            <Activity className="h-4 w-4 text-emerald-500" />
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-semibold">4.8k <span className="text-xs text-muted-foreground font-normal">events/s</span></div>
-          <p className="text-xs text-muted-foreground">ClickHouse connection active</p>
+          <div className="text-2xl font-semibold">0 <span className="text-xs text-muted-foreground font-normal">events/s</span></div>
+          <p className="text-xs text-muted-foreground">ClickHouse connection inactive</p>
         </div>
 
         <div className="rounded-lg bg-card border p-6 space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium uppercase tracking-wider">Audience Anomalies</span>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="text-2xl font-semibold">8</div>
-          <p className="text-xs text-muted-foreground">3 critical alerts pending review</p>
+          <div className="text-2xl font-semibold">0</div>
+          <p className="text-xs text-muted-foreground">No anomalies pending review</p>
         </div>
 
         <div className="rounded-lg bg-card border p-6 space-y-2">
