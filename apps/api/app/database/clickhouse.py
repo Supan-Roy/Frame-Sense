@@ -132,6 +132,7 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
     """
     Rolls back the most recent telemetry run/batch for a screening.
     Prioritizes rolling back synthetic simulation runs to protect real viewer data.
+    Executes bulk deletion directly by timestamp to prevent SQL query size limits.
     """
     client = get_client()
     sid = screening_id.replace("'", "")
@@ -144,13 +145,25 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
 
     if has_synth:
         max_ts = synth_ts_res.result_rows[0][0]
-        sessions_query = f"""
-        SELECT DISTINCT session_id, anonymous_viewer_id
+        c_res = client.query(f"""
+        SELECT count(DISTINCT session_id), count(DISTINCT anonymous_viewer_id)
         FROM viewer_events
         WHERE screening_id = '{sid}'
           AND anonymous_viewer_id LIKE 'synth_v_%'
           AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """
+        """)
+        num_sessions = c_res.result_rows[0][0] if c_res.result_rows else 0
+        num_viewers = c_res.result_rows[0][1] if c_res.result_rows else 0
+
+        if num_sessions == 0:
+            return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
+
+        client.command(f"""
+        DELETE FROM viewer_events
+        WHERE screening_id = '{sid}'
+          AND anonymous_viewer_id LIKE 'synth_v_%'
+          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
+        """)
     else:
         real_ts_res = client.query(
             f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}'"
@@ -159,28 +172,29 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
             return {"status": "empty", "message": "No telemetry data to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
         max_ts = real_ts_res.result_rows[0][0]
-        sessions_query = f"""
-        SELECT DISTINCT session_id, anonymous_viewer_id
+        c_res = client.query(f"""
+        SELECT count(DISTINCT session_id), count(DISTINCT anonymous_viewer_id)
         FROM viewer_events
         WHERE screening_id = '{sid}'
           AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """
+        """)
+        num_sessions = c_res.result_rows[0][0] if c_res.result_rows else 0
+        num_viewers = c_res.result_rows[0][1] if c_res.result_rows else 0
 
-    s_res = client.query(sessions_query)
-    target_sessions = [row[0] for row in s_res.result_rows]
-    target_viewers = list({row[1] for row in s_res.result_rows})
+        if num_sessions == 0:
+            return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
-    if not target_sessions:
-        return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
-
-    sess_str = ", ".join([f"'{s}'" for s in target_sessions])
-    client.command(f"DELETE FROM viewer_events WHERE screening_id = '{sid}' AND session_id IN ({sess_str})")
+        client.command(f"""
+        DELETE FROM viewer_events
+        WHERE screening_id = '{sid}'
+          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
+        """)
 
     return {
         "status": "success",
-        "message": f"Rolled back latest run ({len(target_sessions)} session(s) across {len(target_viewers)} viewer(s)).",
-        "deleted_sessions": len(target_sessions),
-        "deleted_viewers": len(target_viewers),
+        "message": f"Rolled back latest run ({num_sessions} session(s) across {num_viewers} viewer(s)).",
+        "deleted_sessions": num_sessions,
+        "deleted_viewers": num_viewers,
         "latest_timestamp": str(max_ts),
     }
 
