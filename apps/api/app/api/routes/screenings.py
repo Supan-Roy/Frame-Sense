@@ -1,6 +1,6 @@
 import uuid
-from typing import List
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from app.schemas.screening import ScreeningCreate, ScreeningResponse, ScreeningStats
 from app.screening.repository import screening_repo
 from app.media.storage import storage_backend
@@ -121,3 +121,116 @@ def delete_screening(screening_id: str):
 
     return {"status": "success", "message": "Screening deleted successfully"}
 
+
+# ---------------------------------------------------------------------------
+# Audience Intelligence endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/{screening_id}/audience/overview")
+def audience_overview(screening_id: str):
+    """High-level audience statistics: viewers, sessions, events, completion rate, reliability."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.analytics import get_audience_overview
+        return get_audience_overview(screening_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
+
+
+@router.get("/{screening_id}/audience/retention")
+def audience_retention(
+    screening_id: str,
+    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+):
+    """Viewer retention curve: how many viewers remain at each point in the video."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.analytics import get_retention_curve
+        return get_retention_curve(screening_id, bucket_sec)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
+
+
+@router.get("/{screening_id}/audience/signals")
+def audience_signals(
+    screening_id: str,
+    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+):
+    """Per-time-bucket behavioral signal breakdown (pause, rewind, skip, replay, exit rates)."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.analytics import get_behavioral_signals
+        return get_behavioral_signals(screening_id, bucket_sec)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
+
+
+@router.get("/{screening_id}/audience/anomalies")
+def audience_anomalies(
+    screening_id: str,
+    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+):
+    """
+    Detect statistically unusual audience behavior using z-score baseline comparison.
+    Returns behavioral anomalies and exceptional engagement moments.
+    Evidence strings are observational ONLY - no semantic interpretation.
+    Designed for future Gemini agent consumption.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.analytics import get_anomalies
+        return get_anomalies(screening_id, bucket_sec)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Developer / Demo simulator endpoint (ISOLATED - not part of public API)
+# ---------------------------------------------------------------------------
+
+@router.post("/{screening_id}/dev/simulate")
+def dev_simulate(
+    screening_id: str,
+    num_viewers: int = Query(default=100, ge=1, le=10000, description="Number of synthetic viewers"),
+    seed: Optional[int] = Query(default=None, description="Random seed for reproducibility"),
+):
+    """
+    [DEVELOPER / DEMO TOOL ONLY]
+
+    Generates synthetic viewer telemetry for a screening and inserts it directly
+    into ClickHouse using the exact same ViewerEvent contract as real browser telemetry.
+
+    This endpoint is NOT part of the normal studio workflow.
+    It exists for development, stress testing, and hackathon demonstration.
+
+    Ground truth behavioral windows are embedded in the simulator only.
+    They are NEVER returned by Audience Intelligence endpoints.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.simulator import run_simulation
+        result = run_simulation(
+            screening_id=screening_id,
+            video_id=screening["media_id"],
+            duration=float(screening["media_duration"]),
+            num_viewers=num_viewers,
+            seed=seed,
+        )
+        return {
+            "status": "success",
+            "tool": "synthetic_audience_simulator",
+            "note": "Developer/demo tool only. Not part of normal screening workflow.",
+            **result,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Simulator error: {e}")

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck, Clock, AlertTriangle, Trash2 } from 'lucide-react';
+import {
+  Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
+  Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
+  Activity, ChevronDown, ChevronRight, FlaskConical, Users,
+  CircleDot, BarChart
+} from 'lucide-react';
 
 interface Screening {
   screening_id: string;
@@ -14,255 +19,485 @@ interface Screening {
   share_url: string;
 }
 
-interface Stats {
-  total_sessions: number;
+interface Reliability {
+  status: 'INSUFFICIENT_DATA' | 'PRELIMINARY_SIGNAL' | 'STRONG_SIGNAL';
+  label: string;
+}
+
+interface Overview {
+  screening_id: string;
   unique_viewers: number;
+  unique_sessions: number;
   total_events: number;
   completed_sessions: number;
-  event_breakdown: Record<string, number>;
+  completion_rate: number | null;
+  reliability: Reliability;
+}
+
+interface RetentionPoint {
+  time_sec: number;
+  viewers: number;
+  retention_rate: number;
+}
+
+interface RetentionData {
+  curve: RetentionPoint[];
+  total_starters: number;
+  bucket_sec: number;
+}
+
+interface SignalBucket {
+  time_sec: number;
+  sessions_active: number;
+  pauses: number;
+  rewinds: number;
+  skips: number;
+  replays: number;
+  exits: number;
+  completions: number;
+  pause_rate: number;
+  rewind_rate: number;
+  skip_rate: number;
+  replay_rate: number;
+  exit_rate: number;
+}
+
+interface AnomalySignals {
+  [key: string]: number;
+}
+
+interface Anomaly {
+  anomaly_id: string;
+  screening_id: string;
+  start_time_sec: number;
+  end_time_sec: number;
+  type: 'BEHAVIORAL_ANOMALY' | 'EXCEPTIONAL_ENGAGEMENT';
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  signals: AnomalySignals;
+  evidence: string[];
+}
+
+interface AnomalyData {
+  unique_viewers: number;
+  reliability: Reliability;
+  anomalies: Anomaly[];
+  exceptional_engagement: Anomaly[];
+  baseline_methodology: string;
+}
+
+type AITab = 'overview' | 'retention' | 'signals' | 'anomalies';
+
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function fmtPct(n: number): string {
+  return `${(n * 100).toFixed(1)}%`;
+}
+
+function RetentionChart({ data }: { data: RetentionData }) {
+  const W = 520, H = 200;
+  const PAD = { top: 16, right: 20, bottom: 36, left: 44 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+  const curve = data.curve.filter(p => p.time_sec >= 0);
+  if (curve.length === 0) return <div className="text-xs text-muted-foreground italic text-center py-6">No retention data.</div>;
+  const maxT = curve[curve.length - 1].time_sec || 1;
+  const xS = (t: number) => (t / maxT) * plotW;
+  const yS = (r: number) => plotH - r * plotH;
+  const pathD = curve.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xS(p.time_sec).toFixed(1)} ${yS(p.retention_rate).toFixed(1)}`).join(' ');
+  const fillD = `${pathD} L ${xS(maxT).toFixed(1)} ${plotH.toFixed(1)} L 0 ${plotH.toFixed(1)} Z`;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+  const xTicks = Array.from({ length: 6 }, (_, i) => Math.round((maxT / 5) * i));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <defs>
+        <linearGradient id="ret-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <g transform={`translate(${PAD.left}, ${PAD.top})`}>
+        {yTicks.map(t => <line key={t} x1={0} y1={yS(t).toFixed(1)} x2={plotW} y2={yS(t).toFixed(1)} stroke="#ffffff10" strokeWidth="1" />)}
+        <path d={fillD} fill="url(#ret-fill)" />
+        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+        {yTicks.map(t => <text key={t} x={-8} y={yS(t) + 4} textAnchor="end" fontSize="9" fill="#888">{Math.round(t * 100)}%</text>)}
+        {xTicks.map(t => <text key={t} x={xS(t)} y={plotH + 18} textAnchor="middle" fontSize="9" fill="#888">{fmtTime(t)}</text>)}
+        <line x1={0} y1={0} x2={0} y2={plotH} stroke="#333" strokeWidth="1" />
+        <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="#333" strokeWidth="1" />
+      </g>
+    </svg>
+  );
+}
+
+type SignalKey = 'exit_rate' | 'rewind_rate' | 'pause_rate' | 'skip_rate' | 'replay_rate';
+const SIGNAL_ROWS: { key: SignalKey; label: string; color: string }[] = [
+  { key: 'exit_rate',   label: 'Exit',   color: '#ef4444' },
+  { key: 'rewind_rate', label: 'Rewind', color: '#f97316' },
+  { key: 'pause_rate',  label: 'Pause',  color: '#eab308' },
+  { key: 'skip_rate',   label: 'Skip',   color: '#a78bfa' },
+  { key: 'replay_rate', label: 'Replay', color: '#22c55e' },
+];
+
+function SignalHeatmap({ signals }: { signals: SignalBucket[] }) {
+  if (!signals.length) return <div className="text-xs text-muted-foreground italic text-center py-6">No signal data.</div>;
+  const maxes: Record<SignalKey, number> = {} as Record<SignalKey, number>;
+  for (const row of SIGNAL_ROWS) maxes[row.key] = Math.max(...signals.map(s => s[row.key]), 0.001);
+  const cellW = Math.max(4, Math.min(18, Math.floor(480 / signals.length)));
+  return (
+    <div className="space-y-1 overflow-x-auto">
+      {SIGNAL_ROWS.map(row => (
+        <div key={row.key} className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-12 shrink-0 text-right">{row.label}</span>
+          <div className="flex gap-px">
+            {signals.map(s => (
+              <div key={s.time_sec} title={`${fmtTime(s.time_sec)} ${row.label}: ${fmtPct(s[row.key])}`}
+                style={{ width: cellW, height: 24, backgroundColor: row.color, opacity: Math.max(0.06, s[row.key] / maxes[row.key]), borderRadius: 2, flexShrink: 0 }} />
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <span className="w-12 shrink-0" />
+        <div className="flex gap-px overflow-hidden">
+          {signals.filter((_, i) => i % Math.max(1, Math.floor(signals.length / 6)) === 0).map(s => (
+            <span key={s.time_sec} className="text-[9px] text-muted-foreground" style={{ width: cellW * Math.max(1, Math.floor(signals.length / 6)), flexShrink: 0 }}>{fmtTime(s.time_sec)}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeverityBadge({ severity }: { severity: 'HIGH' | 'MEDIUM' | 'LOW' }) {
+  const s = { HIGH: 'bg-rose-500/15 text-rose-400 border-rose-500/30', MEDIUM: 'bg-amber-500/15 text-amber-400 border-amber-500/30', LOW: 'bg-blue-500/15 text-blue-400 border-blue-500/30' };
+  return <span className={`text-[10px] font-bold uppercase tracking-wider border px-2 py-0.5 rounded ${s[severity]}`}>{severity}</span>;
+}
+
+function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
+  const s = { INSUFFICIENT_DATA: 'bg-rose-500/10 text-rose-400 border-rose-500/20', PRELIMINARY_SIGNAL: 'bg-amber-500/10 text-amber-400 border-amber-500/20', STRONG_SIGNAL: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+  return (
+    <div className={`flex items-center gap-1.5 text-[10px] border px-2.5 py-1 rounded-full w-fit ${s[reliability.status]}`}>
+      <CircleDot className="h-3 w-3" /><span>{reliability.label}</span>
+    </div>
+  );
+}
+
+function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEngagement?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const border = isEngagement ? 'border-emerald-500/25 hover:border-emerald-500/50'
+    : anomaly.severity === 'HIGH' ? 'border-rose-500/25 hover:border-rose-500/50'
+    : anomaly.severity === 'MEDIUM' ? 'border-amber-500/25 hover:border-amber-500/50' : 'border-blue-500/25 hover:border-blue-500/50';
+  const Icon = isEngagement ? Zap : TrendingDown;
+  const ic = isEngagement ? 'text-emerald-400' : 'text-rose-400';
+  return (
+    <div className={`border rounded-lg overflow-hidden cursor-pointer ${border} bg-studio-900/30`} onClick={() => setExpanded(e => !e)}>
+      <div className="flex items-center gap-3 px-4 py-3">
+        <Icon className={`h-4 w-4 shrink-0 ${ic}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-foreground">{fmtTime(anomaly.start_time_sec)} &ndash; {fmtTime(anomaly.end_time_sec)}</span>
+            <SeverityBadge severity={anomaly.severity} />
+            {isEngagement && <span className="text-[10px] text-emerald-400 font-medium">Exceptional Engagement</span>}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{anomaly.evidence[0]}</p>
+        </div>
+        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+      </div>
+      {expanded && (
+        <div className="border-t border-white/5 px-4 py-3 space-y-3 bg-studio-950/40">
+          <div className="space-y-1">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Observed Evidence</div>
+            {anomaly.evidence.map((ev, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                <span className="text-primary mt-0.5">•</span><span>{ev}</span>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(anomaly.signals).filter(([k]) => !k.startsWith('baseline_') && !k.endsWith('_ratio')).map(([key, val]) => {
+              const ratio = anomaly.signals[`${key}_ratio`], base = anomaly.signals[`baseline_${key}`];
+              return (
+                <div key={key} className="bg-studio-900 border rounded p-2 space-y-0.5">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</div>
+                  <div className="text-sm font-bold text-foreground">{fmtPct(val as number)}</div>
+                  {base !== undefined && (
+                    <div className="text-[10px] text-muted-foreground">
+                      Baseline: {fmtPct(base as number)}
+                      {ratio !== undefined && <span className="ml-1 font-semibold text-amber-400">{(ratio as number).toFixed(1)}x</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Screenings() {
   const [screenings, setScreenings] = useState<Screening[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Modal & Creation state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>('');
-
-  // Delete state
   const [screeningToDelete, setScreeningToDelete] = useState<Screening | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  // Stats Modal state
-  const [selectedStatsScreening, setSelectedStatsScreening] = useState<Screening | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(false);
-
-  // Copy success indicator
+  const [aiScreening, setAiScreening] = useState<Screening | null>(null);
+  const [aiTab, setAiTab] = useState<AITab>('overview');
+  const [aiOverview, setAiOverview] = useState<Overview | null>(null);
+  const [aiRetention, setAiRetention] = useState<RetentionData | null>(null);
+  const [aiSignals, setAiSignals] = useState<SignalBucket[] | null>(null);
+  const [aiAnomalies, setAiAnomalies] = useState<AnomalyData | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [simViewers, setSimViewers] = useState(100);
+  const [simSeed, setSimSeed] = useState('');
+  const [simRunning, setSimRunning] = useState(false);
+  const [simResult, setSimResult] = useState<any>(null);
+  const [simError, setSimError] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  // Fetch screenings
   const fetchScreenings = async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/v1/screenings');
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to load screenings list.");
-      }
-      const data = await res.json();
-      setScreenings(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Failed to load screenings list.");
-    } finally {
-      setLoading(false);
-    }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed to load screenings.'); }
+      setScreenings(await res.json()); setError(null);
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
 
   const handleDeleteScreening = async () => {
     if (!screeningToDelete) return;
     try {
       setDeletingId(screeningToDelete.screening_id);
-      const res = await fetch(`/api/v1/screenings/${screeningToDelete.screening_id}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to delete screening");
-      }
-      
-      // Refresh list
+      const res = await fetch(`/api/v1/screenings/${screeningToDelete.screening_id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed to delete'); }
       setScreenings(prev => prev.filter(s => s.screening_id !== screeningToDelete.screening_id));
       setScreeningToDelete(null);
-    } catch (err: any) {
-      alert(err.message || "Error deleting screening.");
-    } finally {
-      setDeletingId(null);
-    }
+    } catch (err: any) { alert(err.message); } finally { setDeletingId(null); }
   };
 
+  useEffect(() => { fetchScreenings(); }, []);
 
-  useEffect(() => {
-    fetchScreenings();
-  }, []);
+  const loadAIData = async (sid: string) => {
+    const [ovR, retR, sigR, anmR] = await Promise.all([
+      fetch(`/api/v1/screenings/${sid}/audience/overview`),
+      fetch(`/api/v1/screenings/${sid}/audience/retention`),
+      fetch(`/api/v1/screenings/${sid}/audience/signals`),
+      fetch(`/api/v1/screenings/${sid}/audience/anomalies`),
+    ]);
+    if (ovR.ok) setAiOverview(await ovR.json());
+    if (retR.ok) setAiRetention(await retR.json());
+    if (sigR.ok) { const d = await sigR.json(); setAiSignals(d.signals); }
+    if (anmR.ok) setAiAnomalies(await anmR.json());
+  };
 
-  // Fetch stats for a specific screening
-  const openStatsModal = async (s: Screening) => {
-    setSelectedStatsScreening(s);
-    setLoadingStats(true);
-    setStats(null);
+  const openAI = async (s: Screening) => {
+    setAiScreening(s); setAiTab('overview');
+    setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null);
+    setAiError(null); setSimResult(null); setSimError(null); setAiLoading(true);
+    try { await loadAIData(s.screening_id); } catch (e: any) { setAiError(e.message); } finally { setAiLoading(false); }
+  };
+
+  const runSimulation = async () => {
+    if (!aiScreening) return;
+    setSimRunning(true); setSimResult(null); setSimError(null);
     try {
-      const res = await fetch(`/api/v1/screenings/${s.screening_id}/stats`);
-      if (!res.ok) throw new Error("HTTP error " + res.status);
+      const url = `/api/v1/screenings/${aiScreening.screening_id}/dev/simulate?num_viewers=${simViewers}${simSeed ? `&seed=${simSeed}` : ''}`;
+      const res = await fetch(url, { method: 'POST' });
       const data = await res.json();
-      setStats(data);
-    } catch (err) {
-      console.error("Failed to load screening stats from ClickHouse:", err);
-    } finally {
-      setLoadingStats(false);
-    }
+      if (!res.ok) throw new Error(data.detail || 'Simulation failed');
+      setSimResult(data);
+      await loadAIData(aiScreening.screening_id);
+    } catch (e: any) { setSimError(e.message); } finally { setSimRunning(false); }
   };
 
-  // Helper to read video duration using standard HTML5 video metadata parsing
-  const getVideoDuration = (file: File): Promise<number> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(video.src);
-        resolve(video.duration);
-      };
-      video.onerror = () => {
-        resolve(0); // Fallback if parsing fails
-      };
-      video.src = URL.createObjectURL(file);
+  const getVideoDuration = (file: File): Promise<number> =>
+    new Promise(resolve => {
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => { window.URL.revokeObjectURL(v.src); resolve(v.duration); };
+      v.onerror = () => resolve(0);
+      v.src = URL.createObjectURL(file);
     });
-  };
 
-  const uploadMediaWithProgress = (file: File): Promise<any> => {
-    return new Promise((resolve, reject) => {
+  const uploadMediaWithProgress = (file: File): Promise<any> =>
+    new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      const formData = new FormData();
-      formData.append("file", file);
-
-      xhr.open("POST", "/api/v1/screenings/upload");
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentCompleted = Math.round((event.loaded * 100) / event.total);
-          setUploadProgress(percentCompleted);
-        }
-      };
-
+      const fd = new FormData();
+      fd.append('file', file);
+      xhr.open('POST', '/api/v1/screenings/upload');
+      xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded * 100) / ev.total)); };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch (e) {
-            reject(new Error("Failed to parse server response"));
-          }
+          try { resolve(JSON.parse(xhr.responseText)); } catch { reject(new Error('Parse error')); }
         } else {
-          try {
-            const errData = JSON.parse(xhr.responseText);
-            reject(new Error(errData.detail || "Upload failed"));
-          } catch (e) {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
+          try { reject(new Error(JSON.parse(xhr.responseText).detail || 'Upload failed')); } catch { reject(new Error(`Upload failed: ${xhr.status}`)); }
         }
       };
-
-      xhr.onerror = () => {
-        reject(new Error("Network connection error during upload"));
-      };
-
-      xhr.send(formData);
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(fd);
     });
-  };
 
-  // Handle screening creation and file uploading
   const handleCreateScreening = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !title) return;
-
     try {
-      setUploadProgress(0);
-      setUploadStatus("Ingesting video metadata...");
-      
-      // 1. Get exact video duration from browser player
+      setUploadProgress(0); setUploadStatus('Ingesting video metadata...');
       const duration = await getVideoDuration(selectedFile);
-      
-      // 2. Perform multipart upload with progress tracking via XMLHttpRequest helper
-      setUploadStatus("Uploading media cut...");
+      setUploadStatus('Uploading media cut...');
       const { media_filename } = await uploadMediaWithProgress(selectedFile);
-
-      // 3. Register screening metadata in backend
-      setUploadStatus("Finalizing screening room configuration...");
-      const createRes = await fetch('/api/v1/screenings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          media_filename,
-          media_duration: duration
-        })
+      setUploadStatus('Finalizing screening room...');
+      const r = await fetch('/api/v1/screenings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, media_filename, media_duration: duration }),
       });
-      if (!createRes.ok) {
-        const errData = await createRes.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to finalize screening room");
-      }
-
-      // Reset and refresh list
-      setUploadProgress(null);
-      setUploadStatus('');
-      setTitle('');
-      setDescription('');
-      setSelectedFile(null);
-      setShowCreateModal(false);
-      fetchScreenings();
-    } catch (err: any) {
-      setUploadProgress(null);
-      setUploadStatus('');
-      alert(err.message || "Upload failed. Enforce file limits and try again.");
-    }
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Failed'); }
+      setUploadProgress(null); setUploadStatus(''); setTitle(''); setDescription('');
+      setSelectedFile(null); setShowCreateModal(false); fetchScreenings();
+    } catch (err: any) { setUploadProgress(null); setUploadStatus(''); alert(err.message); }
   };
 
-  // Copy share link helper
-  const handleCopyLink = (publicToken: string) => {
-    const shareUrl = `${window.location.origin}/screening/${publicToken}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopiedToken(publicToken);
-      setTimeout(() => setCopiedToken(null), 2000);
-    }).catch(() => {
-      alert(`Shareable Link: ${shareUrl}`);
-    });
+  const handleCopyLink = (tok: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/screening/${tok}`)
+      .then(() => { setCopiedToken(tok); setTimeout(() => setCopiedToken(null), 2000); })
+      .catch(() => alert(`Link: ${window.location.origin}/screening/${tok}`));
+  };
+
+  const totalAnm = (aiAnomalies?.anomalies.length ?? 0) + (aiAnomalies?.exceptional_engagement.length ?? 0);
+
+  const tabContent = () => {
+    if (aiLoading) return (
+      <div className="flex flex-col items-center justify-center py-14 gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-xs text-muted-foreground">Querying ClickHouse analytics...</p>
+      </div>
+    );
+    if (aiError) return <div className="text-xs text-rose-500 bg-rose-500/5 p-4 border border-rose-500/20 rounded">{aiError}</div>;
+
+    if (aiTab === 'overview') return (
+      <div className="space-y-5">
+        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            { label: 'Unique Viewers',  val: aiOverview?.unique_viewers ?? '—',                                       Icon: Users },
+            { label: 'Sessions',        val: aiOverview?.unique_sessions ?? '—',                                      Icon: Activity },
+            { label: 'Total Events',    val: aiOverview?.total_events?.toLocaleString() ?? '—',                       Icon: BarChart },
+            { label: 'Completions',     val: aiOverview?.completed_sessions ?? '—',                                   Icon: CircleDot },
+            { label: 'Completion Rate', val: aiOverview?.completion_rate != null ? fmtPct(aiOverview.completion_rate) : '—', Icon: TrendingDown },
+            { label: 'Anomalies Found', val: totalAnm,                                                                Icon: AlertTriangle },
+          ].map(({ label, val, Icon }) => (
+            <div key={label} className="p-4 bg-studio-900 border rounded-lg space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                <Icon className="h-3 w-3" />{label}
+              </div>
+              <div className="text-xl font-bold text-foreground">{val}</div>
+            </div>
+          ))}
+        </div>
+        {aiAnomalies && totalAnm > 0 && (
+          <div className="space-y-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Top Findings</div>
+            {[...aiAnomalies.anomalies.slice(0, 2), ...aiAnomalies.exceptional_engagement.slice(0, 1)].map(a => (
+              <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement={a.type === 'EXCEPTIONAL_ENGAGEMENT'} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+
+    if (aiTab === 'retention') return (
+      <div className="space-y-4">
+        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+        <div className="text-[10px] text-muted-foreground">% of viewers remaining at each point. Based on maximum watched timecode per viewer.</div>
+        {aiRetention ? <RetentionChart data={aiRetention} /> : <div className="text-xs text-muted-foreground italic text-center py-6">No retention data yet.</div>}
+        {aiRetention && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 bg-studio-900 border rounded-lg text-center"><div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total Starters</div><div className="text-lg font-bold">{aiRetention.total_starters}</div></div>
+            <div className="p-3 bg-studio-900 border rounded-lg text-center"><div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">50% Reached</div><div className="text-lg font-bold">{(() => { const h = aiRetention.curve.find(p => p.retention_rate <= 0.5); return h ? fmtTime(h.time_sec) : '—'; })()}</div></div>
+            <div className="p-3 bg-studio-900 border rounded-lg text-center"><div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Final Retention</div><div className="text-lg font-bold">{aiRetention.curve.length > 0 ? fmtPct(aiRetention.curve[aiRetention.curve.length - 1].retention_rate) : '—'}</div></div>
+          </div>
+        )}
+      </div>
+    );
+
+    if (aiTab === 'signals') return (
+      <div className="space-y-4">
+        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+        <div className="text-[10px] text-muted-foreground">Intensity heatmap across the timeline. Darker = higher rate relative to max observed. Hover for details.</div>
+        {aiSignals && aiSignals.length > 0 ? <SignalHeatmap signals={aiSignals} /> : <div className="text-xs text-muted-foreground italic text-center py-6">No signal data yet.</div>}
+        <div className="flex flex-wrap gap-3">
+          {SIGNAL_ROWS.map(r => (
+            <div key={r.key} className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: r.color }} />
+              <span className="text-[10px] text-muted-foreground">{r.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (aiTab === 'anomalies') return (
+      <div className="space-y-4">
+        {aiAnomalies?.reliability && <ReliabilityBadge reliability={aiAnomalies.reliability} />}
+        {!aiAnomalies || totalAnm === 0 ? (
+          <div className="text-xs text-muted-foreground italic bg-studio-900 p-6 border rounded text-center">No statistically significant behavioral anomalies detected.</div>
+        ) : (
+          <div className="space-y-4">
+            {aiAnomalies.exceptional_engagement.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-emerald-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Exceptional Engagement ({aiAnomalies.exceptional_engagement.length})</span></div>
+                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement />)}
+              </div>
+            )}
+            {aiAnomalies.anomalies.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Behavioral Anomalies ({aiAnomalies.anomalies.length})</span></div>
+                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} />)}
+              </div>
+            )}
+            {aiAnomalies.baseline_methodology && (
+              <div className="text-[10px] text-muted-foreground bg-studio-900/40 border rounded p-3 leading-relaxed">
+                <span className="font-semibold">Methodology: </span>{aiAnomalies.baseline_methodology}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Studio Screening Room Manager</h1>
           <p className="text-sm text-muted-foreground">Provision private screenings, upload cut sequences, and collect ClickHouse telemetry.</p>
         </div>
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded text-sm hover:bg-primary/95 transition-all shadow-md"
-        >
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded text-sm hover:bg-primary/95 transition-all shadow-md">
           <Plus className="h-4 w-4" /> Provision Screening
         </button>
       </div>
 
-      {/* Screenings Grid/List */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        </div>
+        <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
       ) : error ? (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-4 flex items-center gap-3 text-rose-500">
-          <AlertTriangle className="h-5 w-5" />
-          <span className="text-sm">{error}</span>
-        </div>
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-4 flex items-center gap-3 text-rose-500"><AlertTriangle className="h-5 w-5" /><span className="text-sm">{error}</span></div>
       ) : screenings.length === 0 ? (
         <div className="rounded-lg border bg-card p-12 text-center space-y-4">
-          <div className="mx-auto w-12 h-12 rounded-full bg-studio-900 flex items-center justify-center text-muted-foreground">
-            <Film className="h-6 w-6 text-primary/80" />
-          </div>
+          <div className="mx-auto w-12 h-12 rounded-full bg-studio-900 flex items-center justify-center"><Film className="h-6 w-6 text-primary/80" /></div>
           <div className="space-y-1 max-w-sm mx-auto">
-            <h3 className="font-semibold text-foreground text-sm">No screenings provisioned</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Create a screening room session, upload a rough or final cut, and distribute shareable links to collect audience event signals.
-            </p>
+            <h3 className="font-semibold text-sm">No screenings provisioned</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">Create a screening room, upload a video cut, and share the link to collect audience telemetry.</p>
           </div>
         </div>
       ) : (
@@ -270,58 +505,29 @@ export default function Screenings() {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b bg-studio-950/50 text-muted-foreground font-medium text-xs uppercase tracking-wider">
-                <th className="p-4">Film Screening details</th>
-                <th className="p-4">Video duration</th>
-                <th className="p-4">Creation date</th>
-                <th className="p-4 text-right">Actions</th>
+                <th className="p-4">Film Screening</th><th className="p-4">Duration</th><th className="p-4">Created</th><th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {screenings.map((s) => (
+              {screenings.map(s => (
                 <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
-                  <td className="p-4 font-medium text-foreground">
+                  <td className="p-4 font-medium">
                     <div>{s.title}</div>
-                    {s.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>
-                    )}
-                  </td>
-                  <td className="p-4 text-muted-foreground flex items-center gap-1.5 pt-6">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{Math.floor(s.media_duration / 60)}m {Math.round(s.media_duration % 60)}s</span>
+                    {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    {new Date(s.created_at).toLocaleDateString()}
+                    <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{Math.floor(s.media_duration/60)}m {Math.round(s.media_duration%60)}s</span></div>
                   </td>
+                  <td className="p-4 text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</td>
                   <td className="p-4 text-right space-x-2">
-                    <button 
-                      onClick={() => handleCopyLink(s.public_token)}
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all"
-                    >
-                      {copiedToken === s.public_token ? (
-                        <>
-                          <ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" />
-                          <span className="text-emerald-500">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <LinkIcon className="h-3.5 w-3.5" />
-                          <span>Get Share Link</span>
-                        </>
-                      )}
+                    <button onClick={() => handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
+                      {copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
                     </button>
-                    <button 
-                      onClick={() => openStatsModal(s)}
-                      className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all"
-                    >
-                      <BarChart2 className="h-3.5 w-3.5" />
-                      <span>Telemetry Stats</span>
+                    <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
+                      <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
                     </button>
-                    <button 
-                      onClick={() => setScreeningToDelete(s)}
-                      className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Delete</span>
+                    <button onClick={() => setScreeningToDelete(s)} className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all">
+                      <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
                     </button>
                   </td>
                 </tr>
@@ -331,218 +537,118 @@ export default function Screenings() {
         </div>
       )}
 
-      {/* Creation Modal dialog */}
+      {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-studio-950 border rounded-xl shadow-2xl p-6 relative space-y-4">
-            <button 
-              onClick={() => setShowCreateModal(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider">Provision Screening Room</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Define metadata and upload a video file under 150MB.</p>
-            </div>
-            
+            <button onClick={() => setShowCreateModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            <div><h2 className="text-sm font-semibold uppercase tracking-wider">Provision Screening Room</h2><p className="text-xs text-muted-foreground mt-0.5">Upload a video file under 150MB.</p></div>
             <form onSubmit={handleCreateScreening} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Film Title</label>
-                <input 
-                  type="text" 
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Horizon Line - Fine Cut v2"
-                  className="w-full bg-studio-900 border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Description (Optional)</label>
-                <textarea 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Focus group testing regarding segment pacing..."
-                  rows={3}
-                  className="w-full bg-studio-900 border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Upload Video Cut</label>
-                <input 
-                  type="file"
-                  required
-                  accept="video/mp4,video/webm,video/quicktime"
-                  onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                  className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-studio-900 file:text-primary file:cursor-pointer hover:file:bg-studio-800"
-                />
-              </div>
-
+              <div className="space-y-1"><label className="text-xs text-muted-foreground">Film Title</label><input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Horizon Line - Fine Cut v2" className="w-full bg-studio-900 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+              <div className="space-y-1"><label className="text-xs text-muted-foreground">Description (Optional)</label><textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Focus group notes..." rows={3} className="w-full bg-studio-900 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none" /></div>
+              <div className="space-y-1"><label className="text-xs text-muted-foreground">Upload Video Cut</label><input type="file" required accept="video/mp4,video/webm,video/quicktime" onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-studio-900 file:text-primary file:cursor-pointer hover:file:bg-studio-800" /></div>
               {uploadProgress !== null && (
                 <div className="space-y-1.5 pt-2">
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span className="animate-pulse">{uploadStatus}</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-studio-900 h-1.5 rounded-full overflow-hidden border">
-                    <div 
-                      className="bg-primary h-full transition-all duration-150"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground"><span className="animate-pulse">{uploadStatus}</span><span>{uploadProgress}%</span></div>
+                  <div className="w-full bg-studio-900 h-1.5 rounded-full overflow-hidden border"><div className="bg-primary h-full transition-all duration-150" style={{ width: `${uploadProgress}%` }} /></div>
                 </div>
               )}
-
               <div className="flex justify-end gap-3 pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border rounded text-xs hover:bg-studio-900"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={uploadProgress !== null}
-                  className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded text-xs hover:bg-primary/95 disabled:opacity-50"
-                >
-                  Create Screening
-                </button>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 border rounded text-xs hover:bg-studio-900">Cancel</button>
+                <button type="submit" disabled={uploadProgress !== null} className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded text-xs hover:bg-primary/95 disabled:opacity-50">Create Screening</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ClickHouse Telemetry Stats Modal */}
-      {selectedStatsScreening && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-studio-950 border rounded-xl shadow-2xl p-6 relative space-y-6">
-            <button 
-              onClick={() => setSelectedStatsScreening(null)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider">{selectedStatsScreening.title}</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Direct analytical metrics aggregated from ClickHouse</p>
+      {/* Audience Intelligence Modal */}
+      {aiScreening && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
+            <div className="flex items-start justify-between p-6 border-b shrink-0">
+              <div><div className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold uppercase tracking-wider">Audience Intelligence</h2></div><p className="text-xs text-muted-foreground mt-0.5">{aiScreening.title}</p></div>
+              <button onClick={() => setAiScreening(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
-
-            {loadingStats ? (
-              <div className="flex justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-              </div>
-            ) : stats ? (
-              <div className="space-y-6">
-                {/* Stats Cards Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-studio-900 border rounded-lg space-y-1">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Total Sessions</div>
-                    <div className="text-xl font-bold text-foreground">{stats.total_sessions}</div>
-                  </div>
-                  <div className="p-4 bg-studio-900 border rounded-lg space-y-1">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Unique Viewers</div>
-                    <div className="text-xl font-bold text-foreground">{stats.unique_viewers}</div>
-                  </div>
-                  <div className="p-4 bg-studio-900 border rounded-lg space-y-1">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Telemetry Events</div>
-                    <div className="text-xl font-bold text-foreground">{stats.total_events}</div>
-                  </div>
-                  <div className="p-4 bg-studio-900 border rounded-lg space-y-1">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Completions</div>
-                    <div className="text-xl font-bold text-foreground">{stats.completed_sessions}</div>
-                  </div>
-                </div>
-
-                {/* Event Breakdown */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider">Event Breakdown</h3>
-                  {Object.keys(stats.event_breakdown).length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic bg-studio-900 p-4 border rounded text-center">
-                      No interaction events recorded yet. Distribute the screening link to begin collecting data.
+            <div className="flex border-b shrink-0 bg-studio-950">
+              {([
+                { key: 'overview' as AITab,  label: 'Overview',                                                Icon: BarChart2 },
+                { key: 'retention' as AITab, label: 'Retention',                                              Icon: TrendingDown },
+                { key: 'signals' as AITab,   label: 'Signal Map',                                             Icon: Activity },
+                { key: 'anomalies' as AITab, label: `Anomalies${totalAnm > 0 ? ` (${totalAnm})` : ''}`,      Icon: AlertTriangle },
+              ]).map(({ key, label, Icon }) => (
+                <button key={key} onClick={() => setAiTab(key)}
+                  className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium border-b-2 transition-all ${aiTab === key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                  <Icon className="h-3.5 w-3.5" />{label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">{tabContent()}</div>
+            <div className="border-t shrink-0">
+              <details className="group">
+                <summary className="flex items-center gap-2 px-6 py-3 cursor-pointer list-none hover:bg-studio-900/30 transition-colors">
+                  <FlaskConical className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Developer Tool</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">Synthetic Audience Simulator</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="px-6 pb-5 pt-3 border-t border-amber-500/10 bg-amber-500/[0.03] space-y-4">
+                  <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                    Injects synthetic telemetry using the exact same ViewerEvent contract as real viewers.
+                    <strong className="text-amber-400"> Not part of the normal studio workflow.</strong> For dev/demo only.
+                  </p>
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Viewers</label>
+                      <select value={simViewers} onChange={e => setSimViewers(Number(e.target.value))} className="bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        <option value={100}>100 viewers</option>
+                        <option value={500}>500 viewers</option>
+                        <option value={1000}>1,000 viewers</option>
+                        <option value={5000}>5,000 viewers</option>
+                        <option value={10000}>10,000 viewers</option>
+                      </select>
                     </div>
-                  ) : (
-                    <div className="border bg-studio-900/40 rounded-lg overflow-hidden divide-y">
-                      {Object.entries(stats.event_breakdown).map(([event, count]) => (
-                        <div key={event} className="flex justify-between items-center px-4 py-2 text-xs">
-                          <span className="font-semibold text-foreground tracking-wider">{event.replace(/_/g, ' ')}</span>
-                          <span className="text-muted-foreground">{count} events</span>
-                        </div>
-                      ))}
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Seed (optional)</label>
+                      <input type="number" placeholder="e.g. 42" value={simSeed} onChange={e => setSimSeed(e.target.value)} className="w-28 bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500" />
+                    </div>
+                    <button onClick={runSimulation} disabled={simRunning} className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold rounded text-xs disabled:opacity-50">
+                      {simRunning ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Generating...</span></>) : (<><FlaskConical className="h-3.5 w-3.5" /><span>Run Simulation</span></>)}
+                    </button>
+                  </div>
+                  {simResult && (
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded p-3 text-[10px] text-emerald-400 space-y-0.5">
+                      <div className="font-semibold">Simulation complete</div>
+                      <div>{simResult.num_viewers.toLocaleString()} viewers &middot; {simResult.total_events_generated.toLocaleString()} events</div>
+                      <div className="text-muted-foreground">Analytics refreshed above</div>
                     </div>
                   )}
+                  {simError && <div className="bg-rose-500/5 border border-rose-500/20 rounded p-3 text-[10px] text-rose-400">{simError}</div>}
                 </div>
-              </div>
-            ) : (
-              <div className="text-xs text-rose-500 bg-rose-500/5 p-4 border border-rose-500/20 rounded">
-                Failed to load stats details. Ensure ClickHouse connection is active.
-              </div>
-            )}
+              </details>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation */}
       {screeningToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-studio-950 border border-rose-500/20 rounded-xl shadow-2xl p-6 relative space-y-4">
-            <button 
-              onClick={() => setScreeningToDelete(null)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <button onClick={() => setScreeningToDelete(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-rose-500/10 text-rose-500 mt-1">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-rose-500">Delete Screening Room?</h2>
-                <p className="text-xs text-muted-foreground">
-                  This will permanently delete the screening room for <strong>{screeningToDelete.title}</strong>.
-                </p>
-              </div>
+              <div className="p-2 rounded-full bg-rose-500/10 text-rose-500 mt-1"><AlertTriangle className="h-6 w-6" /></div>
+              <div><h2 className="text-sm font-semibold uppercase tracking-wider text-rose-500">Delete Screening Room?</h2><p className="text-xs text-muted-foreground mt-0.5">Permanently deletes <strong>{screeningToDelete.title}</strong>.</p></div>
             </div>
-            
-            <div className="bg-studio-900/50 rounded-lg p-3.5 border border-rose-500/10 text-xs text-rose-400 space-y-2 leading-relaxed">
-              <p className="font-semibold">The following data will be permanently destroyed:</p>
-              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                <li>The screening room and public access links</li>
-                <li>The uploaded video cut file from the server disk</li>
-                <li>All ClickHouse telemetry analytics & event records</li>
-              </ul>
+            <div className="bg-studio-900/50 rounded-lg p-3.5 border border-rose-500/10 text-xs text-rose-400 space-y-2">
+              <p className="font-semibold">Permanently destroys:</p>
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground"><li>Screening room and access links</li><li>Uploaded video file from disk</li><li>All ClickHouse telemetry records</li></ul>
             </div>
-
-            <p className="text-xs text-muted-foreground italic">
-              * This action cannot be undone. Are you sure you want to proceed?
-            </p>
-
+            <p className="text-xs text-muted-foreground italic">* This action cannot be undone.</p>
             <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setScreeningToDelete(null)}
-                disabled={deletingId !== null}
-                className="px-4 py-2 border rounded text-xs hover:bg-studio-900 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteScreening}
-                disabled={deletingId !== null}
-                className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 transition-all flex items-center gap-1.5 shadow-md disabled:opacity-50"
-              >
-                {deletingId ? (
-                  <>
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <span>Permanently Delete</span>
-                )}
+              <button onClick={() => setScreeningToDelete(null)} disabled={deletingId !== null} className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50">Cancel</button>
+              <button onClick={handleDeleteScreening} disabled={deletingId !== null} className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 flex items-center gap-1.5 disabled:opacity-50">
+                {deletingId ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Deleting...</span></>) : <span>Permanently Delete</span>}
               </button>
             </div>
           </div>
