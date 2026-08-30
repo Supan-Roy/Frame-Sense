@@ -27,6 +27,8 @@ interface Reliability {
 interface Overview {
   screening_id: string;
   unique_viewers: number;
+  real_viewers?: number;
+  synthetic_viewers?: number;
   unique_sessions: number;
   total_events: number;
   completed_sessions: number;
@@ -440,57 +442,36 @@ export default function Screenings() {
           {simResult && (
             <div className="flex items-center gap-2 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-mono font-semibold">
               <FlaskConical className="h-3 w-3" />
-              <span>SIMULATION: {simResult.simulation_mode}</span>
+              <span>SIMULATION MODE: {simResult.simulation_mode}</span>
             </div>
           )}
         </div>
 
-        {/* Demo Transparency Badge */}
-        {aiOverview && (
-          <div className="bg-studio-900/60 border border-white/10 rounded-xl p-4 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-amber-400" />
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Audience Composition</span>
-              </div>
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {simResult?.simulation_mode ? `Mode: ${simResult.simulation_mode}` : 'Telemetry Source: ClickHouse'}
-              </span>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="p-4 bg-studio-900 border rounded-lg space-y-2">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <Users className="h-3 w-3" />Unique Viewers
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Total Audience</div>
-                <div className="text-base font-bold text-foreground">{aiOverview.unique_viewers.toLocaleString()}</div>
-              </div>
-              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Real Viewers</div>
-                <div className="text-base font-bold text-emerald-400">
-                  {simResult ? (simResult.real_viewers_analyzed ?? 0) : aiOverview.unique_viewers}
-                </div>
-              </div>
-              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Synthetic Viewers</div>
-                <div className="text-base font-bold text-amber-400">
-                  {simResult ? simResult.num_viewers.toLocaleString() : 0}
-                </div>
-              </div>
+            <div className="text-xl font-bold text-foreground">
+              {aiOverview?.unique_viewers != null ? aiOverview.unique_viewers.toLocaleString() : '—'}
             </div>
-            {simResult && (
-              <p className="text-[10px] text-muted-foreground pt-1 italic">
-                {simResult.simulation_mode === 'REAL_ANCHORED' && `Behavioral fingerprint anchored on ${simResult.real_viewers_analyzed} real viewer(s) with ${simResult.variation_strength.toLowerCase()} controlled variation.`}
-                {simResult.simulation_mode === 'HYBRID' && `Blended behavioral fingerprint from ${simResult.real_viewers_analyzed} real viewer(s) and generic priors.`}
-                {simResult.simulation_mode === 'COLD_START' && `Cold-start synthetic model (0 real viewers).`}
-              </p>
+            {aiOverview && (
+              <div className="text-[10px] font-mono text-muted-foreground">
+                {(aiOverview.synthetic_viewers ?? 0) > 0 ? (
+                  <span className="text-amber-400 font-medium">
+                    {aiOverview.real_viewers?.toLocaleString()} real &middot; {aiOverview.synthetic_viewers?.toLocaleString()} synthetic
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 font-medium">100% Real Audience</span>
+                )}
+              </div>
             )}
           </div>
-        )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
-            { label: 'Unique Viewers',  val: aiOverview?.unique_viewers ?? '—',                                       Icon: Users },
-            { label: 'Sessions',        val: aiOverview?.unique_sessions ?? '—',                                      Icon: Activity },
+            { label: 'Sessions',        val: aiOverview?.unique_sessions?.toLocaleString() ?? '—',                    Icon: Activity },
             { label: 'Total Events',    val: aiOverview?.total_events?.toLocaleString() ?? '—',                       Icon: BarChart },
-            { label: 'Completions',     val: aiOverview?.completed_sessions ?? '—',                                   Icon: CircleDot },
+            { label: 'Completions',     val: aiOverview?.completed_sessions?.toLocaleString() ?? '—',                 Icon: CircleDot },
             { label: 'Completion Rate', val: aiOverview?.completion_rate != null ? fmtPct(aiOverview.completion_rate) : '—', Icon: TrendingDown },
             { label: 'Anomalies Found', val: totalAnm,                                                                Icon: AlertTriangle },
           ].map(({ label, val, Icon }) => (
@@ -502,6 +483,19 @@ export default function Screenings() {
             </div>
           ))}
         </div>
+
+        {simResult && (
+          <div className="bg-amber-500/[0.04] border border-amber-500/20 rounded-lg p-3 text-[11px] text-amber-300/90 leading-relaxed flex items-start gap-2.5">
+            <FlaskConical className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-amber-400">Real-Anchored Simulation Active: </span>
+              {simResult.simulation_mode === 'REAL_ANCHORED' && `Behavioral fingerprint derived from ${simResult.real_viewers_analyzed} real viewer(s) with ${simResult.variation_strength.toLowerCase()} controlled variation.`}
+              {simResult.simulation_mode === 'HYBRID' && `Blended fingerprint derived from ${simResult.real_viewers_analyzed} real viewer(s) and generic priors.`}
+              {simResult.simulation_mode === 'COLD_START' && `Cold-start synthetic model (0 real viewers).`}
+            </div>
+          </div>
+        )}
+
         {aiAnomalies && totalAnm > 0 && (
           <div className="space-y-2">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Top Findings</div>

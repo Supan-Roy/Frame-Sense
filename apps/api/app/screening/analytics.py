@@ -34,6 +34,8 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     client = get_client()
     sid = screening_id.replace("'", "")
     unique_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}'"))
+    real_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
+    synthetic_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id LIKE 'synth_v_%'"))
     unique_sessions = int(client.command(f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{sid}'"))
     total_events = int(client.command(f"SELECT count() FROM viewer_events WHERE screening_id = '{sid}'"))
     completed_sessions = int(client.command(f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{sid}' AND event_type = 'COMPLETE'"))
@@ -41,6 +43,8 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     return {
         "screening_id": screening_id,
         "unique_viewers": unique_viewers,
+        "real_viewers": real_viewers,
+        "synthetic_viewers": synthetic_viewers,
         "unique_sessions": unique_sessions,
         "total_events": total_events,
         "completed_sessions": completed_sessions,
