@@ -18,6 +18,11 @@ class BaseStorage(ABC):
         """Get the absolute filepath of the media file."""
         pass
 
+    @abstractmethod
+    def delete_file(self, filename: str) -> None:
+        """Permanently delete a file from storage."""
+        pass
+
 class LocalStorage(BaseStorage):
     def __init__(self, base_dir: str = "data/media"):
         self.base_dir = os.path.abspath(base_dir)
@@ -71,6 +76,12 @@ class LocalStorage(BaseStorage):
         if not os.path.exists(target_path):
             raise HTTPException(status_code=404, detail="File not found")
         return target_path
+
+    def delete_file(self, filename: str) -> None:
+        safe_filename = os.path.basename(filename)
+        target_path = os.path.join(self.base_dir, safe_filename)
+        if os.path.exists(target_path):
+            os.remove(target_path)
 
 # Export a default instance
 storage_backend = LocalStorage()

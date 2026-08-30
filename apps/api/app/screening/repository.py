@@ -118,5 +118,14 @@ class ScreeningRepository:
             "public_token": public_token
         }
 
+    def delete(self, screening_id: str) -> bool:
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("DELETE FROM screenings WHERE screening_id = ?", (screening_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
 # Export single repository instance
 screening_repo = ScreeningRepository()

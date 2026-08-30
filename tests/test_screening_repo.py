@@ -35,3 +35,16 @@ def test_create_and_get_screening(temp_repo):
     by_token = temp_repo.get_by_token(record["public_token"])
     assert by_token is not None
     assert by_token["screening_id"] == "sc_test123"
+
+def test_delete_screening(temp_repo):
+    temp_repo.create(
+        screening_id="sc_to_delete",
+        media_id="med_to_delete",
+        title="To Delete",
+        media_filename="file.mp4",
+        media_duration=60.0
+    )
+    assert temp_repo.get_by_id("sc_to_delete") is not None
+    deleted = temp_repo.delete("sc_to_delete")
+    assert deleted is True
+    assert temp_repo.get_by_id("sc_to_delete") is None

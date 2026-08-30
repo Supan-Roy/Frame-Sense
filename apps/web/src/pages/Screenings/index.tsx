@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck, Clock, AlertTriangle, Trash2 } from 'lucide-react';
 
 interface Screening {
   screening_id: string;
@@ -35,6 +35,10 @@ export default function Screenings() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>('');
 
+  // Delete state
+  const [screeningToDelete, setScreeningToDelete] = useState<Screening | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // Stats Modal state
   const [selectedStatsScreening, setSelectedStatsScreening] = useState<Screening | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -61,6 +65,29 @@ export default function Screenings() {
       setLoading(false);
     }
   };
+
+  const handleDeleteScreening = async () => {
+    if (!screeningToDelete) return;
+    try {
+      setDeletingId(screeningToDelete.screening_id);
+      const res = await fetch(`/api/v1/screenings/${screeningToDelete.screening_id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to delete screening");
+      }
+      
+      // Refresh list
+      setScreenings(prev => prev.filter(s => s.screening_id !== screeningToDelete.screening_id));
+      setScreeningToDelete(null);
+    } catch (err: any) {
+      alert(err.message || "Error deleting screening.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
 
   useEffect(() => {
     fetchScreenings();
@@ -289,6 +316,13 @@ export default function Screenings() {
                       <BarChart2 className="h-3.5 w-3.5" />
                       <span>Telemetry Stats</span>
                     </button>
+                    <button 
+                      onClick={() => setScreeningToDelete(s)}
+                      className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -449,6 +483,68 @@ export default function Screenings() {
                 Failed to load stats details. Ensure ClickHouse connection is active.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {screeningToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-studio-950 border border-rose-500/20 rounded-xl shadow-2xl p-6 relative space-y-4">
+            <button 
+              onClick={() => setScreeningToDelete(null)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-rose-500/10 text-rose-500 mt-1">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-rose-500">Delete Screening Room?</h2>
+                <p className="text-xs text-muted-foreground">
+                  This will permanently delete the screening room for <strong>{screeningToDelete.title}</strong>.
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-studio-900/50 rounded-lg p-3.5 border border-rose-500/10 text-xs text-rose-400 space-y-2 leading-relaxed">
+              <p className="font-semibold">The following data will be permanently destroyed:</p>
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                <li>The screening room and public access links</li>
+                <li>The uploaded video cut file from the server disk</li>
+                <li>All ClickHouse telemetry analytics & event records</li>
+              </ul>
+            </div>
+
+            <p className="text-xs text-muted-foreground italic">
+              * This action cannot be undone. Are you sure you want to proceed?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setScreeningToDelete(null)}
+                disabled={deletingId !== null}
+                className="px-4 py-2 border rounded text-xs hover:bg-studio-900 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteScreening}
+                disabled={deletingId !== null}
+                className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 transition-all flex items-center gap-1.5 shadow-md disabled:opacity-50"
+              >
+                {deletingId ? (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Permanently Delete</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

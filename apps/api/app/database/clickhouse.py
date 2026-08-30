@@ -110,3 +110,12 @@ def get_global_stats() -> Dict[str, Any]:
             "total_viewers": 0,
             "total_events": 0
         }
+
+def delete_screening_events(screening_id: str):
+    client = get_client()
+    try:
+        # ALTER TABLE DELETE mutations run asynchronously in ClickHouse
+        client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{screening_id}'")
+    except Exception as e:
+        print(f"Error executing ClickHouse delete events for {screening_id}: {e}")
+

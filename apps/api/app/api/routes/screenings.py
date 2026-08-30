@@ -93,3 +93,31 @@ def get_stats(screening_id: str):
             completed_sessions=0,
             event_breakdown={}
         )
+
+@router.delete("/{screening_id}")
+def delete_screening(screening_id: str):
+    # 1. Fetch metadata record to get the media filename
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+
+    # 2. Delete media file from disk
+    try:
+        storage_backend.delete_file(screening["media_filename"])
+    except Exception as e:
+        print(f"Warning: Failed to delete media file: {e}")
+
+    # 3. Delete telemetry events from ClickHouse
+    try:
+        from app.database.clickhouse import delete_screening_events
+        delete_screening_events(screening_id)
+    except Exception as e:
+        print(f"Warning: Failed to delete ClickHouse events: {e}")
+
+    # 4. Delete metadata from SQLite
+    deleted = screening_repo.delete(screening_id)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to delete screening metadata")
+
+    return {"status": "success", "message": "Screening deleted successfully"}
+
