@@ -149,7 +149,7 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
         FROM viewer_events
         WHERE screening_id = '{sid}'
           AND anonymous_viewer_id LIKE 'synth_v_%'
-          AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -10)
+          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
         """
     else:
         real_ts_res = client.query(
@@ -163,7 +163,7 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
         SELECT DISTINCT session_id, anonymous_viewer_id
         FROM viewer_events
         WHERE screening_id = '{sid}'
-          AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -5)
+          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
         """
 
     s_res = client.query(sessions_query)

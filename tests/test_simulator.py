@@ -251,3 +251,14 @@ def test_profile_weights_sum_to_one():
     total = sum(sim.PROFILE_WEIGHTS.values())
     assert abs(total - 1.0) < 1e-6, f"Profile weights do not sum to 1.0: {total}"
 
+
+def test_all_events_in_run_share_exact_timestamp():
+    from datetime import datetime, timezone
+    ts = datetime.now(timezone.utc)
+    events = sim._generate_cold_start_events(
+        SCREENING_ID, VIDEO_ID, DURATION, profile="NORMAL", ground_truth=[], rng=random.Random(42), run_timestamp=ts
+    )
+    stamps = {e["server_timestamp"] for e in events}
+    assert len(stamps) == 1, "All events in a single simulation run must share exact server_timestamp for batch rollback isolation"
+
+

@@ -58,7 +58,6 @@ def _make_event(
 ) -> Dict[str, Any]:
     if not run_timestamp:
         run_timestamp = datetime.datetime.now(datetime.timezone.utc)
-    ts = run_timestamp + datetime.timedelta(milliseconds=rng.uniform(0, 500))
     return {
         "event_id": str(uuid.uuid4()),
         "screening_id": screening_id,
@@ -67,8 +66,8 @@ def _make_event(
         "video_id": video_id,
         "event_type": event_type,
         "video_timecode_sec": round(timecode, 2),
-        "client_timestamp": ts,
-        "server_timestamp": ts,
+        "client_timestamp": run_timestamp,
+        "server_timestamp": run_timestamp,
     }
 
 
