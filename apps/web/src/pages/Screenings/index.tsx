@@ -470,7 +470,7 @@ export default function Screenings() {
                     <div className="border bg-studio-900/40 rounded-lg overflow-hidden divide-y">
                       {Object.entries(stats.event_breakdown).map(([event, count]) => (
                         <div key={event} className="flex justify-between items-center px-4 py-2 text-xs">
-                          <span className="font-semibold text-foreground tracking-wider">{event}</span>
+                          <span className="font-semibold text-foreground tracking-wider">{event.replace(/_/g, ' ')}</span>
                           <span className="text-muted-foreground">{count} events</span>
                         </div>
                       ))}

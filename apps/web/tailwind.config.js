@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Sofia Sans"', 'sans-serif'],
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",
