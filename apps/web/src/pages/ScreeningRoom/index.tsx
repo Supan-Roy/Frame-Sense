@@ -121,6 +121,12 @@ export default function ScreeningRoom() {
         e.preventDefault();
         toggleMute();
       }
+
+      // F or f key: Fullscreen toggle
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleFullscreen();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
