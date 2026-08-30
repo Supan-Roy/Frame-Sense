@@ -83,6 +83,22 @@ export default function ScreeningRoom() {
     }
   }, [token]);
 
+  // Prevent right-click downloading and key combinations
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+S (Save), Ctrl+U (View Source)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'u')) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
   // Queue and flush telemetry events
   const queueEvent = (type: string, timecode: number) => {
     if (!screening) return;
@@ -261,7 +277,7 @@ export default function ScreeningRoom() {
     return () => document.removeEventListener("fullscreenchange", handleFSChange);
   }, []);
 
-  // Time formatting helper (hh:mm:ss or mm:ss)
+  // Time formatting helper
   const formatTime = (secs: number) => {
     if (isNaN(secs)) return "00:00";
     const h = Math.floor(secs / 3600);
@@ -277,7 +293,6 @@ export default function ScreeningRoom() {
     return `${mStr}:${sStr}`;
   };
 
-  // Video metadata loading hooks
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
@@ -288,7 +303,6 @@ export default function ScreeningRoom() {
     if (!videoRef.current || isScrubbing) return;
     setCurrentTime(videoRef.current.currentTime);
     
-    // Check for complete event
     if (videoRef.current.currentTime >= videoRef.current.duration) {
       queueEvent("COMPLETE", videoRef.current.duration);
     }
@@ -329,7 +343,6 @@ export default function ScreeningRoom() {
     const time = getSeekTimeFromX(e.clientX);
     setScrubTime(time);
     
-    // Pause main playback during active scrubbing to prevent lag
     if (videoRef.current && isPlaying) {
       videoRef.current.pause();
     }
@@ -346,13 +359,11 @@ export default function ScreeningRoom() {
         videoRef.current.currentTime = scrubTime;
         setCurrentTime(scrubTime);
         
-        // Log telemetry seeking event
         queueEvent(delta > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", scrubTime);
         if (delta < -5) {
           queueEvent("REPLAY", scrubTime);
         }
         
-        // Resume play if previously active
         if (isPlaying) {
           videoRef.current.play().catch(console.error);
         }
@@ -382,7 +393,6 @@ export default function ScreeningRoom() {
     };
   }, [isScrubbing, scrubTime, isPlaying, duration]);
 
-  // Hidden video seek event writes visual snapshot onto tooltip canvas
   const handlePreviewSeeked = () => {
     if (!previewVideoRef.current || !previewCanvasRef.current) return;
     const canvas = previewCanvasRef.current;
@@ -445,214 +455,238 @@ export default function ScreeningRoom() {
   const hoverPercent = duration && hoverTime ? (hoverTime / duration) * 100 : 0;
 
   return (
-    <div 
-      ref={playerContainerRef}
-      onMouseMove={handleUserActivity}
-      onMouseLeave={() => isPlaying && setShowControls(false)}
-      className="flex flex-col h-screen w-screen bg-black text-foreground font-sans relative overflow-hidden select-none"
-    >
-      {/* Hidden Player elements for Scrubbing Tooltip */}
-      <video
-        ref={previewVideoRef}
-        src={videoUrl}
-        className="hidden"
-        preload="auto"
-        muted
-        onSeeked={handlePreviewSeeked}
-      />
-
-      {/* Main Cinematic Video Player */}
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        preload="auto"
-        className="w-full h-full object-contain cursor-none"
-        onClick={togglePlay}
-        onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={() => setIsPlaying(false)}
-      />
-
-      {/* IMMERSIVE SCRIMS AND CONTROLS OVERLAYS */}
-      <div 
-        className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-300 pointer-events-none z-10 ${
-          showControls ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        {/* Top Scrim (Netflix Header style) */}
-        <div className="h-28 bg-gradient-to-b from-black/80 to-transparent p-8 flex items-start gap-4 pointer-events-auto">
-          <div className="flex items-center gap-3">
-            <Film className="h-6 w-6 text-red-600" />
-            <div>
-              <h1 className="font-bold text-lg tracking-wide text-zinc-100">{screening.title}</h1>
-              {screening.description && (
-                <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1 max-w-2xl">{screening.description}</p>
-              )}
-            </div>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans select-none">
+      {/* Header bar */}
+      <header className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-md px-6 py-4 sticky top-0 z-20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Film className="h-5 w-5 text-red-600 animate-pulse" />
+          <div>
+            <h1 className="font-bold text-sm tracking-wide text-zinc-100 uppercase">{screening.title}</h1>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Focus Group Screening Room</p>
           </div>
         </div>
-
-        {/* Center Screen Play/Pause indicator */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <button 
-            onClick={togglePlay}
-            className={`w-20 h-20 rounded-full bg-black/50 border border-zinc-700/50 flex items-center justify-center text-white backdrop-blur-sm pointer-events-auto hover:bg-black/70 hover:scale-110 active:scale-95 transition-all duration-200 ${
-              showControls ? "opacity-100 scale-100" : "opacity-0 scale-75"
-            }`}
-          >
-            {isPlaying ? (
-              <Pause className="h-8 w-8 fill-current" />
-            ) : (
-              <Play className="h-8 w-8 fill-current translate-x-0.5" />
-            )}
-          </button>
+        
+        <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800/40">
+          <Eye className="h-3.5 w-3.5 text-red-600" />
+          <span>Anonymous Research Active</span>
         </div>
+      </header>
 
-        {/* Bottom Scrim (Controls, Seekbar, volume) */}
-        <div className="bg-gradient-to-t from-black/90 via-black/60 to-transparent px-8 pb-8 pt-16 flex flex-col gap-6 pointer-events-auto">
+      {/* Main Content Layout */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
+        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
-          {/* Custom Netflix-style Seekbar */}
-          <div className="relative group/seekbar pt-4 pb-2">
+          {/* Left Column: Custom Netflix Video Player */}
+          <div className="lg:col-span-2 space-y-4">
             
-            {/* Hover Canvas Preview Tooltip */}
+            {/* Custom player frame with Anti-Right-Click protection */}
             <div 
-              className={`absolute bottom-full mb-4 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-150 ${
-                isHoveringSeek || isScrubbing ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-              }`}
-              style={{ left: isScrubbing ? `${(scrubTime / duration) * 100}%` : `${hoverPercent}%` }}
+              ref={playerContainerRef}
+              onMouseMove={handleUserActivity}
+              onMouseLeave={() => isPlaying && setShowControls(false)}
+              onContextMenu={handleContextMenu}
+              className="w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black relative shadow-2xl group flex items-center justify-center"
             >
-              <div className="bg-zinc-950 border border-zinc-800 rounded-md overflow-hidden shadow-2xl p-1.5 flex flex-col items-center space-y-1">
-                <canvas 
-                  ref={previewCanvasRef} 
-                  width={160} 
-                  height={90} 
-                  className="bg-black rounded border border-zinc-800 w-40 h-22.5 object-cover" 
-                />
-                <span className="text-[10px] text-zinc-300 font-semibold font-mono tracking-wider">
-                  {formatTime(isScrubbing ? scrubTime : (hoverTime || 0))}
-                </span>
+              {/* Hidden Sprite Preloader Player with copy protection */}
+              <video
+                ref={previewVideoRef}
+                src={videoUrl}
+                className="hidden"
+                preload="auto"
+                muted
+                controlsList="nodownload noRemotePlayback"
+                disablePictureInPicture
+                onSeeked={handlePreviewSeeked}
+              />
+
+              {/* Main Cinematic Video Player with anti-download attributes */}
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                preload="auto"
+                controlsList="nodownload noRemotePlayback"
+                disablePictureInPicture
+                className="w-full h-full object-contain cursor-none"
+                onClick={togglePlay}
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={() => setIsPlaying(false)}
+              />
+
+              {/* Custom Controls Overlay */}
+              <div 
+                className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-300 pointer-events-none z-10 ${
+                  showControls ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                {/* Immersive Top Scrim */}
+                <div className="h-20 bg-gradient-to-b from-black/80 to-transparent p-6 flex items-start justify-between pointer-events-auto">
+                  <div>
+                    <h2 className="font-bold text-sm tracking-wide text-zinc-200">{screening.title}</h2>
+                  </div>
+                </div>
+
+                {/* Big Center Play Indicator */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <button 
+                    onClick={togglePlay}
+                    className={`w-16 h-16 rounded-full bg-black/60 border border-zinc-700/50 flex items-center justify-center text-white backdrop-blur-sm pointer-events-auto hover:bg-black/80 hover:scale-105 active:scale-95 transition-all duration-200 ${
+                      showControls ? "opacity-100 scale-100" : "opacity-0 scale-75"
+                    }`}
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-6 w-6 fill-current" />
+                    ) : (
+                      <Play className="h-6 w-6 fill-current translate-x-0.5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Bottom Scrim (Seekbar and controls) */}
+                <div className="bg-gradient-to-t from-black/90 via-black/50 to-transparent px-6 pb-6 pt-12 flex flex-col gap-4 pointer-events-auto">
+                  
+                  {/* Custom Seekbar Slider */}
+                  <div className="relative group/seekbar pt-2 pb-1">
+                    
+                    {/* Scrub Hover Canvas Preview card */}
+                    <div 
+                      className={`absolute bottom-full mb-3 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-150 ${
+                        isHoveringSeek || isScrubbing ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                      }`}
+                      style={{ left: isScrubbing ? `${(scrubTime / duration) * 100}%` : `${hoverPercent}%` }}
+                    >
+                      <div className="bg-zinc-950 border border-zinc-800 rounded shadow-2xl p-1 flex flex-col items-center space-y-1">
+                        <canvas 
+                          ref={previewCanvasRef} 
+                          width={140} 
+                          height={78.75} 
+                          className="bg-black rounded border border-zinc-900 w-35 h-19.6 object-cover" 
+                        />
+                        <span className="text-[9px] text-zinc-300 font-semibold font-mono tracking-wider">
+                          {formatTime(isScrubbing ? scrubTime : (hoverTime || 0))}
+                        </span>
+                      </div>
+                      <div className="w-2 h-2 bg-zinc-950 border-r border-b border-zinc-800 rotate-45 -mt-1 shadow-2xl" />
+                    </div>
+
+                    {/* Seek track timeline */}
+                    <div 
+                      ref={seekbarRef}
+                      onMouseMove={handleSeekMouseMove}
+                      onMouseLeave={handleSeekMouseLeave}
+                      onMouseDown={handleSeekMouseDown}
+                      className="h-1 bg-zinc-700/50 rounded-full w-full relative cursor-pointer group-hover/seekbar:h-1.5 transition-all duration-150"
+                    >
+                      {isHoveringSeek && (
+                        <div 
+                          className="absolute top-0 bottom-0 left-0 bg-white/20 rounded-full pointer-events-none"
+                          style={{ width: `${hoverPercent}%` }}
+                        />
+                      )}
+                      <div 
+                        className="absolute top-0 bottom-0 left-0 bg-red-600 rounded-full pointer-events-none"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                      <div 
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-red-600 border border-white opacity-0 group-hover/seekbar:opacity-100 transition-opacity duration-150 pointer-events-none"
+                        style={{ left: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                      <button 
+                        onClick={() => skipTime(-10)}
+                        className="text-zinc-400 hover:text-white transition-colors"
+                        title="Skip back 10s"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+
+                      <button onClick={togglePlay} className="text-white hover:scale-105 transition-all">
+                        {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current translate-x-0.5" />}
+                      </button>
+
+                      <button 
+                        onClick={() => skipTime(10)}
+                        className="text-zinc-400 hover:text-white transition-colors"
+                        title="Skip forward 10s"
+                      >
+                        <RotateCw className="h-4 w-4" />
+                      </button>
+
+                      <div className="flex items-center gap-2 group/volume">
+                        <button onClick={toggleMute} className="text-zinc-400 hover:text-white transition-colors">
+                          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        </button>
+                        <input 
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={isMuted ? 0 : volume}
+                          onChange={handleVolumeSlide}
+                          className="w-0 overflow-hidden group-hover/volume:w-16 h-1 accent-red-600 bg-zinc-700 roundedappearance-none cursor-pointer transition-all duration-300"
+                        />
+                      </div>
+
+                      <div className="text-[11px] text-zinc-300 font-mono tracking-widest pl-2">
+                        <span>{formatTime(currentTime)}</span>
+                        <span className="text-zinc-600 mx-1.5">/</span>
+                        <span>{formatTime(duration)}</span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleFullscreen}
+                      className="text-zinc-400 hover:text-white transition-colors"
+                    >
+                      {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="w-2.5 h-2.5 bg-zinc-950 border-r border-b border-zinc-800 rotate-45 -mt-1.5 shadow-2xl" />
-            </div>
-
-            {/* Hitbox area */}
-            <div 
-              ref={seekbarRef}
-              onMouseMove={handleSeekMouseMove}
-              onMouseLeave={handleSeekMouseLeave}
-              onMouseDown={handleSeekMouseDown}
-              className="h-1.5 bg-zinc-700/50 rounded-full w-full relative cursor-pointer group-hover/seekbar:h-2 transition-all duration-150"
-            >
-              {/* Buffer / Hover timeline */}
-              {isHoveringSeek && (
-                <div 
-                  className="absolute top-0 bottom-0 left-0 bg-white/20 rounded-full pointer-events-none"
-                  style={{ width: `${hoverPercent}%` }}
-                />
-              )}
-
-              {/* Progress fill */}
-              <div 
-                className="absolute top-0 bottom-0 left-0 bg-red-600 rounded-full pointer-events-none"
-                style={{ width: `${progressPercent}%` }}
-              />
-
-              {/* Thumb handle */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-red-600 border border-white opacity-0 group-hover/seekbar:opacity-100 transition-opacity duration-150 pointer-events-none"
-                style={{ left: `${progressPercent}%` }}
-              />
             </div>
           </div>
 
-          {/* Controls button layout */}
-          <div className="flex items-center justify-between">
-            {/* Left side actions */}
-            <div className="flex items-center gap-6">
-              {/* Skip Back */}
-              <button 
-                onClick={() => skipTime(-10)}
-                className="text-zinc-400 hover:text-white hover:scale-105 active:scale-95 transition-all"
-                title="Skip back 10s"
-              >
-                <RotateCcw className="h-5 w-5" />
-              </button>
-
-              {/* Play / Pause toggle */}
-              <button 
-                onClick={togglePlay}
-                className="text-white hover:scale-110 active:scale-95 transition-all"
-              >
-                {isPlaying ? (
-                  <Pause className="h-6 w-6 fill-current" />
-                ) : (
-                  <Play className="h-6 w-6 fill-current translate-x-0.5" />
-                )}
-              </button>
-
-              {/* Skip Forward */}
-              <button 
-                onClick={() => skipTime(10)}
-                className="text-zinc-400 hover:text-white hover:scale-105 active:scale-95 transition-all"
-                title="Skip forward 10s"
-              >
-                <RotateCw className="h-5 w-5" />
-              </button>
-
-              {/* Volume block */}
-              <div className="flex items-center gap-2 group/volume">
-                <button 
-                  onClick={toggleMute}
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-5 w-5" />
-                  ) : (
-                    <Volume2 className="h-5 w-5" />
-                  )}
-                </button>
-                <input 
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeSlide}
-                  className="w-0 overflow-hidden group-hover/volume:w-20 h-1 accent-red-600 bg-zinc-700 rounded-lg appearance-none cursor-pointer transition-all duration-300"
-                />
+          {/* Right Column: Movie & Telemetry info sidebar */}
+          <div className="space-y-6">
+            <div className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl p-6 space-y-4 shadow-xl">
+              <div className="space-y-1">
+                <span className="text-[9px] text-red-500 font-bold uppercase tracking-widest">Now Screening</span>
+                <h2 className="text-lg font-bold text-zinc-100 tracking-wide uppercase">{screening.title}</h2>
               </div>
+              
+              {screening.description ? (
+                <p className="text-xs text-zinc-400 leading-relaxed">{screening.description}</p>
+              ) : (
+                <p className="text-xs text-zinc-500 italic">No description details available.</p>
+              )}
 
-              {/* Time displays */}
-              <div className="text-xs text-zinc-300 font-mono tracking-widest pl-2">
-                <span>{formatTime(currentTime)}</span>
-                <span className="text-zinc-500 mx-2">/</span>
-                <span>{formatTime(duration)}</span>
+              <div className="flex items-center gap-4 text-[10px] text-zinc-500 uppercase tracking-wider pt-3 border-t border-zinc-800/60 font-mono">
+                <div>Duration: {Math.floor(screening.media_duration / 60)}m {Math.round(screening.media_duration % 60)}s</div>
+                <div>Published: {new Date(screening.created_at).toLocaleDateString()}</div>
               </div>
             </div>
 
-            {/* Right side actions */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-widest bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800/40">
-                <Eye className="h-3 w-3 text-red-600 animate-pulse" />
-                <span>Audience Mode</span>
+            {/* Audience telemetry notice */}
+            <div className="bg-zinc-900/20 border border-zinc-900/50 rounded-xl p-6 flex items-start gap-4">
+              <div className="p-2 bg-red-600/10 text-red-500 rounded-lg">
+                <AlertCircle className="h-5 w-5 animate-pulse" />
               </div>
-
-              {/* Fullscreen */}
-              <button 
-                onClick={handleFullscreen}
-                className="text-zinc-400 hover:text-white hover:scale-105 transition-all"
-              >
-                {isFullscreen ? (
-                  <Minimize className="h-5 w-5" />
-                ) : (
-                  <Maximize className="h-5 w-5" />
-                )}
-              </button>
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-zinc-300">Telemetry Monitoring Active</div>
+                <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
+                  This screening room tracks playback events (play, pause, and skips) anonymously. The statistics help filmmakers adjust temporal structures and cut lengths. No personal data is stored.
+                </p>
+              </div>
             </div>
           </div>
 
         </div>
-      </div>
+      </main>
     </div>
   );
 }
