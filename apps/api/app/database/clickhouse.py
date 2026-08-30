@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 import clickhouse_connect
 from clickhouse_connect.driver.client import Client
@@ -42,6 +43,14 @@ def insert_events(events: List[Dict[str, Any]]):
         raw_event_id = e["event_id"]
         clickhouse_uuid = uuid.UUID(raw_event_id) if isinstance(raw_event_id, str) else raw_event_id
         
+        c_ts = e["client_timestamp"]
+        if isinstance(c_ts, str):
+            c_ts = datetime.fromisoformat(c_ts.replace('Z', '+00:00'))
+            
+        s_ts = e.get("server_timestamp") or c_ts
+        if isinstance(s_ts, str):
+            s_ts = datetime.fromisoformat(s_ts.replace('Z', '+00:00'))
+            
         data.append([
             clickhouse_uuid,
             e["screening_id"],
@@ -50,8 +59,8 @@ def insert_events(events: List[Dict[str, Any]]):
             e["video_id"],
             e["event_type"],
             e["video_timecode_sec"],
-            e["client_timestamp"],
-            e["server_timestamp"]
+            c_ts,
+            s_ts
         ])
     
     column_names = [

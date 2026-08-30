@@ -81,7 +81,7 @@ def _make_event(
     base_ts = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
     # Slight jitter on timestamps for realism
     ts_offset = datetime.timedelta(seconds=rng.uniform(0, 3600))
-    ts = (base_ts + ts_offset).isoformat()
+    ts = base_ts + ts_offset
     return {
         "event_id": str(uuid.uuid4()),
         "screening_id": screening_id,
