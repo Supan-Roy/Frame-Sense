@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": ".venv\\Scripts\\python -m uvicorn app.main:app --reload --reload-dir app --port 8000"
+    "dev": ".venv\\Scripts\\python dev.py"
   }
 }
