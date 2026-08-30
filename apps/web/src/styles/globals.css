@@ -40,8 +40,8 @@
   * {
     @apply border-border;
   }
-  body, button, input, select, textarea {
-    font-family: 'Sofia Sans', sans-serif;
+  html, body, button, input, select, textarea {
+    font-family: 'Sofia Sans', sans-serif !important;
   }
   body {
     @apply bg-background text-foreground antialiased;
