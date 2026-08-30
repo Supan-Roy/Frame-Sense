@@ -3,7 +3,7 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart
+  CircleDot, BarChart, RotateCcw
 } from 'lucide-react';
 
 interface Screening {
@@ -292,6 +292,8 @@ export default function Screenings() {
   const [simRunning, setSimRunning] = useState(false);
   const [simResult, setSimResult] = useState<any>(null);
   const [simError, setSimError] = useState<string | null>(null);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [resettingAudience, setResettingAudience] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const fetchScreenings = async () => {
@@ -347,6 +349,25 @@ export default function Screenings() {
       setSimResult(data);
       await loadAIData(aiScreening.screening_id);
     } catch (e: any) { setSimError(e.message); } finally { setSimRunning(false); }
+  };
+
+  const handleResetAudience = async () => {
+    if (!aiScreening) return;
+    setResettingAudience(true);
+    try {
+      const res = await fetch(`/api/v1/screenings/${aiScreening.screening_id}/audience`, { method: 'DELETE' });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.detail || 'Failed to reset audience telemetry.');
+      }
+      setSimResult(null);
+      setShowResetConfirmModal(false);
+      await loadAIData(aiScreening.screening_id);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setResettingAudience(false);
+    }
   };
 
   const getVideoDuration = (file: File): Promise<number> =>
@@ -645,7 +666,19 @@ export default function Screenings() {
           <div className="w-full max-w-3xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-start justify-between p-6 border-b shrink-0">
               <div><div className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold uppercase tracking-wider">Audience Intelligence</h2></div><p className="text-xs text-muted-foreground mt-0.5">{aiScreening.title}</p></div>
-              <button onClick={() => setAiScreening(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowResetConfirmModal(true)}
+                  title="Reset Audience Telemetry"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 rounded-md transition-colors"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Reset Data</span>
+                </button>
+                <button onClick={() => setAiScreening(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <div className="flex border-b shrink-0 bg-studio-950">
               {([
@@ -755,6 +788,60 @@ export default function Screenings() {
               <button onClick={() => setScreeningToDelete(null)} disabled={deletingId !== null} className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50">Cancel</button>
               <button onClick={handleDeleteScreening} disabled={deletingId !== null} className="px-4 py-2 bg-rose-600 text-white font-semibold rounded text-xs hover:bg-rose-500 flex items-center gap-1.5 disabled:opacity-50">
                 {deletingId ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Deleting...</span></>) : <span>Permanently Delete</span>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Reset Confirmation Modal */}
+      {showResetConfirmModal && aiScreening && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-studio-950 border border-rose-500/30 rounded-xl shadow-2xl p-6 relative space-y-4">
+            <button onClick={() => setShowResetConfirmModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 mt-0.5">
+                <RotateCcw className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-rose-400">Reset Audience Telemetry?</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{aiScreening.title}</p>
+              </div>
+            </div>
+            <div className="bg-studio-900/50 rounded-lg p-3.5 border border-rose-500/10 text-xs text-rose-400 space-y-2">
+              <p className="font-semibold">This will permanently clear:</p>
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                <li>All real &amp; synthetic viewer telemetry from ClickHouse</li>
+                <li>Retention time-series curves and behavioral signals</li>
+                <li>Detected behavioral anomalies and engagement spikes</li>
+              </ul>
+            </div>
+            <p className="text-xs text-muted-foreground italic">* Screening room &amp; public access links remain active.</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                disabled={resettingAudience}
+                className="px-4 py-2 border rounded text-xs hover:bg-studio-900 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAudience}
+                disabled={resettingAudience}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded text-xs flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {resettingAudience ? (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>Confirm &amp; Clear Telemetry</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

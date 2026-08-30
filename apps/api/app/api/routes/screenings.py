@@ -192,6 +192,27 @@ def audience_anomalies(
         raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
 
 
+@router.delete("/{screening_id}/audience")
+def reset_screening_audience_data(screening_id: str):
+    """
+    Clears all audience telemetry events for a screening from ClickHouse.
+    Resets Audience Intelligence metrics back to zero.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.database.clickhouse import delete_screening_events
+        delete_screening_events(screening_id)
+        return {
+            "status": "success",
+            "message": f"All audience telemetry for screening {screening_id} has been reset.",
+            "screening_id": screening_id,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reset error: {e}")
+
+
 @router.get("/{screening_id}/audience/fingerprint")
 def get_screening_audience_fingerprint(screening_id: str, bucket_sec: int = Query(default=10, ge=1, le=60)):
     """
