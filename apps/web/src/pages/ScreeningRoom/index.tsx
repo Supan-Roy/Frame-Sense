@@ -41,7 +41,14 @@ export default function ScreeningRoom() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
+  const [videoReady, setVideoReady] = useState(false); // true once HAVE_METADATA loaded
+
+  // Refs that mirror state for use inside callbacks without stale closures
+  const isPlayingRef = useRef(false);
+  const durationRef = useRef(0);
+  const scrubTimeRef = useRef(0);
+  const isScrubbingRef = useRef(false);
+
   // Custom scrubbing/hover preview state
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [isHoveringSeek, setIsHoveringSeek] = useState(false);
@@ -83,54 +90,26 @@ export default function ScreeningRoom() {
     }
   }, [token]);
 
-  // Keyboard shortcut listener and anti-saving protection
+  // Keyboard shortcut listener — registered once, reads live values from refs to avoid stale closures
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block Ctrl+S (Save), Ctrl+U (View Source)
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'u')) {
         e.preventDefault();
         return;
       }
-
-      // Check active element to avoid intercepting keydowns if they focus input/textarea
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        return;
-      }
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      // Space or Enter: Play/Pause
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault(); // prevent scroll on Space
-        togglePlay();
-      }
-
-      // ArrowLeft: Seek backward 5s
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        skipTime(-5);
-      }
-
-      // ArrowRight: Seek forward 5s
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        skipTime(5);
-      }
-
-      // M or m key: Mute/Unmute toggle
-      if (e.key === 'm' || e.key === 'M') {
-        e.preventDefault();
-        toggleMute();
-      }
-
-      // F or f key: Fullscreen toggle
-      if (e.key === 'f' || e.key === 'F') {
-        e.preventDefault();
-        handleFullscreen();
-      }
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); togglePlay(); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); skipTime(-5); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); skipTime(5); }
+      if (e.key === 'm' || e.key === 'M') { e.preventDefault(); toggleMute(); }
+      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); handleFullscreen(); }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, isMuted, volume, duration, currentTime]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // stable: handlers read from refs, not stale state
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -224,9 +203,15 @@ export default function ScreeningRoom() {
     };
   }, [screening]);
 
+  // Keep isPlaying ref in sync with state so callbacks never go stale
+  const setIsPlayingSync = (val: boolean) => {
+    isPlayingRef.current = val;
+    setIsPlaying(val);
+  };
+
   // Synchronize state and trigger player heartbeats
   const onPlayStatusChange = (playing: boolean) => {
-    setIsPlaying(playing);
+    setIsPlayingSync(playing);
     if (playing) {
       queueEvent("PLAY", videoRef.current?.currentTime || 0);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -244,30 +229,55 @@ export default function ScreeningRoom() {
   };
 
   // Playback Control Handlers
+  // Reads isPlayingRef (not stale React state) to ensure instant response
   const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (isPlayingRef.current) {
+      vid.pause();
       onPlayStatusChange(false);
     } else {
-      videoRef.current.play().then(() => {
-        onPlayStatusChange(true);
-      }).catch(console.error);
+      // Optimistically update UI immediately — don't wait for .play() promise
+      setIsPlayingSync(true);
+      vid.play().then(() => {
+        // Emit telemetry after confirmed playback start
+        queueEvent("PLAY", vid.currentTime);
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = setInterval(() => {
+          if (videoRef.current && !videoRef.current.paused) {
+            queueEvent("PROGRESS", videoRef.current.currentTime);
+          }
+        }, 5000);
+      }).catch(() => {
+        // Roll back if browser rejected the play call
+        setIsPlayingSync(false);
+      });
     }
+  };
+
+  // Guard seek behind readyState — avoids silent failure when seeking before buffer is ready
+  const safeSeek = (target: number) => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    const clamped = Math.min(Math.max(target, 0), durationRef.current || Infinity);
+    // readyState >= 1 means we have at least metadata (duration)
+    // Actual seek requires readyState >= 2 (HAVE_CURRENT_DATA) ideally
+    if (vid.readyState >= 1) {
+      vid.currentTime = clamped;
+    } else {
+      // Queue the seek to execute as soon as metadata arrives
+      const onReady = () => { vid.currentTime = clamped; vid.removeEventListener('loadedmetadata', onReady); };
+      vid.addEventListener('loadedmetadata', onReady);
+    }
+    setCurrentTime(clamped);
   };
 
   const skipTime = (amount: number) => {
     if (!videoRef.current) return;
-    let target = videoRef.current.currentTime + amount;
-    if (target < 0) target = 0;
-    if (target > duration) target = duration;
-    
-    videoRef.current.currentTime = target;
-    setCurrentTime(target);
+    const target = (videoRef.current.currentTime || 0) + amount;
+    safeSeek(target);
     queueEvent(amount > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", target);
-    if (amount < -5) {
-      queueEvent("REPLAY", target);
-    }
+    if (amount < -5) queueEvent("REPLAY", target);
   };
 
   const handleVolumeSlide = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,15 +342,21 @@ export default function ScreeningRoom() {
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const d = videoRef.current.duration;
+      durationRef.current = d;
+      setDuration(d);
+      setVideoReady(true);
+      // Now it is safe to attach the preview video src (deferred to avoid double-buffering on load)
+      if (previewVideoRef.current && !previewVideoRef.current.src) {
+        previewVideoRef.current.src = videoRef.current.src;
+      }
     }
   };
 
   const handleTimeUpdate = () => {
-    if (!videoRef.current || isScrubbing) return;
+    if (!videoRef.current || isScrubbingRef.current) return;
     setCurrentTime(videoRef.current.currentTime);
-    
-    if (videoRef.current.currentTime >= videoRef.current.duration) {
+    if (videoRef.current.currentTime >= videoRef.current.duration - 0.25) {
       queueEvent("COMPLETE", videoRef.current.duration);
     }
   };
@@ -356,17 +372,11 @@ export default function ScreeningRoom() {
   const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!seekbarRef.current) return;
     setIsHoveringSeek(true);
-
     const time = getSeekTimeFromX(e.clientX);
     setHoverTime(time);
-
-    // Sync preview video currentTime to fetch frames
-    if (previewVideoRef.current) {
+    // Only seek preview if the hidden video is ready (avoids errors before deferred load)
+    if (previewVideoRef.current && previewVideoRef.current.readyState >= 1) {
       previewVideoRef.current.currentTime = time;
-    }
-
-    if (isScrubbing) {
-      setScrubTime(time);
     }
   };
 
@@ -376,59 +386,54 @@ export default function ScreeningRoom() {
   };
 
   const handleSeekMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoReady) return; // don't allow seek before video is ready
+    isScrubbingRef.current = true;
     setIsScrubbing(true);
     const time = getSeekTimeFromX(e.clientX);
+    scrubTimeRef.current = time;
     setScrubTime(time);
-    
-    if (videoRef.current && isPlaying) {
+    if (videoRef.current && isPlayingRef.current) {
       videoRef.current.pause();
     }
   };
 
-  // Execute actual seek only upon releasing scrub drag
+  // Global mouse handlers attached once, read live values from refs — no stale closure issues
   useEffect(() => {
     const handleGlobalMouseUp = () => {
-      if (!isScrubbing) return;
+      if (!isScrubbingRef.current) return;
+      isScrubbingRef.current = false;
       setIsScrubbing(false);
-      
-      if (videoRef.current) {
-        const delta = scrubTime - videoRef.current.currentTime;
-        videoRef.current.currentTime = scrubTime;
-        setCurrentTime(scrubTime);
-        
-        queueEvent(delta > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", scrubTime);
-        if (delta < -5) {
-          queueEvent("REPLAY", scrubTime);
-        }
-        
-        if (isPlaying) {
-          videoRef.current.play().catch(console.error);
-        }
+      const time = scrubTimeRef.current;
+      const vid = videoRef.current;
+      if (vid) {
+        const delta = time - vid.currentTime;
+        safeSeek(time);
+        queueEvent(delta > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", time);
+        if (delta < -5) queueEvent("REPLAY", time);
+        if (isPlayingRef.current) vid.play().catch(console.error);
       }
     };
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (!isScrubbing || !seekbarRef.current) return;
+      if (!isScrubbingRef.current || !seekbarRef.current) return;
       const rect = seekbarRef.current.getBoundingClientRect();
-      const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-      const time = percent * duration;
+      const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+      const time = pct * durationRef.current;
+      scrubTimeRef.current = time;
       setScrubTime(time);
-      
-      if (previewVideoRef.current) {
+      if (previewVideoRef.current && previewVideoRef.current.readyState >= 1) {
         previewVideoRef.current.currentTime = time;
       }
     };
 
-    if (isScrubbing) {
-      window.addEventListener("mouseup", handleGlobalMouseUp);
-      window.addEventListener("mousemove", handleGlobalMouseMove);
-    }
-
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    window.addEventListener("mousemove", handleGlobalMouseMove);
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
       window.removeEventListener("mousemove", handleGlobalMouseMove);
     };
-  }, [isScrubbing, scrubTime, isPlaying, duration]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // stable: reads all mutable values from refs, never stale
 
   const handlePreviewSeeked = () => {
     if (!previewVideoRef.current || !previewCanvasRef.current) return;
@@ -524,12 +529,12 @@ export default function ScreeningRoom() {
               onContextMenu={handleContextMenu}
               className={`w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black relative shadow-2xl group flex items-center justify-center ${showControls ? 'cursor-default' : 'cursor-none'}`}
             >
-              {/* Hidden Sprite Preloader Player with copy protection */}
+              {/* Hidden frame-preview player — src assigned lazily after main video loads metadata
+                  to avoid competing for bandwidth during initial buffering */}
               <video
                 ref={previewVideoRef}
-                src={videoUrl}
                 className="hidden"
-                preload="auto"
+                preload="none"
                 muted
                 controlsList="nodownload noRemotePlayback"
                 disablePictureInPicture
