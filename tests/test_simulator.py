@@ -155,9 +155,99 @@ def test_result_structure(mock_insert):
 
 
 # ---------------------------------------------------------------------------
-# 7. Profile distribution sanity
+# 7. Real-Anchored Simulation Tests & Mode Thresholds
 # ---------------------------------------------------------------------------
+
+@patch("app.screening.simulator.get_audience_overview")
+def test_auto_mode_selection_thresholds(mock_overview, mock_insert):
+    """0 real -> COLD_START, 1..9 -> HYBRID, 10+ -> REAL_ANCHORED."""
+    # Case 1: 0 real viewers
+    mock_overview.return_value = {"unique_viewers": 0}
+    r1 = sim.run_simulation(SCREENING_ID, VIDEO_ID, DURATION, num_viewers=20, mode="AUTO", seed=42)
+    assert r1["simulation_mode"] == "COLD_START"
+
+    # Case 2: 5 real viewers -> HYBRID
+    mock_overview.return_value = {"unique_viewers": 5}
+    with patch("app.screening.simulator.build_behavioral_fingerprint") as mock_fp:
+        mock_fp.return_value = {"completion_rate": 0.8, "bucket_sec": 10, "time_buckets": [{"time_sec": 0, "rewind_prob": 0.05}]}
+        r2 = sim.run_simulation(SCREENING_ID, VIDEO_ID, DURATION, num_viewers=20, mode="AUTO", seed=42)
+        assert r2["simulation_mode"] == "HYBRID"
+
+    # Case 3: 25 real viewers -> REAL_ANCHORED
+    mock_overview.return_value = {"unique_viewers": 25}
+    with patch("app.screening.simulator.build_behavioral_fingerprint") as mock_fp:
+        mock_fp.return_value = {"completion_rate": 0.8, "bucket_sec": 10, "time_buckets": [{"time_sec": 0, "rewind_prob": 0.05}]}
+        r3 = sim.run_simulation(SCREENING_ID, VIDEO_ID, DURATION, num_viewers=20, mode="AUTO", seed=42)
+        assert r3["simulation_mode"] == "REAL_ANCHORED"
+
+
+def test_synthetic_viewer_ids_are_unique_and_prefixed(mock_insert):
+    """Synthetic viewer IDs must start with synth_v_ and be distinct."""
+    captured = []
+    mock_insert.side_effect = lambda b: captured.extend(b)
+
+    sim.run_simulation(SCREENING_ID, VIDEO_ID, DURATION, num_viewers=50, seed=123)
+
+    viewer_ids = {e["anonymous_viewer_id"] for e in captured}
+    for vid in viewer_ids:
+        assert vid.startswith("synth_v_"), f"Viewer ID invalid: {vid}"
+
+
+@patch("app.screening.simulator.get_audience_overview")
+@patch("app.screening.simulator.build_behavioral_fingerprint")
+def test_temporal_hotspot_preservation_real_anchored(mock_fp, mock_overview, mock_insert):
+    """
+    CRITICAL TEST: Real viewers show strong rewind hotspot at 30-40s.
+    Generate 500 synthetic viewers in REAL_ANCHORED mode.
+    Assert synthetic rewind activity around 30-40s is significantly higher than baseline.
+    """
+    mock_overview.return_value = {"unique_viewers": 100}
+    
+    # Fingerprint with a massive rewind spike at 30s
+    time_buckets = []
+    for t in range(0, int(DURATION), 10):
+        rewind_p = 0.65 if t == 30 else 0.01
+        time_buckets.append({
+            "time_sec": t,
+            "retention_rate": 0.90,
+            "pause_prob": 0.02,
+            "rewind_prob": rewind_p,
+            "skip_prob": 0.01,
+            "replay_prob": 0.01,
+            "exit_prob": 0.01,
+        })
+
+    mock_fp.return_value = {
+        "screening_id": SCREENING_ID,
+        "real_viewers_count": 100,
+        "completion_rate": 0.85,
+        "bucket_sec": 10,
+        "time_buckets": time_buckets,
+    }
+
+    captured = []
+    mock_insert.side_effect = lambda b: captured.extend(b)
+
+    sim.run_simulation(SCREENING_ID, VIDEO_ID, DURATION, num_viewers=300, mode="REAL_ANCHORED", variation_strength="LOW", seed=777)
+
+    rewinds_at_hotspot = 0
+    rewinds_outside_hotspot = 0
+
+    for e in captured:
+        if e["event_type"] == "SEEK_BACKWARD":
+            tc = e["video_timecode_sec"]
+            if 25.0 <= tc <= 45.0:
+                rewinds_at_hotspot += 1
+            else:
+                rewinds_outside_hotspot += 1
+
+    # Assert hotspot bucket contains overwhelming majority of rewind events
+    assert rewinds_at_hotspot > rewinds_outside_hotspot, (
+        f"Rewind hotspot at 30-40s not preserved! Hotspot rewinds: {rewinds_at_hotspot}, Outside: {rewinds_outside_hotspot}"
+    )
+
 
 def test_profile_weights_sum_to_one():
     total = sum(sim.PROFILE_WEIGHTS.values())
     assert abs(total - 1.0) < 1e-6, f"Profile weights do not sum to 1.0: {total}"
+

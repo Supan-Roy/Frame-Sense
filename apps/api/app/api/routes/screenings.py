@@ -192,6 +192,22 @@ def audience_anomalies(
         raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
 
 
+@router.get("/{screening_id}/audience/fingerprint")
+def get_screening_audience_fingerprint(screening_id: str, bucket_sec: int = Query(default=10, ge=1, le=60)):
+    """
+    Extracts the aggregate behavioral fingerprint derived from actual real viewer telemetry.
+    Returns bucketed probabilities for pause, rewind, skip, replay, and exit activity.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.analytics import build_behavioral_fingerprint
+        return build_behavioral_fingerprint(screening_id, bucket_sec)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fingerprint extraction error: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Developer / Demo simulator endpoint (ISOLATED - not part of public API)
 # ---------------------------------------------------------------------------
@@ -200,19 +216,21 @@ def audience_anomalies(
 def dev_simulate(
     screening_id: str,
     num_viewers: int = Query(default=100, ge=1, le=10000, description="Number of synthetic viewers"),
+    mode: str = Query(default="AUTO", description="Simulation mode: AUTO, REAL_ANCHORED, HYBRID, COLD_START"),
+    variation: str = Query(default="MEDIUM", description="Controlled variation strength: LOW, MEDIUM, HIGH"),
+    inject_ground_truth: bool = Query(default=False, description="Inject synthetic demo ground truth windows"),
     seed: Optional[int] = Query(default=None, description="Random seed for reproducibility"),
 ):
     """
     [DEVELOPER / DEMO TOOL ONLY]
 
-    Generates synthetic viewer telemetry for a screening and inserts it directly
+    Generates real-anchored synthetic viewer telemetry for a screening and inserts it directly
     into ClickHouse using the exact same ViewerEvent contract as real browser telemetry.
 
-    This endpoint is NOT part of the normal studio workflow.
-    It exists for development, stress testing, and hackathon demonstration.
-
-    Ground truth behavioral windows are embedded in the simulator only.
-    They are NEVER returned by Audience Intelligence endpoints.
+    Modes:
+      - COLD_START     (0 real viewers)  - Generic probabilistic model & ground-truth.
+      - HYBRID         (1-9 real viewers) - Blends observed real fingerprint with generic priors.
+      - REAL_ANCHORED  (10+ real viewers) - Derives time-local probabilities from actual screening telemetry.
     """
     screening = screening_repo.get_by_id(screening_id)
     if not screening:
@@ -224,13 +242,17 @@ def dev_simulate(
             video_id=screening["media_id"],
             duration=float(screening["media_duration"]),
             num_viewers=num_viewers,
+            mode=mode,
+            variation_strength=variation,
+            inject_ground_truth=inject_ground_truth,
             seed=seed,
         )
         return {
             "status": "success",
-            "tool": "synthetic_audience_simulator",
+            "tool": "real_anchored_synthetic_audience_generator",
             "note": "Developer/demo tool only. Not part of normal screening workflow.",
             **result,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulator error: {e}")
+

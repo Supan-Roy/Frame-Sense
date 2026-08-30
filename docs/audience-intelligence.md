@@ -297,3 +297,37 @@ The following are explicitly OUT OF SCOPE for Audience Intelligence:
 - **EDL generation**: Automated edit decision lists
 
 These belong to the future Gemini Investigation Agent layer.
+
+---
+
+## 17. Real-Anchored Synthetic Audience Generator
+
+Frame Sense is **Real-First**:
+```
+REAL VIEWER TELEMETRY
+         ↓
+Behavioral Fingerprint
+         ↓
+Synthetic Audience Generator
+         ↓
+Controlled Variation
+         ↓
+   ClickHouse
+```
+
+### Architectural Modes
+
+| Mode | Real Viewer Threshold | Behavior & Provenance |
+|---|---|---|
+| `REAL_ANCHORED` | $\ge 10$ real viewers | Time-local probabilities derived directly from actual ClickHouse telemetry. |
+| `HYBRID` | $1–9$ real viewers | Blends observed real behavioral fingerprint ($w_{\text{real}} = N/10$) with generic priors. |
+| `COLD_START` | $0$ real viewers | Generic probabilistic profile model & duration-scaled ground truth. |
+
+### Core Architectural Guarantees
+
+1. **Real-First Principle**: Real viewer telemetry is the source of truth. When real audience evidence exists, synthetic scale reflects that evidence rather than replacing it with random data.
+2. **Aggregate Probability Sampling**: Individual viewers are **never cloned** or duplicated. The simulator extracts an aggregate behavioral fingerprint and samples independent synthetic viewers from time-local probability distributions.
+3. **Temporal Shape Preservation**: Behavioral hotspots (e.g. elevated rewind at 34s) remain at their observed timecodes.
+4. **Controlled Variation**: Configurable variation strength (`LOW` 5% jitter, `MEDIUM` 15% jitter, `HIGH` 25% jitter) introduces natural individual viewer variance around the aggregate fingerprint.
+5. **Schema Integrity**: Synthetic telemetry emits the exact same `ViewerEvent` contract to ClickHouse. No `source`, `profile`, or `synthetic` fields are added to production telemetry.
+

@@ -284,7 +284,10 @@ export default function Screenings() {
   const [aiAnomalies, setAiAnomalies] = useState<AnomalyData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [simViewers, setSimViewers] = useState(100);
+  const [simViewers, setSimViewers] = useState(1000);
+  const [simMode, setSimMode] = useState('AUTO');
+  const [simVariation, setSimVariation] = useState('MEDIUM');
+  const [simInjectGroundTruth, setSimInjectGroundTruth] = useState(false);
   const [simSeed, setSimSeed] = useState('');
   const [simRunning, setSimRunning] = useState(false);
   const [simResult, setSimResult] = useState<any>(null);
@@ -337,7 +340,7 @@ export default function Screenings() {
     if (!aiScreening) return;
     setSimRunning(true); setSimResult(null); setSimError(null);
     try {
-      const url = `/api/v1/screenings/${aiScreening.screening_id}/dev/simulate?num_viewers=${simViewers}${simSeed ? `&seed=${simSeed}` : ''}`;
+      const url = `/api/v1/screenings/${aiScreening.screening_id}/dev/simulate?num_viewers=${simViewers}&mode=${simMode}&variation=${simVariation}&inject_ground_truth=${simInjectGroundTruth}${simSeed ? `&seed=${simSeed}` : ''}`;
       const res = await fetch(url, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Simulation failed');
@@ -411,7 +414,56 @@ export default function Screenings() {
 
     if (aiTab === 'overview') return (
       <div className="space-y-5">
-        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+          {simResult && (
+            <div className="flex items-center gap-2 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-mono font-semibold">
+              <FlaskConical className="h-3 w-3" />
+              <span>SIMULATION: {simResult.simulation_mode}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Demo Transparency Badge */}
+        {aiOverview && (
+          <div className="bg-studio-900/60 border border-white/10 rounded-xl p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-amber-400" />
+                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Audience Composition</span>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {simResult?.simulation_mode ? `Mode: ${simResult.simulation_mode}` : 'Telemetry Source: ClickHouse'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
+                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Total Audience</div>
+                <div className="text-base font-bold text-foreground">{aiOverview.unique_viewers.toLocaleString()}</div>
+              </div>
+              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
+                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Real Viewers</div>
+                <div className="text-base font-bold text-emerald-400">
+                  {simResult ? (simResult.real_viewers_analyzed ?? 0) : aiOverview.unique_viewers}
+                </div>
+              </div>
+              <div className="bg-studio-950 p-2.5 rounded border border-white/5 space-y-0.5">
+                <div className="text-[9px] text-muted-foreground uppercase font-semibold">Synthetic Viewers</div>
+                <div className="text-base font-bold text-amber-400">
+                  {simResult ? simResult.num_viewers.toLocaleString() : 0}
+                </div>
+              </div>
+            </div>
+            {simResult && (
+              <p className="text-[10px] text-muted-foreground pt-1 italic">
+                {simResult.simulation_mode === 'REAL_ANCHORED' && `Behavioral fingerprint anchored on ${simResult.real_viewers_analyzed} real viewer(s) with ${simResult.variation_strength.toLowerCase()} controlled variation.`}
+                {simResult.simulation_mode === 'HYBRID' && `Blended behavioral fingerprint from ${simResult.real_viewers_analyzed} real viewer(s) and generic priors.`}
+                {simResult.simulation_mode === 'COLD_START' && `Cold-start synthetic model (0 real viewers).`}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
             { label: 'Unique Viewers',  val: aiOverview?.unique_viewers ?? '—',                                       Icon: Users },
@@ -619,10 +671,19 @@ export default function Screenings() {
                 </summary>
                 <div className="px-6 pb-5 pt-3 border-t border-amber-500/10 bg-amber-500/[0.03] space-y-4">
                   <p className="text-[10px] text-amber-400/70 leading-relaxed">
-                    Injects synthetic telemetry using the exact same ViewerEvent contract as real viewers.
-                    <strong className="text-amber-400"> Not part of the normal studio workflow.</strong> For dev/demo only.
+                    Generates real-anchored synthetic telemetry using the exact same ViewerEvent contract as real viewers.
+                    <strong className="text-amber-400"> Developer & Demo tool only.</strong>
                   </p>
                   <div className="flex items-end gap-3 flex-wrap">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Mode</label>
+                      <select value={simMode} onChange={e => setSimMode(e.target.value)} className="bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        <option value="AUTO">Auto (Detect)</option>
+                        <option value="REAL_ANCHORED">Real-Anchored (10+ Real)</option>
+                        <option value="HYBRID">Hybrid (1-9 Real)</option>
+                        <option value="COLD_START">Cold Start (0 Real)</option>
+                      </select>
+                    </div>
                     <div className="space-y-1">
                       <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Viewers</label>
                       <select value={simViewers} onChange={e => setSimViewers(Number(e.target.value))} className="bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
@@ -634,18 +695,38 @@ export default function Screenings() {
                       </select>
                     </div>
                     <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Variation</label>
+                      <select value={simVariation} onChange={e => setSimVariation(e.target.value)} className="bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        <option value="LOW">Low (5% Jitter)</option>
+                        <option value="MEDIUM">Medium (15% Jitter)</option>
+                        <option value="HIGH">High (25% Jitter)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
                       <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Seed (optional)</label>
-                      <input type="number" placeholder="e.g. 42" value={simSeed} onChange={e => setSimSeed(e.target.value)} className="w-28 bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500" />
+                      <input type="number" placeholder="e.g. 42" value={simSeed} onChange={e => setSimSeed(e.target.value)} className="w-24 bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500" />
                     </div>
                     <button onClick={runSimulation} disabled={simRunning} className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold rounded text-xs disabled:opacity-50">
                       {simRunning ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Generating...</span></>) : (<><FlaskConical className="h-3.5 w-3.5" /><span>Run Simulation</span></>)}
                     </button>
                   </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="injectGT"
+                      checked={simInjectGroundTruth}
+                      onChange={e => setSimInjectGroundTruth(e.target.checked)}
+                      className="rounded border-studio-700 bg-studio-900 text-amber-500 focus:ring-amber-500 h-3.5 w-3.5"
+                    />
+                    <label htmlFor="injectGT" className="text-[10px] text-muted-foreground cursor-pointer">
+                      Inject synthetic demo ground-truth windows (for stress/anomaly testing)
+                    </label>
+                  </div>
                   {simResult && (
                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded p-3 text-[10px] text-emerald-400 space-y-0.5">
-                      <div className="font-semibold">Simulation complete</div>
-                      <div>{simResult.num_viewers.toLocaleString()} viewers &middot; {simResult.total_events_generated.toLocaleString()} events</div>
-                      <div className="text-muted-foreground">Analytics refreshed above</div>
+                      <div className="font-semibold">Simulation complete (Mode: {simResult.simulation_mode})</div>
+                      <div>{simResult.num_viewers.toLocaleString()} viewers &middot; {simResult.total_events_generated.toLocaleString()} events generated</div>
+                      <div className="text-muted-foreground">Fingerprint analyzed: {simResult.real_viewers_analyzed} real viewer(s)</div>
                     </div>
                   )}
                   {simError && <div className="bg-rose-500/5 border border-rose-500/20 rounded p-3 text-[10px] text-rose-400">{simError}</div>}

@@ -249,3 +249,74 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
         "exceptional_engagement": exceptional_engagement,
         "baseline_methodology": "Z-score vs population mean/std across all buckets. HIGH>=3sigma, MEDIUM>=2sigma, LOW>=1.5sigma.",
     }
+
+
+def build_behavioral_fingerprint(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
+    """
+    Extracts an aggregate behavioral fingerprint from actual ClickHouse viewer events.
+    Computes time-local probability distributions across time buckets without semantic inference.
+    Used by the Real-Anchored Synthetic Audience Generator.
+    """
+    overview = get_audience_overview(screening_id)
+    unique_viewers = overview["unique_viewers"]
+
+    if unique_viewers == 0:
+        return {
+            "screening_id": screening_id,
+            "real_viewers_count": 0,
+            "mode_recommendation": "COLD_START",
+            "completion_rate": 0.0,
+            "time_buckets": [],
+            "hotspots": [],
+        }
+
+    signals_data = get_behavioral_signals(screening_id, bucket_sec)
+    retention_data = get_retention_curve(screening_id, bucket_sec)
+
+    mode_rec = "REAL_ANCHORED" if unique_viewers >= 10 else "HYBRID"
+    ret_map = {p["time_sec"]: p["retention_rate"] for p in retention_data["curve"]}
+
+    time_buckets = []
+    hotspots = []
+    signals = signals_data["signals"]
+
+    if signals:
+        metrics = ["pause_rate", "rewind_rate", "skip_rate", "replay_rate", "exit_rate"]
+        means = {m: sum(s[m] for s in signals) / len(signals) for m in metrics}
+
+        for s in signals:
+            t = s["time_sec"]
+            retention = ret_map.get(t, 1.0)
+
+            b_info = {
+                "time_sec": t,
+                "retention_rate": retention,
+                "pause_prob": s["pause_rate"],
+                "rewind_prob": s["rewind_rate"],
+                "skip_prob": s["skip_rate"],
+                "replay_prob": s["replay_rate"],
+                "exit_prob": s["exit_rate"],
+            }
+            time_buckets.append(b_info)
+
+            for m in metrics:
+                if means[m] > 0.001 and s[m] >= 2.0 * means[m]:
+                    hotspots.append({
+                        "time_sec": t,
+                        "metric": m,
+                        "observed_rate": s[m],
+                        "baseline_rate": round(means[m], 4),
+                        "multiplier": round(s[m] / (means[m] + 1e-6), 2)
+                    })
+
+    return {
+        "screening_id": screening_id,
+        "real_viewers_count": unique_viewers,
+        "unique_sessions": overview["unique_sessions"],
+        "mode_recommendation": mode_rec,
+        "completion_rate": overview["completion_rate"] or 0.0,
+        "bucket_sec": bucket_sec,
+        "time_buckets": time_buckets,
+        "hotspots": hotspots,
+    }
+
