@@ -145,26 +145,40 @@ function SignalHeatmap({ signals }: { signals: SignalBucket[] }) {
   if (!signals.length) return <div className="text-xs text-muted-foreground italic text-center py-6">No signal data.</div>;
   const maxes: Record<SignalKey, number> = {} as Record<SignalKey, number>;
   for (const row of SIGNAL_ROWS) maxes[row.key] = Math.max(...signals.map(s => s[row.key]), 0.001);
-  const cellW = Math.max(4, Math.min(18, Math.floor(480 / signals.length)));
+
   return (
-    <div className="space-y-1 overflow-x-auto">
+    <div className="space-y-2.5 w-full pt-1">
       {SIGNAL_ROWS.map(row => (
-        <div key={row.key} className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-12 shrink-0 text-right">{row.label}</span>
-          <div className="flex gap-px">
-            {signals.map(s => (
-              <div key={s.time_sec} title={`${fmtTime(s.time_sec)} ${row.label}: ${fmtPct(s[row.key])}`}
-                style={{ width: cellW, height: 24, backgroundColor: row.color, opacity: Math.max(0.06, s[row.key] / maxes[row.key]), borderRadius: 2, flexShrink: 0 }} />
-            ))}
+        <div key={row.key} className="flex items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground w-14 shrink-0 text-right">{row.label}</span>
+          <div className="flex-1 flex gap-1 h-7">
+            {signals.map(s => {
+              const intensity = s[row.key] / maxes[row.key];
+              return (
+                <div
+                  key={s.time_sec}
+                  title={`${fmtTime(s.time_sec)} – ${row.label}: ${fmtPct(s[row.key])}`}
+                  className="flex-1 rounded-sm transition-all hover:scale-y-110 cursor-pointer"
+                  style={{
+                    backgroundColor: row.color,
+                    opacity: Math.max(0.08, intensity),
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       ))}
-      <div className="flex items-center gap-2">
-        <span className="w-12 shrink-0" />
-        <div className="flex gap-px overflow-hidden">
-          {signals.filter((_, i) => i % Math.max(1, Math.floor(signals.length / 6)) === 0).map(s => (
-            <span key={s.time_sec} className="text-[9px] text-muted-foreground" style={{ width: cellW * Math.max(1, Math.floor(signals.length / 6)), flexShrink: 0 }}>{fmtTime(s.time_sec)}</span>
-          ))}
+      <div className="flex items-center gap-3">
+        <span className="w-14 shrink-0" />
+        <div className="flex-1 flex justify-between text-[10px] text-muted-foreground font-mono px-0.5 pt-1">
+          {signals.map((s, i) => {
+            const step = Math.max(1, Math.floor(signals.length / 8));
+            if (i % step === 0 || i === signals.length - 1) {
+              return <span key={s.time_sec}>{fmtTime(s.time_sec)}</span>;
+            }
+            return <span key={s.time_sec} className="opacity-0">{fmtTime(s.time_sec)}</span>;
+          })}
         </div>
       </div>
     </div>
