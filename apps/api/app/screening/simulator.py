@@ -112,8 +112,10 @@ def _generate_viewer_events(
     profile: str,
     ground_truth: List[Dict],
     rng: random.Random,
+    viewer_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
+    if not viewer_id:
+        viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
     session_id = f"synth_s_{uuid.uuid4().hex[:16]}"
     events: List[Dict[str, Any]] = []
 
@@ -244,9 +246,18 @@ def run_simulation(
 
     total_events = 0
     batch: List[Dict[str, Any]] = []
+    viewer_pool: List[str] = []
 
     for _ in range(num_viewers):
         profile = rng.choices(profiles, weights=weights, k=1)[0]
+        
+        # 15% chance of a returning viewer opening a new screening session
+        if viewer_pool and rng.random() < 0.15:
+            current_viewer_id = rng.choice(viewer_pool)
+        else:
+            current_viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
+            viewer_pool.append(current_viewer_id)
+
         viewer_events = _generate_viewer_events(
             screening_id=screening_id,
             video_id=video_id,
@@ -254,6 +265,7 @@ def run_simulation(
             profile=profile,
             ground_truth=ground_truth,
             rng=rng,
+            viewer_id=current_viewer_id,
         )
         batch.extend(viewer_events)
         total_events += len(viewer_events)
