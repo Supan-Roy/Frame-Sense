@@ -3,7 +3,7 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart, RotateCcw, History
+  CircleDot, BarChart, RotateCcw, History, CheckCircle2
 } from 'lucide-react';
 
 interface Screening {
@@ -295,11 +295,26 @@ export default function Screenings() {
   const [simRunning, setSimRunning] = useState(false);
   const [simResult, setSimResult] = useState<any>(null);
   const [simError, setSimError] = useState<string | null>(null);
+interface ToastNotification {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resettingAudience, setResettingAudience] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastNotification | null>(null);
+
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now();
+    setToast({ id, message, type });
+    setTimeout(() => {
+      setToast(prev => (prev?.id === id ? null : prev));
+    }, 4500);
+  };
 
   const fetchScreenings = async () => {
     try {
@@ -319,7 +334,8 @@ export default function Screenings() {
       setScreenings(prev => prev.filter(s => s.screening_id !== screeningToDelete.screening_id));
       setScreeningToDelete(null);
       setDeleteConfirmText('');
-    } catch (err: any) { alert(err.message); } finally { setDeletingId(null); }
+      triggerToast('Screening room deleted successfully.', 'info');
+    } catch (err: any) { triggerToast(err.message, 'error'); } finally { setDeletingId(null); }
   };
 
   useEffect(() => { fetchScreenings(); }, []);
@@ -370,8 +386,9 @@ export default function Screenings() {
       setShowResetConfirmModal(false);
       setResetConfirmText('');
       await loadAIData(aiScreening.screening_id);
+      triggerToast('All audience telemetry reset successfully.', 'success');
     } catch (err: any) {
-      alert(err.message);
+      triggerToast(err.message, 'error');
     } finally {
       setResettingAudience(false);
     }
@@ -388,9 +405,9 @@ export default function Screenings() {
       setShowResetConfirmModal(false);
       setResetConfirmText('');
       await loadAIData(aiScreening.screening_id);
-      alert(data.message || 'Latest run rolled back successfully.');
+      triggerToast(data.message || 'Latest run rolled back successfully.', 'info');
     } catch (err: any) {
-      alert(err.message);
+      triggerToast(err.message, 'error');
     } finally {
       setRollingBack(false);
     }
@@ -922,6 +939,35 @@ export default function Screenings() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Studio Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md font-mono text-xs ${
+            toast.type === 'error'
+              ? 'bg-rose-950/95 border-rose-500/40 text-rose-300 shadow-rose-950/50'
+              : toast.type === 'info'
+              ? 'bg-studio-900/95 border-cyan-500/40 text-cyan-300 shadow-black/80'
+              : 'bg-studio-900/95 border-emerald-500/40 text-emerald-300 shadow-black/80'
+          }`}>
+            {toast.type === 'error' ? (
+              <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+            ) : toast.type === 'info' ? (
+              <History className="h-4 w-4 text-cyan-400 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            )}
+            <span className="font-semibold">{toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-2 text-muted-foreground hover:text-foreground text-xs"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       )}
