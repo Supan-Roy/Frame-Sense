@@ -42,3 +42,7 @@ Desktop.ini
 
 # Local media uploads and database files
 apps/api/data/
+
+# Local root data folder (for temporary tests)
+data/
+

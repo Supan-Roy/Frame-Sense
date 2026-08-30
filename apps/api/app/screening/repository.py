@@ -4,8 +4,9 @@ import secrets
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
-# We store metadata in data/metadata.db
-DB_FILE = os.path.abspath("data/metadata.db")
+# We store metadata inside apps/api/data/metadata.db
+DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata.db"))
+
 
 class ScreeningRepository:
     def __init__(self, db_file: str = DB_FILE):
