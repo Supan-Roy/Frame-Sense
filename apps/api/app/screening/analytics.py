@@ -167,23 +167,18 @@ def _severity(z: float) -> Optional[str]:
     return None
 
 
-def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
+def get_anomalies(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
     """
-    Multi-dimensional Z-score anomaly detection over per-bucket behavioral metrics.
-    Detects co-occurring behavioral signals (Pacing Friction, Comprehension Barrier, etc.).
-    Returns structured anomaly objects suitable for Gemini agent consumption.
+    Multi-dimensional Audience Intelligence Anomaly Engine.
+    Detects scene friction, pacing issues, comprehension barriers, attention drops,
+    and exceptional engagement peaks across high-resolution timecode buckets.
     """
-    b = max(1, int(bucket_sec))
+    b = max(2, int(bucket_sec))
     signals_data = get_behavioral_signals(screening_id, b)
     buckets = signals_data["signals"]
     unique_viewers = signals_data["unique_viewers"]
 
-    if len(buckets) < 4 and b > 4 and unique_viewers > 0:
-        b = 5
-        signals_data = get_behavioral_signals(screening_id, b)
-        buckets = signals_data["signals"]
-
-    if unique_viewers == 0 or len(buckets) < 3:
+    if unique_viewers == 0 or len(buckets) < 2:
         return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": unique_viewers,
                 "reliability": _reliability(unique_viewers), "anomalies": [], "exceptional_engagement": []}
 
@@ -195,63 +190,88 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
     anomalies, exceptional_engagement = [], []
 
     for bk in buckets:
-        if bk["time_sec"] == 0:
+        t_sec = bk["time_sec"]
+        if t_sec == 0 and len(buckets) > 1:
             continue
 
         anomaly_signals: Dict[str, Any] = {}
         evidence: List[str] = []
-        max_sev_score = 0.0
+        max_sev = 0.0
 
         for m in ["exit_rate", "rewind_rate", "pause_rate", "skip_rate"]:
             mu, sigma = baselines[m]
             observed = bk[m]
             z = (observed - mu) / (sigma + eps)
-            sev = _severity(z)
-            if z > 0 and sev:
+            
+            threshold = 0.6 if unique_viewers >= 50 else 1.0
+            if (z >= threshold and observed > 0.01) or (observed >= 0.08):
                 ratio = observed / (mu + eps)
                 anomaly_signals[m] = round(observed, 4)
                 anomaly_signals[f"baseline_{m}"] = round(mu, 4)
                 anomaly_signals[f"{m}_ratio"] = round(ratio, 2)
-                evidence.append(f"{m.replace('_',' ').title()} is {ratio:.1f}x above baseline (observed {observed*100:.1f}%, baseline {mu*100:.1f}%)")
-                max_sev_score = max(max_sev_score, {"LOW": 1.0, "MEDIUM": 2.0, "HIGH": 3.0}.get(sev, 0))
+                
+                metric_title = m.replace('_', ' ').title()
+                evidence.append(f"{metric_title} is {ratio:.1f}x above baseline (observed {observed*100:.1f}%, baseline {mu*100:.1f}%)")
+                
+                if z >= 2.2 or observed >= 0.25:
+                    max_sev = max(max_sev, 3.0)
+                elif z >= 1.2 or observed >= 0.12:
+                    max_sev = max(max_sev, 2.0)
+                else:
+                    max_sev = max(max_sev, 1.0)
+
+        pauses = bk.get("pauses", 0)
+        rewinds = bk.get("rewinds", 0)
+        skips = bk.get("skips", 0)
+        exits = bk.get("exits", 0)
+        vol = bk.get("volume_changes", 0)
+        tabs = bk.get("tab_hides", 0)
+
+        if pauses > 0 and rewinds > 0:
+            evidence.append(f"Co-occurring Friction: {pauses} pause(s) & {rewinds} rewind(s) in this scene window")
+        if skips > 0 and exits > 0:
+            evidence.append(f"Pacing Friction: Viewers skipped forward then exited")
+        if vol > 0:
+            evidence.append(f"Audio Adjustment: {vol} volume change event(s) recorded")
+        if tabs > 0:
+            evidence.append(f"Attention Shift: {tabs} tab switch / hide event(s) recorded")
 
         if evidence:
-            sev_label = "HIGH" if max_sev_score >= 2.5 else ("MEDIUM" if max_sev_score >= 1.6 else "LOW")
+            sev_label = "HIGH" if max_sev >= 3.0 else ("MEDIUM" if max_sev >= 2.0 else "LOW")
             anomalies.append({
                 "anomaly_id": f"anm_{uuid.uuid4().hex[:12]}",
                 "screening_id": screening_id,
-                "start_time_sec": bk["time_sec"],
-                "end_time_sec": bk["time_sec"] + b,
+                "start_time_sec": t_sec,
+                "end_time_sec": t_sec + b,
                 "type": "BEHAVIORAL_ANOMALY",
                 "severity": sev_label,
                 "signals": anomaly_signals,
                 "evidence": evidence,
             })
 
-        # Exceptional engagement: high replay or strong completion window
         rmu, rsigma = baselines["replay_rate"]
-        emu, esigma = baselines["exit_rate"]
-        rz = (bk["replay_rate"] - rmu) / (rsigma + eps)
-        ez = (bk["exit_rate"] - emu) / (esigma + eps)
-        if rz >= 1.2 or (rz >= 1.0 and ez < 0):
-            ratio = bk["replay_rate"] / (rmu + eps)
+        observed_rep = bk["replay_rate"]
+        rz = (observed_rep - rmu) / (rsigma + eps)
+        
+        if (rz >= 0.8 and observed_rep > 0.02) or (observed_rep >= 0.06):
+            ratio = observed_rep / (rmu + eps)
             completion_pct = bk["completions"] / max(1, unique_viewers)
             exceptional_engagement.append({
                 "anomaly_id": f"eng_{uuid.uuid4().hex[:12]}",
                 "screening_id": screening_id,
-                "start_time_sec": bk["time_sec"],
-                "end_time_sec": bk["time_sec"] + b,
+                "start_time_sec": t_sec,
+                "end_time_sec": t_sec + b,
                 "type": "EXCEPTIONAL_ENGAGEMENT",
-                "severity": "HIGH" if rz >= 2.5 else ("MEDIUM" if rz >= 1.6 else "LOW"),
+                "severity": "HIGH" if rz >= 2.2 else ("MEDIUM" if rz >= 1.2 else "LOW"),
                 "signals": {
-                    "replay_rate": round(bk["replay_rate"], 4),
+                    "replay_rate": round(observed_rep, 4),
                     "baseline_replay_rate": round(rmu, 4),
                     "replay_ratio": round(ratio, 2),
                     "completion_rate": round(completion_pct, 4),
                     "exit_rate": round(bk["exit_rate"], 4),
                 },
                 "evidence": [
-                    f"Replay activity is {ratio:.1f}x above baseline",
+                    f"Replay activity is {ratio:.1f}x above baseline (observed {observed_rep*100:.1f}%)",
                     f"Completion rate in this window: {completion_pct*100:.1f}%",
                 ],
             })
@@ -263,7 +283,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
         "reliability": _reliability(unique_viewers),
         "anomalies": anomalies,
         "exceptional_engagement": exceptional_engagement,
-        "baseline_methodology": "Adaptive Z-score vs population mean/std across all timecode buckets. HIGH>=2.5sigma, MEDIUM>=1.6sigma, LOW>=1.0sigma.",
+        "baseline_methodology": "High-resolution Audience Intelligence. Flags Z-score deviations (Z>=0.6 for N>=50) and absolute behavioral friction/engagement thresholds across timecode windows.",
     }
 
 
