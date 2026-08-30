@@ -147,23 +147,34 @@ function SignalHeatmap({ signals }: { signals: SignalBucket[] }) {
   for (const row of SIGNAL_ROWS) maxes[row.key] = Math.max(...signals.map(s => s[row.key]), 0.001);
 
   return (
-    <div className="space-y-2.5 w-full pt-1">
+    <div className="space-y-3 w-full pt-1">
       {SIGNAL_ROWS.map(row => (
         <div key={row.key} className="flex items-center gap-3">
-          <span className="text-xs font-medium text-muted-foreground w-14 shrink-0 text-right">{row.label}</span>
-          <div className="flex-1 flex gap-1 h-7">
+          <span className="text-xs font-semibold text-muted-foreground w-14 shrink-0 text-right">{row.label}</span>
+          <div className="flex-1 flex gap-1 h-9 bg-studio-900/60 border border-white/5 rounded-md p-1 items-end">
             {signals.map(s => {
-              const intensity = s[row.key] / maxes[row.key];
+              const val = s[row.key];
+              const intensity = val / maxes[row.key];
+              const hasValue = val > 0;
+              const fillPct = hasValue ? Math.max(12, Math.round(intensity * 100)) : 4;
+              const opacity = hasValue ? Math.max(0.35, intensity) : 0.12;
+
               return (
                 <div
                   key={s.time_sec}
-                  title={`${fmtTime(s.time_sec)} – ${row.label}: ${fmtPct(s[row.key])}`}
-                  className="flex-1 rounded-sm transition-all hover:scale-y-110 cursor-pointer"
-                  style={{
-                    backgroundColor: row.color,
-                    opacity: Math.max(0.08, intensity),
-                  }}
-                />
+                  title={`${fmtTime(s.time_sec)} – ${row.label}: ${fmtPct(val)}`}
+                  className="flex-1 h-full flex items-end justify-center group/bar relative cursor-pointer"
+                >
+                  <div
+                    className="w-full rounded-t-sm transition-all duration-200 group-hover/bar:brightness-125"
+                    style={{
+                      height: `${fillPct}%`,
+                      backgroundColor: row.color,
+                      opacity: opacity,
+                      boxShadow: hasValue && intensity > 0.4 ? `0 -2px 8px ${row.color}55` : 'none',
+                    }}
+                  />
+                </div>
               );
             })}
           </div>
@@ -171,7 +182,7 @@ function SignalHeatmap({ signals }: { signals: SignalBucket[] }) {
       ))}
       <div className="flex items-center gap-3">
         <span className="w-14 shrink-0" />
-        <div className="flex-1 flex justify-between text-[10px] text-muted-foreground font-mono px-0.5 pt-1">
+        <div className="flex-1 flex justify-between text-[10px] text-muted-foreground font-mono px-1">
           {signals.map((s, i) => {
             const step = Math.max(1, Math.floor(signals.length / 8));
             if (i % step === 0 || i === signals.length - 1) {
