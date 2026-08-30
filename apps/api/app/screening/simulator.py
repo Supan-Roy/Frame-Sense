@@ -93,6 +93,7 @@ def _generate_real_anchored_events(
     viewer_id: Optional[str] = None,
     ground_truth: Optional[List[Dict]] = None,
     weight_real: float = 1.0,
+    run_timestamp: Optional[datetime.datetime] = None,
 ) -> List[Dict[str, Any]]:
     if not viewer_id:
         viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
@@ -100,7 +101,7 @@ def _generate_real_anchored_events(
     events: List[Dict[str, Any]] = []
 
     def emit(event_type: str, t: float):
-        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng))
+        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng, run_timestamp=run_timestamp))
 
     emit("TAB_VISIBLE", 0)
     emit("PLAY", 0)
@@ -203,6 +204,7 @@ def _generate_cold_start_events(
     ground_truth: List[Dict],
     rng: random.Random,
     viewer_id: Optional[str] = None,
+    run_timestamp: Optional[datetime.datetime] = None,
 ) -> List[Dict[str, Any]]:
     if not viewer_id:
         viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
@@ -210,7 +212,7 @@ def _generate_cold_start_events(
     events: List[Dict[str, Any]] = []
 
     def emit(event_type: str, t: float):
-        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng))
+        events.append(_make_event(screening_id, session_id, viewer_id, video_id, event_type, t, rng, run_timestamp=run_timestamp))
 
     emit("TAB_VISIBLE", 0)
     emit("PLAY", 0)
@@ -305,10 +307,11 @@ def run_simulation(
     Real-Anchored Synthetic Audience Generator.
     """
     rng = random.Random(seed)
+    run_ts = datetime.datetime.now(datetime.timezone.utc)
     
     # 1. Fetch real viewer count to determine AUTO mode
     overview = get_audience_overview(screening_id)
-    real_viewers_count = overview["unique_viewers"]
+    real_viewers_count = overview.get("real_viewers", overview["unique_viewers"])
 
     req_mode = (mode or "AUTO").upper()
     if req_mode == "AUTO":
@@ -349,6 +352,7 @@ def run_simulation(
                 screening_id=screening_id, video_id=video_id, duration=duration,
                 fingerprint=fingerprint, rng=rng, variation_strength=variation_strength,
                 viewer_id=current_viewer_id, ground_truth=ground_truth, weight_real=1.0,
+                run_timestamp=run_ts,
             )
         elif effective_mode == "HYBRID" and fingerprint and fingerprint["time_buckets"]:
             w_real = min(1.0, max(0.1, real_viewers_count / 10.0))
@@ -356,13 +360,14 @@ def run_simulation(
                 screening_id=screening_id, video_id=video_id, duration=duration,
                 fingerprint=fingerprint, rng=rng, variation_strength=variation_strength,
                 viewer_id=current_viewer_id, ground_truth=ground_truth, weight_real=w_real,
+                run_timestamp=run_ts,
             )
         else:
             profile = rng.choices(profiles, weights=weights, k=1)[0]
             v_events = _generate_cold_start_events(
                 screening_id=screening_id, video_id=video_id, duration=duration,
                 profile=profile, ground_truth=ground_truth or get_default_ground_truth(duration),
-                rng=rng, viewer_id=current_viewer_id,
+                rng=rng, viewer_id=current_viewer_id, run_timestamp=run_ts,
             )
 
         batch.extend(v_events)

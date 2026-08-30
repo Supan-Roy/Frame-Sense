@@ -131,40 +131,54 @@ def delete_screening_events(screening_id: str):
 def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
     """
     Rolls back the most recent telemetry run/batch for a screening.
-    Deletes sessions created in the latest timestamp window, restoring state prior to that run.
+    Prioritizes rolling back synthetic simulation runs to protect real viewer data.
     """
     client = get_client()
     sid = screening_id.replace("'", "")
 
-    # 1. Query latest event server_timestamp for this screening
-    max_ts_res = client.query(f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}'")
-    if not max_ts_res.result_rows or not max_ts_res.result_rows[0][0]:
-        return {"status": "empty", "message": "No telemetry data to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
+    # 1. Check if synthetic viewers exist for this screening
+    synth_ts_res = client.query(
+        f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id LIKE 'synth_v_%'"
+    )
+    has_synth = synth_ts_res.result_rows and synth_ts_res.result_rows[0][0] is not None
 
-    max_ts = max_ts_res.result_rows[0][0]
+    if has_synth:
+        max_ts = synth_ts_res.result_rows[0][0]
+        sessions_query = f"""
+        SELECT DISTINCT session_id, anonymous_viewer_id
+        FROM viewer_events
+        WHERE screening_id = '{sid}'
+          AND anonymous_viewer_id LIKE 'synth_v_%'
+          AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -10)
+        """
+    else:
+        real_ts_res = client.query(
+            f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}'"
+        )
+        if not real_ts_res.result_rows or not real_ts_res.result_rows[0][0]:
+            return {"status": "empty", "message": "No telemetry data to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
-    # 2. Find sessions created within 10s of the max server_timestamp
-    sessions_query = f"""
-    SELECT DISTINCT session_id, anonymous_viewer_id
-    FROM viewer_events
-    WHERE screening_id = '{sid}'
-      AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -10)
-    """
+        max_ts = real_ts_res.result_rows[0][0]
+        sessions_query = f"""
+        SELECT DISTINCT session_id, anonymous_viewer_id
+        FROM viewer_events
+        WHERE screening_id = '{sid}'
+          AND server_timestamp >= addSeconds(toDateTime64('{max_ts}', 3, 'UTC'), -5)
+        """
+
     s_res = client.query(sessions_query)
     target_sessions = [row[0] for row in s_res.result_rows]
     target_viewers = list({row[1] for row in s_res.result_rows})
 
     if not target_sessions:
-        return {"status": "empty", "message": "No recent session batch found.", "deleted_sessions": 0, "deleted_viewers": 0}
+        return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
     sess_str = ", ".join([f"'{s}'" for s in target_sessions])
-
-    # 3. Issue ClickHouse deletion mutation for target sessions
     client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{sid}' AND session_id IN ({sess_str})")
 
     return {
         "status": "success",
-        "message": f"Rolled back latest batch ({len(target_sessions)} session(s) across {len(target_viewers)} viewer(s)).",
+        "message": f"Rolled back latest run ({len(target_sessions)} session(s) across {len(target_viewers)} viewer(s)).",
         "deleted_sessions": len(target_sessions),
         "deleted_viewers": len(target_viewers),
         "latest_timestamp": str(max_ts),
