@@ -17,19 +17,13 @@ from google.adk.tools.mcp_tool import (
 
 
 class GlobalGemini(Gemini):
-  """Pins the Vertex AI client to the `global` location.
-
-  gemini-3 series models are only served from `global`; the default ADK
-  `Gemini` integration constructs a `google.genai.Client` whose location
-  defaults to the AgentEngine instance's region (e.g. `us-central1`) and
-  fails with model-not-found for these models. Subclassing per the override
-  pattern documented on `google.adk.models.google_llm.Gemini` lets the agent
-  keep running in its regional AgentEngine instance while routing the model
-  request to the global endpoint.
-  """
+  """Pins the Vertex AI client to the `global` location or GEMINI_API_KEY."""
 
   @cached_property
   def api_client(self) -> Client:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        return Client(api_key=api_key)
     return Client(vertexai=True, location="global")
 
 
