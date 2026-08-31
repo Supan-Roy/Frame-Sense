@@ -11,7 +11,8 @@ def get_client() -> Client:
         port=settings.CLICKHOUSE_PORT,
         username=settings.CLICKHOUSE_USER,
         password=settings.CLICKHOUSE_PASSWORD,
-        database=settings.CLICKHOUSE_DATABASE
+        database=settings.CLICKHOUSE_DATABASE,
+        secure=settings.CLICKHOUSE_SECURE
     )
 
 def init_db():

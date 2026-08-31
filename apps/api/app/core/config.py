@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     CLICKHOUSE_USER: str = "default"
     CLICKHOUSE_PASSWORD: str = ""
     CLICKHOUSE_DATABASE: str = "default"
+    CLICKHOUSE_SECURE: bool = False
     
     
     # CORS Configuration
