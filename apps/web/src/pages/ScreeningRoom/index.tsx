@@ -101,7 +101,7 @@ export default function ScreeningRoom() {
   const fetchComments = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/v1/screenings/${token}/comments`);
+      const res = await fetch(`/api/v1/screenings/${token}/comments?viewer_id=${viewerIdRef.current}`);
       if (res.ok) {
         setComments(await res.json());
       }

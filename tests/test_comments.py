@@ -40,12 +40,30 @@ def test_comment_lifecycle():
     assert cmt["content"] == "The audio pacing feels a bit slow here."
     comment_id = cmt["comment_id"]
 
-    # 3. List comments
+    # 3. Add comment by second viewer
+    viewer_id_2 = "test_viewer_999"
+    client.post(
+        f"/api/v1/screenings/{pub_token}/comments",
+        json={
+            "viewer_id": viewer_id_2,
+            "display_name": "Anonymous Viewer #999",
+            "video_timecode_sec": 25.0,
+            "content": "Great color grading!"
+        }
+    )
+
+    # 4. List comments for Viewer 1 only (Privacy Mode)
+    res = client.get(f"/api/v1/screenings/{pub_token}/comments?viewer_id={viewer_id}")
+    assert res.status_code == 200
+    v1_comments = res.json()
+    assert len(v1_comments) == 1
+    assert v1_comments[0]["comment_id"] == comment_id
+
+    # 5. List all comments without viewer filter (Admin Mode)
     res = client.get(f"/api/v1/screenings/{pub_token}/comments")
     assert res.status_code == 200
-    comments = res.json()
-    assert len(comments) == 1
-    assert comments[0]["comment_id"] == comment_id
+    all_comments = res.json()
+    assert len(all_comments) == 2
 
     # 4. Edit comment (by author)
     res = client.put(
@@ -74,10 +92,11 @@ def test_comment_lifecycle():
     assert res.status_code == 200
     assert res.json()["status"] == "success"
 
-    # 7. Verify deletion
+    # 7. Verify deletion (viewer 1 comment deleted, viewer 2 comment remains)
     res = client.get(f"/api/v1/screenings/{pub_token}/comments")
     assert res.status_code == 200
-    assert len(res.json()) == 0
+    assert len(res.json()) == 1
+    assert res.json()[0]["viewer_id"] == viewer_id_2
 
     # Cleanup screening
     screening_repo.delete(sid)

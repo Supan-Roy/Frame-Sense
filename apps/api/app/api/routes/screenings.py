@@ -333,11 +333,17 @@ def add_screening_comment(identifier: str, payload: CommentCreate):
 
 
 @router.get("/{identifier}/comments", response_model=List[CommentResponse])
-def get_screening_comments(identifier: str):
-    """Fetches all audience comments for a screening, ordered by video timecode."""
+def get_screening_comments(
+    identifier: str,
+    viewer_id: Optional[str] = Query(default=None, description="Optional viewer ID filter")
+):
+    """Fetches audience comments for a screening. If viewer_id is provided, filters to that viewer's comments only."""
     screening = _resolve_screening(identifier)
     try:
-        return screening_repo.get_comments_by_screening(screening["screening_id"])
+        comments = screening_repo.get_comments_by_screening(screening["screening_id"])
+        if viewer_id:
+            comments = [c for c in comments if c["viewer_id"] == viewer_id]
+        return comments
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch comments: {e}")
 
