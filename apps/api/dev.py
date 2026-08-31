@@ -18,7 +18,7 @@ if not os.path.exists(PYTHON_EXE):
 
 def start_server():
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-    cmd = [PYTHON_EXE, "-m", "uvicorn", "app.main:app", "--port", "8000"]
+    cmd = [PYTHON_EXE, "-m", "uvicorn", "app.main:app", "--port", "8001"]
     return subprocess.Popen(cmd, cwd=API_DIR, creationflags=creationflags)
 
 

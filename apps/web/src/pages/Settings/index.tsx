@@ -19,7 +19,7 @@ export default function Settings() {
               <label className="text-xs text-muted-foreground">API Host Endpoint</label>
               <input 
                 type="text" 
-                defaultValue="http://localhost:8000/api/v1" 
+                defaultValue="http://localhost:8001/api/v1" 
                 className="w-full bg-studio-900 border rounded px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               />
             </div>
