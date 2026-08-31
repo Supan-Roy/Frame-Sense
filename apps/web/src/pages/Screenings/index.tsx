@@ -3,7 +3,7 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart, RotateCcw, History, CheckCircle2
+  CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink
 } from 'lucide-react';
 
 interface Screening {
@@ -815,7 +815,16 @@ interface ToastNotification {
               {screenings.map(s => (
                 <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
                   <td className="p-4 font-medium">
-                    <div>{s.title}</div>
+                    <a
+                      href={`/screening/${s.public_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open Targeted Audience Screening Room"
+                      className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</span>
+                      <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
+                    </a>
                     {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
                   </td>
                   <td className="p-4 text-muted-foreground">
@@ -870,7 +879,22 @@ interface ToastNotification {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-3xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-start justify-between p-6 border-b shrink-0">
-              <div><div className="flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold uppercase tracking-wider">Audience Intelligence</h2></div><p className="text-xs text-muted-foreground mt-0.5">{aiScreening.title}</p></div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-semibold uppercase tracking-wider">Audience Intelligence</h2>
+                </div>
+                <a
+                  href={`/screening/${aiScreening.public_token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open Targeted Audience Screening Room"
+                  className="group inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors mt-0.5 cursor-pointer"
+                >
+                  <span>{aiScreening.title}</span>
+                  <ExternalLink className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+                </a>
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowResetConfirmModal(true)}
