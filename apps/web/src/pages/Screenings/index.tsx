@@ -552,8 +552,8 @@ interface ToastNotification {
     }
   };
 
-  const openAI = async (s: Screening) => {
-    setAiScreening(s); setAiTab('overview');
+  const openAI = async (s: Screening, defaultTab: AITab = 'overview') => {
+    setAiScreening(s); setAiTab(defaultTab);
     setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null); setAiComments(null);
     setAiError(null); setSimResult(null); setSimError(null); setAiLoading(true);
     try { await loadAIData(s.screening_id); } catch (e: any) { setAiError(e.message); } finally { setAiLoading(false); }
@@ -905,6 +905,9 @@ interface ToastNotification {
                   <td className="p-4 text-right space-x-2">
                     <button onClick={() => handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
                       {copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
+                    </button>
+                    <button onClick={() => openAI(s, 'feedback')} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
+                      <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
                     </button>
                     <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
                       <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
