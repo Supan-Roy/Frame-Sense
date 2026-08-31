@@ -102,7 +102,7 @@ interface CommentInfo {
   updated_at: string;
 }
 
-type AITab = 'overview' | 'retention' | 'signals' | 'anomalies' | 'feedback';
+type AITab = 'overview' | 'retention' | 'signals' | 'anomalies';
 
 function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -466,9 +466,44 @@ export default function Screenings() {
   const [aiRetention, setAiRetention] = useState<RetentionData | null>(null);
   const [aiSignals, setAiSignals] = useState<SignalBucket[] | null>(null);
   const [aiAnomalies, setAiAnomalies] = useState<AnomalyData | null>(null);
-  const [aiComments, setAiComments] = useState<CommentInfo[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const [feedbackScreening, setFeedbackScreening] = useState<Screening | null>(null);
+  const [feedbackComments, setFeedbackComments] = useState<CommentInfo[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  const openFeedback = async (s: Screening) => {
+    setFeedbackScreening(s);
+    setFeedbackComments([]);
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch(`/api/v1/screenings/${s.screening_id}/comments`);
+      if (res.ok) {
+        setFeedbackComments(await res.json());
+      }
+    } catch (e) {
+      console.error('Failed to load feedback comments:', e);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const handleAdminDeleteFeedbackComment = async (commentId: string) => {
+    if (!feedbackScreening) return;
+    try {
+      const res = await fetch(`/api/v1/screenings/comments/${commentId}?is_admin=true`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setFeedbackComments(prev => prev.filter(c => c.comment_id !== commentId));
+        triggerToast('Viewer feedback comment deleted by admin.', 'info');
+      }
+    } catch (e) {
+      triggerToast('Failed to delete comment.', 'error');
+    }
+  };
+
   const [simViewers, setSimViewers] = useState(1000);
   const [simMode, setSimMode] = useState('AUTO');
   const [simVariation, setSimVariation] = useState('MEDIUM');
@@ -523,38 +558,21 @@ interface ToastNotification {
   useEffect(() => { fetchScreenings(); }, []);
 
   const loadAIData = async (sid: string) => {
-    const [ovR, retR, sigR, anmR, cmtR] = await Promise.all([
+    const [ovR, retR, sigR, anmR] = await Promise.all([
       fetch(`/api/v1/screenings/${sid}/audience/overview`),
       fetch(`/api/v1/screenings/${sid}/audience/retention`),
       fetch(`/api/v1/screenings/${sid}/audience/signals`),
       fetch(`/api/v1/screenings/${sid}/audience/anomalies`),
-      fetch(`/api/v1/screenings/${sid}/comments`),
     ]);
     if (ovR.ok) setAiOverview(await ovR.json());
     if (retR.ok) setAiRetention(await retR.json());
     if (sigR.ok) { const d = await sigR.json(); setAiSignals(d.signals); }
     if (anmR.ok) setAiAnomalies(await anmR.json());
-    if (cmtR.ok) setAiComments(await cmtR.json());
   };
 
-  const handleAdminDeleteComment = async (commentId: string) => {
-    if (!aiScreening) return;
-    try {
-      const res = await fetch(`/api/v1/screenings/comments/${commentId}?is_admin=true`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setAiComments(prev => (prev ? prev.filter((c: CommentInfo) => c.comment_id !== commentId) : null));
-        triggerToast('Viewer comment deleted by admin.', 'info');
-      }
-    } catch (e: any) {
-      triggerToast('Failed to delete comment.', 'error');
-    }
-  };
-
-  const openAI = async (s: Screening, defaultTab: AITab = 'overview') => {
-    setAiScreening(s); setAiTab(defaultTab);
-    setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null); setAiComments(null);
+  const openAI = async (s: Screening) => {
+    setAiScreening(s); setAiTab('overview');
+    setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null);
     setAiError(null); setSimResult(null); setSimError(null); setAiLoading(true);
     try { await loadAIData(s.screening_id); } catch (e: any) { setAiError(e.message); } finally { setAiLoading(false); }
   };
@@ -806,48 +824,6 @@ interface ToastNotification {
         )}
       </div>
     );
-
-    if (aiTab === 'feedback') return (
-      <div className="space-y-4">
-        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
-        <div className="text-[10px] text-muted-foreground">
-          Audience feedback and timecode notes submitted by focus group viewers.
-        </div>
-        {!aiComments || aiComments.length === 0 ? (
-          <div className="text-xs text-muted-foreground italic bg-studio-900 p-6 border rounded text-center">
-            No audience feedback notes submitted for this screening cut yet.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {aiComments.map(cmt => (
-              <div key={cmt.comment_id} className="bg-studio-900 border rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-foreground">{cmt.display_name}</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-studio-950 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">
-                      <Clock className="h-3 w-3" />
-                      <span>{fmtTime(cmt.video_timecode_sec)}</span>
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleAdminDeleteComment(cmt.comment_id)}
-                    className="flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:bg-rose-500/10 px-2.5 py-1 rounded transition-colors cursor-pointer"
-                    title="Delete viewer comment"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-                <p className="text-xs text-foreground/90 leading-relaxed font-sans">{cmt.content}</p>
-                <div className="text-[9px] text-muted-foreground font-mono">
-                  Submitted: {new Date(cmt.created_at).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -906,7 +882,7 @@ interface ToastNotification {
                     <button onClick={() => handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
                       {copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
                     </button>
-                    <button onClick={() => openAI(s, 'feedback')} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
+                    <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
                       <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
                     </button>
                     <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
@@ -989,7 +965,6 @@ interface ToastNotification {
                 { key: 'retention' as AITab, label: 'Retention',                                              Icon: TrendingDown },
                 { key: 'signals' as AITab,   label: 'Signal Map',                                             Icon: Activity },
                 { key: 'anomalies' as AITab, label: `Anomalies${totalAnm > 0 ? ` (${totalAnm})` : ''}`,      Icon: AlertTriangle },
-                { key: 'feedback' as AITab,  label: `Feedback${(aiComments?.length ?? 0) > 0 ? ` (${aiComments?.length})` : ''}`, Icon: MessageSquare },
               ]).map(({ key, label, Icon }) => (
                 <button key={key} onClick={() => setAiTab(key)}
                   className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium border-b-2 transition-all ${aiTab === key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
@@ -1207,6 +1182,85 @@ interface ToastNotification {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Audience Feedback Modal */}
+      {feedbackScreening && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-6 border-b shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-sky-500/10 text-sky-400 rounded-lg">
+                  <MessageSquare className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                    Audience Feedback & Notes ({feedbackComments.length})
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                    Screening: {feedbackScreening.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setFeedbackScreening(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {feedbackLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
+                </div>
+              ) : feedbackComments.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic bg-studio-900/60 p-8 border rounded-lg text-center space-y-2">
+                  <MessageSquare className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                  <p>No feedback comments submitted for this screening room cut yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {feedbackComments.map((cmt) => (
+                    <div key={cmt.comment_id} className="bg-studio-900 border rounded-lg p-4 space-y-2 hover:border-studio-700 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-foreground">{cmt.display_name}</span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-studio-950 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">
+                            <Clock className="h-3 w-3" />
+                            <span>{fmtTime(cmt.video_timecode_sec)}</span>
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleAdminDeleteFeedbackComment(cmt.comment_id)}
+                          className="flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:bg-rose-500/10 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                          title="Delete viewer comment"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                      <p className="text-xs text-foreground/90 leading-relaxed font-sans">{cmt.content}</p>
+                      <div className="text-[9px] text-muted-foreground font-mono">
+                        Submitted: {new Date(cmt.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t p-4 flex justify-end shrink-0 bg-studio-950">
+              <button
+                onClick={() => setFeedbackScreening(null)}
+                className="px-4 py-2 bg-studio-900 hover:bg-studio-800 text-xs font-semibold rounded border transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

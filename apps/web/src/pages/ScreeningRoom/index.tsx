@@ -969,19 +969,6 @@ export default function ScreeningRoom() {
                 )}
               </div>
             </div>
-
-            {/* Audience telemetry notice */}
-            <div className="bg-zinc-900/20 border border-zinc-900/50 rounded-xl p-6 flex items-start gap-4">
-              <div className="p-2 bg-red-600/10 text-red-500 rounded-lg">
-                <AlertCircle className="h-5 w-5 animate-pulse" />
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-zinc-300">Telemetry Monitoring Active</div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
-                  This screening room tracks playback events (play, pause, and skips) anonymously. The statistics help filmmakers adjust temporal structures and cut lengths. No personal data is stored.
-                </p>
-              </div>
-            </div>
           </div>
 
         </div>
