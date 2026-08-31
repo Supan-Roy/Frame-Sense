@@ -35,29 +35,24 @@ class GlobalGemini(Gemini):
 
 def get_clickhouse_cloud_access_token() -> Optional[str]:
     """
-    Obtains a short-lived access token for ClickHouse Cloud MCP using service credentials / refresh token
-    configured in environment variables, or returns direct CLICKHOUSE_CLOUD_ACCESS_TOKEN / CLICKHOUSE_MCP_TOKEN.
+    Obtains the authentication header token for ClickHouse Cloud MCP.
+    - Returns CLICKHOUSE_CLOUD_ACCESS_TOKEN / CLICKHOUSE_MCP_TOKEN if set.
+    - Formats Basic auth (base64 encoded service_id:refresh_token) for hosted ClickHouse Cloud MCP.
+    - Formats Basic auth (base64 encoded user:password) as direct DB fallback.
     """
     token = os.getenv("CLICKHOUSE_CLOUD_ACCESS_TOKEN") or os.getenv("CLICKHOUSE_MCP_TOKEN")
     if token:
-        return token
+        if token.startswith("Bearer ") or token.startswith("Basic "):
+            return token
+        return f"Bearer {token}"
         
     refresh_token = os.getenv("CLICKHOUSE_CLOUD_REFRESH_TOKEN")
     service_id = os.getenv("CLICKHOUSE_CLOUD_SERVICE_ID")
     
     if refresh_token and service_id:
-        try:
-            auth_url = os.getenv("CLICKHOUSE_CLOUD_AUTH_URL", "https://api.clickhouse.cloud/v1/auth/token")
-            resp = httpx.post(
-                auth_url,
-                json={"refresh_token": refresh_token, "service_id": service_id},
-                timeout=10.0
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                return data.get("access_token") or data.get("token")
-        except Exception as e:
-            print(f"ClickHouse Cloud token refresh warning: {e}")
+        import base64
+        creds = base64.b64encode(f"{service_id}:{refresh_token}".encode()).decode()
+        return f"Basic {creds}"
 
     user = os.getenv("CLICKHOUSE_USER", "default")
     password = os.getenv("CLICKHOUSE_PASSWORD", "")
