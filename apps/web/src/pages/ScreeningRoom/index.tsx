@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Film, Eye, AlertCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import {
+  Film, Eye, AlertCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize,
+  MessageSquare, Send, Edit2, Trash2, Clock, Check, UserCheck
+} from 'lucide-react';
 
 // Helper to get or create a persistent anonymous viewer ID
 function getOrCreateViewerId(): string {
@@ -12,6 +15,17 @@ function getOrCreateViewerId(): string {
   return id;
 }
 
+// Helper to get or create a persistent pseudo-anonymous display name
+function getOrCreateViewerDisplayName(): string {
+  let name = localStorage.getItem('fs_anonymous_display_name');
+  if (!name) {
+    const num = Math.floor(100 + Math.random() * 900);
+    name = `Anonymous Viewer #${num}`;
+    localStorage.setItem('fs_anonymous_display_name', name);
+  }
+  return name;
+}
+
 interface ScreeningInfo {
   screening_id: string;
   media_id: string;
@@ -19,6 +33,17 @@ interface ScreeningInfo {
   description: string | null;
   media_duration: number;
   created_at: string;
+}
+
+interface CommentInfo {
+  comment_id: string;
+  screening_id: string;
+  viewer_id: string;
+  display_name: string;
+  video_timecode_sec: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ScreeningRoom() {
@@ -64,6 +89,102 @@ export default function ScreeningRoom() {
   const eventQueueRef = useRef<any[]>([]);
   const progressIntervalRef = useRef<any>(null);
   const batchIntervalRef = useRef<any>(null);
+
+  // Anonymous Comment & Feedback State
+  const [comments, setComments] = useState<CommentInfo[]>([]);
+  const [commentInput, setCommentInput] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editInput, setEditInput] = useState('');
+  const viewerDisplayName = useRef<string>(getOrCreateViewerDisplayName()).current;
+
+  const fetchComments = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/v1/screenings/${token}/comments`);
+      if (res.ok) {
+        setComments(await res.json());
+      }
+    } catch (e) {
+      console.error('Failed to load comments:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [token]);
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentInput.trim() || !token || submittingComment) return;
+    setSubmittingComment(true);
+    try {
+      const res = await fetch(`/api/v1/screenings/${token}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewer_id: viewerIdRef.current,
+          display_name: viewerDisplayName,
+          video_timecode_sec: currentTime,
+          content: commentInput.trim(),
+        }),
+      });
+      if (res.ok) {
+        setCommentInput('');
+        await fetchComments();
+      }
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleStartEdit = (cmt: CommentInfo) => {
+    setEditingCommentId(cmt.comment_id);
+    setEditInput(cmt.content);
+  };
+
+  const handleSaveEdit = async (cmtId: string) => {
+    if (!editInput.trim()) return;
+    try {
+      const res = await fetch(`/api/v1/screenings/comments/${cmtId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewer_id: viewerIdRef.current,
+          content: editInput.trim(),
+        }),
+      });
+      if (res.ok) {
+        setEditingCommentId(null);
+        setEditInput('');
+        await fetchComments();
+      }
+    } catch (err) {
+      console.error('Failed to update comment:', err);
+    }
+  };
+
+  const handleDeleteComment = async (cmtId: string) => {
+    try {
+      const res = await fetch(`/api/v1/screenings/comments/${cmtId}?viewer_id=${viewerIdRef.current}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await fetchComments();
+      }
+    } catch (err) {
+      console.error('Failed to delete comment:', err);
+    }
+  };
+
+  const seekToTimecode = (timecode: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = timecode;
+      setCurrentTime(timecode);
+    }
+  };
 
   // Load screening info
   useEffect(() => {
@@ -714,6 +835,138 @@ export default function ScreeningRoom() {
               <div className="flex items-center gap-4 text-[10px] text-zinc-500 uppercase tracking-wider pt-3 border-t border-zinc-800/60 font-mono">
                 <div>Duration: {Math.floor(screening.media_duration / 60)}m {Math.round(screening.media_duration % 60)}s</div>
                 <div>Published: {new Date(screening.created_at).toLocaleDateString()}</div>
+              </div>
+            </div>
+
+            {/* Anonymous Viewer Comments & Feedback Section */}
+            <div className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl p-5 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-red-500" />
+                  <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                    Audience Feedback ({comments.length})
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 bg-zinc-800/50 px-2.5 py-1 rounded-full border border-zinc-700/40 font-mono">
+                  <UserCheck className="h-3 w-3 text-emerald-400" />
+                  <span>{viewerDisplayName}</span>
+                </div>
+              </div>
+
+              {/* Comment submission form */}
+              <form onSubmit={handleAddComment} className="space-y-2">
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder="Add a feedback note for filmmakers..."
+                    className="w-full bg-zinc-950/80 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/60 focus:ring-1 focus:ring-red-600/30 resize-none"
+                  />
+                  <div className="absolute bottom-2.5 right-2.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => seekToTimecode(currentTime)}
+                      className="text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded flex items-center gap-1 hover:text-white transition-colors"
+                      title="Timestamp comment at current video position"
+                    >
+                      <Clock className="h-3 w-3 text-red-500" />
+                      <span>{formatTime(currentTime)}</span>
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!commentInput.trim() || submittingComment}
+                      className="bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white p-1.5 rounded-md transition-all shadow-md flex items-center justify-center"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Comments list */}
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                {comments.length === 0 ? (
+                  <div className="text-[11px] text-zinc-500 italic text-center py-4 bg-zinc-950/30 rounded-lg border border-zinc-900">
+                    No feedback comments added yet. Pause or play to drop notes at exact timecodes.
+                  </div>
+                ) : (
+                  comments.map((cmt) => {
+                    const isAuthor = cmt.viewer_id === viewerIdRef.current;
+                    const isEditing = editingCommentId === cmt.comment_id;
+
+                    return (
+                      <div
+                        key={cmt.comment_id}
+                        className="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3 space-y-1.5 hover:border-zinc-700/60 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-zinc-200">
+                              {cmt.display_name}
+                            </span>
+                            <button
+                              onClick={() => seekToTimecode(cmt.video_timecode_sec)}
+                              className="inline-flex items-center gap-1 text-[10px] font-mono bg-red-950/60 text-red-400 border border-red-900/40 hover:bg-red-900/40 px-2 py-0.5 rounded transition-all cursor-pointer"
+                              title="Click to jump to this video timecode"
+                            >
+                              <Clock className="h-3 w-3" />
+                              <span>{formatTime(cmt.video_timecode_sec)}</span>
+                            </button>
+                          </div>
+
+                          {isAuthor && !isEditing && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleStartEdit(cmt)}
+                                className="p-1 text-zinc-400 hover:text-white transition-colors"
+                                title="Edit your comment"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(cmt.comment_id)}
+                                className="p-1 text-zinc-400 hover:text-red-400 transition-colors"
+                                title="Delete your comment"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-2 pt-1">
+                            <textarea
+                              rows={2}
+                              value={editInput}
+                              onChange={(e) => setEditInput(e.target.value)}
+                              className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-xs text-zinc-100 focus:outline-none focus:border-red-500"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => setEditingCommentId(null)}
+                                className="text-[10px] text-zinc-400 hover:text-white px-2 py-1"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleSaveEdit(cmt.comment_id)}
+                                className="text-[10px] bg-red-600 text-white font-semibold px-2.5 py-1 rounded flex items-center gap-1 hover:bg-red-500"
+                              >
+                                <Check className="h-3 w-3" /> Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                            {cmt.content}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 

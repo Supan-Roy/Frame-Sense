@@ -25,3 +25,26 @@ class ScreeningStats(BaseModel):
     total_events: int
     completed_sessions: int
     event_breakdown: Dict[str, int]
+
+
+class CommentCreate(BaseModel):
+    viewer_id: str
+    display_name: str
+    video_timecode_sec: float = 0.0
+    content: str
+
+
+class CommentUpdate(BaseModel):
+    viewer_id: str
+    content: str
+
+
+class CommentResponse(BaseModel):
+    comment_id: str
+    screening_id: str
+    viewer_id: str
+    display_name: str
+    video_timecode_sec: float
+    content: str
+    created_at: str
+    updated_at: str

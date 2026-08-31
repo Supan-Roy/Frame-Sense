@@ -1,7 +1,14 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
-from app.schemas.screening import ScreeningCreate, ScreeningResponse, ScreeningStats
+from app.schemas.screening import (
+    ScreeningCreate,
+    ScreeningResponse,
+    ScreeningStats,
+    CommentCreate,
+    CommentUpdate,
+    CommentResponse,
+)
 from app.screening.repository import screening_repo
 from app.media.storage import storage_backend
 from app.database.clickhouse import get_screening_stats
@@ -293,4 +300,88 @@ def dev_simulate(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulator error: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Comment / Feedback Endpoints (Screening Room & Studio Admin)
+# ---------------------------------------------------------------------------
+
+def _resolve_screening(identifier: str):
+    """Resolves screening by screening_id or public_token."""
+    record = screening_repo.get_by_id(identifier)
+    if not record:
+        record = screening_repo.get_by_token(identifier)
+    if not record:
+        raise HTTPException(status_code=404, detail="Screening room not found.")
+    return record
+
+
+@router.post("/{identifier}/comments", response_model=CommentResponse)
+def add_screening_comment(identifier: str, payload: CommentCreate):
+    """Submits a new timecode-anchored comment for a screening."""
+    screening = _resolve_screening(identifier)
+    try:
+        return screening_repo.add_comment(
+            screening_id=screening["screening_id"],
+            viewer_id=payload.viewer_id,
+            display_name=payload.display_name,
+            video_timecode_sec=payload.video_timecode_sec,
+            content=payload.content,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit comment: {e}")
+
+
+@router.get("/{identifier}/comments", response_model=List[CommentResponse])
+def get_screening_comments(identifier: str):
+    """Fetches all audience comments for a screening, ordered by video timecode."""
+    screening = _resolve_screening(identifier)
+    try:
+        return screening_repo.get_comments_by_screening(screening["screening_id"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch comments: {e}")
+
+
+@router.put("/comments/{comment_id}", response_model=CommentResponse)
+def edit_screening_comment(comment_id: str, payload: CommentUpdate):
+    """Edits an existing comment (author validation via viewer_id)."""
+    try:
+        updated = screening_repo.update_comment(
+            comment_id=comment_id,
+            viewer_id=payload.viewer_id,
+            content=payload.content,
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Comment not found.")
+        return updated
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Failed to edit comment: {e}")
+
+
+@router.delete("/comments/{comment_id}")
+def delete_screening_comment(
+    comment_id: str,
+    viewer_id: Optional[str] = Query(default=None, description="Viewer ID for author validation"),
+    is_admin: bool = Query(default=False, description="Admin override flag"),
+):
+    """Deletes a comment (restricted to author viewer_id or studio admin)."""
+    try:
+        success = screening_repo.delete_comment(
+            comment_id=comment_id,
+            viewer_id=viewer_id,
+            is_admin=is_admin,
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Comment not found.")
+        return {"status": "success", "message": "Comment deleted successfully."}
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Failed to delete comment: {e}")
 

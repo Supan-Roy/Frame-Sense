@@ -3,7 +3,7 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink
+  CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare
 } from 'lucide-react';
 
 interface Screening {
@@ -91,7 +91,18 @@ interface AnomalyData {
   baseline_methodology: string;
 }
 
-type AITab = 'overview' | 'retention' | 'signals' | 'anomalies';
+interface CommentInfo {
+  comment_id: string;
+  screening_id: string;
+  viewer_id: string;
+  display_name: string;
+  video_timecode_sec: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+type AITab = 'overview' | 'retention' | 'signals' | 'anomalies' | 'feedback';
 
 function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -455,6 +466,7 @@ export default function Screenings() {
   const [aiRetention, setAiRetention] = useState<RetentionData | null>(null);
   const [aiSignals, setAiSignals] = useState<SignalBucket[] | null>(null);
   const [aiAnomalies, setAiAnomalies] = useState<AnomalyData | null>(null);
+  const [aiComments, setAiComments] = useState<CommentInfo[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [simViewers, setSimViewers] = useState(1000);
@@ -511,21 +523,38 @@ interface ToastNotification {
   useEffect(() => { fetchScreenings(); }, []);
 
   const loadAIData = async (sid: string) => {
-    const [ovR, retR, sigR, anmR] = await Promise.all([
+    const [ovR, retR, sigR, anmR, cmtR] = await Promise.all([
       fetch(`/api/v1/screenings/${sid}/audience/overview`),
       fetch(`/api/v1/screenings/${sid}/audience/retention`),
       fetch(`/api/v1/screenings/${sid}/audience/signals`),
       fetch(`/api/v1/screenings/${sid}/audience/anomalies`),
+      fetch(`/api/v1/screenings/${sid}/comments`),
     ]);
     if (ovR.ok) setAiOverview(await ovR.json());
     if (retR.ok) setAiRetention(await retR.json());
     if (sigR.ok) { const d = await sigR.json(); setAiSignals(d.signals); }
     if (anmR.ok) setAiAnomalies(await anmR.json());
+    if (cmtR.ok) setAiComments(await cmtR.json());
+  };
+
+  const handleAdminDeleteComment = async (commentId: string) => {
+    if (!aiScreening) return;
+    try {
+      const res = await fetch(`/api/v1/screenings/comments/${commentId}?is_admin=true`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setAiComments(prev => (prev ? prev.filter((c: CommentInfo) => c.comment_id !== commentId) : null));
+        triggerToast('Viewer comment deleted by admin.', 'info');
+      }
+    } catch (e: any) {
+      triggerToast('Failed to delete comment.', 'error');
+    }
   };
 
   const openAI = async (s: Screening) => {
     setAiScreening(s); setAiTab('overview');
-    setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null);
+    setAiOverview(null); setAiRetention(null); setAiSignals(null); setAiAnomalies(null); setAiComments(null);
     setAiError(null); setSimResult(null); setSimError(null); setAiLoading(true);
     try { await loadAIData(s.screening_id); } catch (e: any) { setAiError(e.message); } finally { setAiLoading(false); }
   };
@@ -777,6 +806,48 @@ interface ToastNotification {
         )}
       </div>
     );
+
+    if (aiTab === 'feedback') return (
+      <div className="space-y-4">
+        {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
+        <div className="text-[10px] text-muted-foreground">
+          Audience feedback and timecode notes submitted by focus group viewers.
+        </div>
+        {!aiComments || aiComments.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic bg-studio-900 p-6 border rounded text-center">
+            No audience feedback notes submitted for this screening cut yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {aiComments.map(cmt => (
+              <div key={cmt.comment_id} className="bg-studio-900 border rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">{cmt.display_name}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-studio-950 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">
+                      <Clock className="h-3 w-3" />
+                      <span>{fmtTime(cmt.video_timecode_sec)}</span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleAdminDeleteComment(cmt.comment_id)}
+                    className="flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:bg-rose-500/10 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                    title="Delete viewer comment"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+                <p className="text-xs text-foreground/90 leading-relaxed font-sans">{cmt.content}</p>
+                <div className="text-[9px] text-muted-foreground font-mono">
+                  Submitted: {new Date(cmt.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -915,6 +986,7 @@ interface ToastNotification {
                 { key: 'retention' as AITab, label: 'Retention',                                              Icon: TrendingDown },
                 { key: 'signals' as AITab,   label: 'Signal Map',                                             Icon: Activity },
                 { key: 'anomalies' as AITab, label: `Anomalies${totalAnm > 0 ? ` (${totalAnm})` : ''}`,      Icon: AlertTriangle },
+                { key: 'feedback' as AITab,  label: `Feedback${(aiComments?.length ?? 0) > 0 ? ` (${aiComments?.length})` : ''}`, Icon: MessageSquare },
               ]).map(({ key, label, Icon }) => (
                 <button key={key} onClick={() => setAiTab(key)}
                   className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium border-b-2 transition-all ${aiTab === key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
