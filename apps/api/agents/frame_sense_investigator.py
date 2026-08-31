@@ -73,29 +73,33 @@ def create_clickhouse_mcp_toolset() -> McpToolset:
     """
     Constructs the official ClickHouse MCP toolset using ADK's McpToolset & StreamableHTTPConnectionParams.
     Defaults to hosted ClickHouse Cloud MCP (https://mcp.clickhouse.cloud/mcp) with automatic fallback
-    to local Docker ClickHouse MCP (http://localhost:8000/sse) for development safety.
+    to local Docker ClickHouse MCP (http://localhost:8000/sse) when no cloud credentials are configured.
     Exposes analytical read-only tools: list_databases, list_tables, run_select_query.
     """
     endpoint = os.getenv("CLICKHOUSE_MCP_ENDPOINT", "https://mcp.clickhouse.cloud/mcp")
     read_only_tools = ["list_databases", "list_tables", "run_select_query", "run_query"]
+    token = get_clickhouse_cloud_access_token()
+
+    # Automatic fallback to local Docker MCP when no cloud credentials are in .env
+    if endpoint == "https://mcp.clickhouse.cloud/mcp" and not token:
+        endpoint = os.getenv("LOCAL_CLICKHOUSE_MCP_ENDPOINT", "http://localhost:8000/sse")
 
     def header_provider(context: Any) -> Dict[str, str]:
         headers = {}
-        token = get_clickhouse_cloud_access_token()
-        if token:
-            if token.startswith("Bearer ") or token.startswith("Basic "):
-                headers["Authorization"] = token
+        curr_token = get_clickhouse_cloud_access_token()
+        if curr_token:
+            if curr_token.startswith("Bearer ") or curr_token.startswith("Basic "):
+                headers["Authorization"] = curr_token
             else:
-                headers["Authorization"] = f"Bearer {token}"
+                headers["Authorization"] = f"Bearer {curr_token}"
         return headers
 
     if "sse" in endpoint.lower() or "localhost" in endpoint or "127.0.0.1" in endpoint:
         connection_params = SseConnectionParams(url=endpoint)
     else:
         headers = {}
-        initial_token = get_clickhouse_cloud_access_token()
-        if initial_token:
-            headers["Authorization"] = initial_token if initial_token.startswith(("Bearer ", "Basic ")) else f"Bearer {initial_token}"
+        if token:
+            headers["Authorization"] = token if token.startswith(("Bearer ", "Basic ")) else f"Bearer {token}"
 
         connection_params = StreamableHTTPConnectionParams(
             url=endpoint,
