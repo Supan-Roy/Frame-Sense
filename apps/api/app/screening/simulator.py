@@ -367,32 +367,36 @@ def run_simulation(
 
         num_real_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
 
-        # Execute ultra-fast native C++ SQL vector insert in ClickHouse (zero Python overhead)
-        insert_sql = f"""
-        INSERT INTO viewer_events (
-            event_id, screening_id, session_id, anonymous_viewer_id,
-            video_id, event_type, video_timecode_sec, client_timestamp, server_timestamp
-        )
-        SELECT
-            generateUUIDv4() AS event_id,
-            '{sid}' AS screening_id,
-            concat('synth_s_', substring(hex(MD5(concat(toString(v.idx), '_s'))), 1, 16)) AS session_id,
-            concat('synth_v_', substring(hex(MD5(concat(toString(v.idx), '_v'))), 1, 16)) AS anonymous_viewer_id,
-            '{vid}' AS video_id,
-            r.event_type AS event_type,
-            r.video_timecode_sec AS video_timecode_sec,
-            now64(3, 'UTC') AS client_timestamp,
-            now64(3, 'UTC') AS server_timestamp
-        FROM (
-            SELECT event_type, video_timecode_sec
-            FROM viewer_events
-            WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
-        ) AS r
-        CROSS JOIN (
-            SELECT number AS idx FROM numbers({num_viewers})
-        ) AS v
-        """
-        client.command(insert_sql)
+        # Execute safe chunked vector insert in ClickHouse (50,000 viewers per chunk) to prevent Docker OOM
+        chunk_size = 50_000
+        for offset in range(0, num_viewers, chunk_size):
+            cur_chunk = min(chunk_size, num_viewers - offset)
+            insert_sql = f"""
+            INSERT INTO viewer_events (
+                event_id, screening_id, session_id, anonymous_viewer_id,
+                video_id, event_type, video_timecode_sec, client_timestamp, server_timestamp
+            )
+            SELECT
+                generateUUIDv4() AS event_id,
+                '{sid}' AS screening_id,
+                concat('synth_s_', substring(hex(MD5(concat(toString({offset} + v.idx), '_s'))), 1, 16)) AS session_id,
+                concat('synth_v_', substring(hex(MD5(concat(toString({offset} + v.idx), '_v'))), 1, 16)) AS anonymous_viewer_id,
+                '{vid}' AS video_id,
+                r.event_type AS event_type,
+                r.video_timecode_sec AS video_timecode_sec,
+                now64(3, 'UTC') AS client_timestamp,
+                now64(3, 'UTC') AS server_timestamp
+            FROM (
+                SELECT event_type, video_timecode_sec
+                FROM viewer_events
+                WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
+            ) AS r
+            CROSS JOIN (
+                SELECT number AS idx FROM numbers({cur_chunk})
+            ) AS v
+            """
+            client.command(insert_sql)
+
         total_events = real_count * num_viewers
 
         return {
