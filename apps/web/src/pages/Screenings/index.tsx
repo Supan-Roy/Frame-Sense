@@ -1081,8 +1081,7 @@ interface ToastNotification {
                         <option value={5000}>5,000 viewers</option>
                         <option value={10000}>10,000 viewers</option>
                         <option value={50000}>50,000 viewers</option>
-                        <option value={100000}>100,000 viewers</option>
-                        <option value={1000000}>1,000,000 viewers (1M)</option>
+                        <option value={100000}>100,000 viewers (Max)</option>
                       </select>
                     </div>
                     <div className="space-y-1">

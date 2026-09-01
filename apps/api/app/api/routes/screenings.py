@@ -260,7 +260,7 @@ def get_screening_audience_fingerprint(screening_id: str, bucket_sec: int = Quer
 @router.post("/{screening_id}/dev/simulate")
 def dev_simulate(
     screening_id: str,
-    num_viewers: int = Query(default=100, ge=1, le=1000000, description="Number of synthetic viewers"),
+    num_viewers: int = Query(default=100, ge=1, le=100000, description="Number of synthetic viewers"),
     mode: str = Query(default="AUTO", description="Simulation mode: AUTO, EXACT_REPLAY, REAL_ANCHORED, HYBRID, COLD_START"),
     variation: str = Query(default="MEDIUM", description="Controlled variation strength: LOW, MEDIUM, HIGH"),
     inject_ground_truth: bool = Query(default=False, description="Inject synthetic demo ground truth windows"),
