@@ -181,7 +181,7 @@ def audience_signals(
 @router.get("/{screening_id}/audience/anomalies")
 def audience_anomalies(
     screening_id: str,
-    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+    bucket_sec: int = Query(default=2, ge=1, le=60, description="Time bucket size in seconds"),
 ):
     """
     Detect statistically unusual audience behavior using z-score baseline comparison.

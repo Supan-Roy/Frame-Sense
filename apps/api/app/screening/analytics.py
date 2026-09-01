@@ -77,26 +77,23 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any
     if max_dur <= 0:
         max_dur = 60.0
 
-    b = max(2, min(10, int(bucket_sec)))
+    b = max(1, min(10, int(bucket_sec)))
 
     query = f"""
-    WITH viewer_spans AS (
-        SELECT
+    WITH viewer_buckets AS (
+        SELECT DISTINCT
             anonymous_viewer_id,
-            max(video_timecode_sec) AS max_reached,
-            countIf(event_type = 'EXIT') > 0 AS has_exited,
-            maxIf(video_timecode_sec, event_type = 'EXIT') AS exit_tc
+            toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket
         FROM viewer_events
         WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
-        GROUP BY anonymous_viewer_id
     )
     SELECT
         b.bucket,
-        countIf(v.max_reached >= b.bucket AND (NOT v.has_exited OR v.exit_tc >= b.bucket)) AS active_viewers
+        count(DISTINCT v.anonymous_viewer_id) AS active_viewers
     FROM (
         SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
     ) AS b
-    CROSS JOIN viewer_spans AS v
+    LEFT JOIN viewer_buckets AS v ON v.bucket = b.bucket
     GROUP BY b.bucket
     ORDER BY b.bucket
     """
@@ -108,24 +105,6 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any
             continue
         retention = round(int(active_v) / max(1, total_viewers), 4)
         buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
-
-    if buckets and buckets[-1]["time_sec"] < int(max_dur):
-        final_t = int(max_dur)
-        final_query = f"""
-        SELECT countIf(max_reached >= {final_t} AND (NOT has_exited OR exit_tc >= {final_t}))
-        FROM (
-            SELECT
-                max(video_timecode_sec) AS max_reached,
-                countIf(event_type = 'EXIT') > 0 AS has_exited,
-                maxIf(video_timecode_sec, event_type = 'EXIT') AS exit_tc
-            FROM viewer_events
-            WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
-            GROUP BY anonymous_viewer_id
-        )
-        """
-        final_active = int(client.command(final_query))
-        final_retention = round(final_active / max(1, total_viewers), 4)
-        buckets.append({"time_sec": final_t, "viewers": final_active, "retention_rate": final_retention})
 
     return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
 

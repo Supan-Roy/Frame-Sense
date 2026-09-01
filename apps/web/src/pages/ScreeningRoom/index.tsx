@@ -397,12 +397,19 @@ export default function ScreeningRoom() {
     setScrubTime(clamped);
   };
 
+  const seekStartTimeRef = useRef<number>(0);
+
   const skipTime = (amount: number) => {
     if (!videoRef.current) return;
-    const target = (videoRef.current.currentTime || 0) + amount;
+    const current = videoRef.current.currentTime || 0;
+    const target = current + amount;
     safeSeek(target);
-    queueEvent(amount > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", target);
-    if (amount < -5) queueEvent("REPLAY", target);
+    if (amount < 0) {
+      queueEvent("SEEK_BACKWARD", target);
+      queueEvent("REPLAY", target);
+    } else {
+      queueEvent("SEEK_FORWARD", target);
+    }
   };
 
   const handleVolumeSlide = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -513,6 +520,7 @@ export default function ScreeningRoom() {
   const handleSeekMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     isScrubbingRef.current = true;
     setIsScrubbing(true);
+    seekStartTimeRef.current = videoRef.current?.currentTime || 0;
     const time = getSeekTimeFromX(e.clientX);
     scrubTimeRef.current = time;
     setScrubTime(time);
@@ -528,13 +536,20 @@ export default function ScreeningRoom() {
       if (!isScrubbingRef.current) return;
       isScrubbingRef.current = false;
       setIsScrubbing(false);
-      const time = scrubTimeRef.current;
+      const targetTime = scrubTimeRef.current;
+      const startTime = seekStartTimeRef.current;
       const vid = videoRef.current;
       if (vid) {
-        const delta = time - vid.currentTime;
-        safeSeek(time);
-        queueEvent(delta > 0 ? "SEEK_FORWARD" : "SEEK_BACKWARD", time);
-        if (delta < -5) queueEvent("REPLAY", time);
+        const delta = targetTime - startTime;
+        safeSeek(targetTime);
+        if (Math.abs(delta) > 0.5) {
+          if (delta < 0) {
+            queueEvent("SEEK_BACKWARD", targetTime);
+            queueEvent("REPLAY", targetTime);
+          } else {
+            queueEvent("SEEK_FORWARD", targetTime);
+          }
+        }
         if (isPlayingRef.current) vid.play().catch(console.error);
       }
     };
