@@ -115,3 +115,35 @@ async def test_multimodal_investigation_service_execution():
         assert "OBSERVED AUDIENCE BEHAVIOR" in result["investigation_report"]
         assert "VISUAL EVIDENCE" in result["investigation_report"]
         assert "TELEMETRY ↔ VISUAL CORRELATION" in result["investigation_report"]
+
+
+@pytest.mark.asyncio
+async def test_elaborated_investigation_service_and_api():
+    """Verify run_elaborated_investigation generates recommendations and persists in SQLite."""
+    from app.screening.investigator_service import run_elaborated_investigation
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    screening = _get_or_create_test_screening()
+    sid = screening["screening_id"]
+    anm_id = "anm_elaborate_test"
+
+    # 1. Run service elaboration
+    result = await run_elaborated_investigation(sid, anm_id)
+    assert result["status"] == "success"
+    assert "elaborated_report" in result
+    assert len(result["elaborated_report"]) > 0
+
+    # 2. Test API route POST /{screening_id}/audience/anomalies/{anomaly_id}/elaborate
+    client = TestClient(app)
+    resp = client.post(f"/api/v1/screenings/{sid}/audience/anomalies/{anm_id}/elaborate")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert "elaborated_report" in data
+
+    # 3. Verify saved in repository
+    inv = screening_repo.get_investigation(sid, anm_id)
+    assert inv is not None
+    assert inv["elaborated_report"] is not None
+

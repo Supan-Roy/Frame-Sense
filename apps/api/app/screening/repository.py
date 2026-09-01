@@ -63,11 +63,16 @@ class ScreeningRepository:
                     investigation_report TEXT NOT NULL,
                     mcp_queries_json TEXT NOT NULL,
                     extracted_frames_json TEXT NOT NULL,
+                    elaborated_report TEXT,
                     updated_at TEXT NOT NULL,
                     PRIMARY KEY (screening_id, anomaly_id),
                     FOREIGN KEY (screening_id) REFERENCES screenings(screening_id) ON DELETE CASCADE
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE investigations ADD COLUMN elaborated_report TEXT")
+            except Exception:
+                pass
             conn.commit()
         finally:
             conn.close()
@@ -306,6 +311,7 @@ class ScreeningRepository:
                 "investigation_report": r["investigation_report"],
                 "mcp_queries_executed": json.loads(r["mcp_queries_json"] or "[]"),
                 "extracted_frames": json.loads(r["extracted_frames_json"] or "[]"),
+                "elaborated_report": r.get("elaborated_report"),
                 "updated_at": r["updated_at"]
             }
         finally:
@@ -328,9 +334,35 @@ class ScreeningRepository:
                     "investigation_report": r["investigation_report"],
                     "mcp_queries_executed": json.loads(r["mcp_queries_json"] or "[]"),
                     "extracted_frames": json.loads(r["extracted_frames_json"] or "[]"),
+                    "elaborated_report": r.get("elaborated_report"),
                     "updated_at": r["updated_at"]
                 }
             return results
+        finally:
+            conn.close()
+
+    def save_elaborated_report(
+        self,
+        screening_id: str,
+        anomaly_id: str,
+        elaborated_report: str
+    ) -> Dict[str, Any]:
+        """Saves or updates the elaborated creative edit recommendations report for an anomaly."""
+        conn = self._get_connection()
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            conn.execute("""
+                UPDATE investigations
+                SET elaborated_report = ?, updated_at = ?
+                WHERE screening_id = ? AND anomaly_id = ?
+            """, (elaborated_report, now, screening_id, anomaly_id))
+            conn.commit()
+            return self.get_investigation(screening_id, anomaly_id) or {
+                "screening_id": screening_id,
+                "anomaly_id": anomaly_id,
+                "elaborated_report": elaborated_report,
+                "updated_at": now
+            }
         finally:
             conn.close()
 

@@ -244,6 +244,22 @@ def delete_screening_anomaly_investigation(screening_id: str, anomaly_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete investigation: {e}")
 
 
+@router.post("/{screening_id}/audience/anomalies/{anomaly_id}/elaborate")
+async def elaborate_screening_anomaly(screening_id: str, anomaly_id: str):
+    """
+    Calls Gemini API to elaborate on investigation findings and suggest actionable creative edit recommendations.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.investigator_service import run_elaborated_investigation
+        return await run_elaborated_investigation(screening_id, anomaly_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Elaboration error: {e}")
+
+
+
 @router.delete("/{screening_id}/audience")
 def reset_screening_audience_data(screening_id: str):
     """

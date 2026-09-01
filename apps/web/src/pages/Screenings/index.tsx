@@ -4,7 +4,7 @@ import {
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
   CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
-  Sparkles, Loader2
+  Sparkles, Loader2, Play, Lightbulb
 } from 'lucide-react';
 
 interface Screening {
@@ -441,11 +441,93 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
   );
 }
 
+function FormattedMarkdown({ text }: { text: string }) {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  const elements: JSX.Element[] = [];
+
+  const parseInline = (str: string) => {
+    const parts = str.split(/(\*\*.*?\*\*|`.*?`|\$.*?\$)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-bold text-sky-200">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={i} className="bg-sky-950/60 border border-sky-500/30 text-cyan-300 px-1.5 py-0.5 rounded text-[11px] font-mono">{part.slice(1, -1)}</code>;
+      }
+      if (part.startsWith('$') && part.endsWith('$')) {
+        return <span key={i} className="bg-purple-950/40 border border-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-mono font-semibold text-[11px]">{part.slice(1, -1)}</span>;
+      }
+      return part;
+    });
+  };
+
+  let inList = false;
+  let listItems: JSX.Element[] = [];
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) {
+        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
+        inList = false;
+        listItems = [];
+      }
+      return;
+    }
+
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
+      if (inList) {
+        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
+        inList = false;
+        listItems = [];
+      }
+      const headerText = trimmed.replace(/^#+\s*/, '');
+      elements.push(
+        <div key={idx} className="mt-3.5 mb-1.5 pt-2 border-t border-white/10 flex items-center gap-2">
+          <div className="w-1.5 h-3.5 bg-sky-400 rounded-full shrink-0" />
+          <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-sky-300">
+            {headerText}
+          </h4>
+        </div>
+      );
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || /^\d+\.\s/.test(trimmed)) {
+      inList = true;
+      const itemContent = trimmed.replace(/^([-*]|\d+\.)\s*/, '');
+      listItems.push(
+        <li key={idx} className="text-[11px] leading-relaxed text-zinc-300 font-sans">
+          {parseInline(itemContent)}
+        </li>
+      );
+    } else {
+      if (inList) {
+        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
+        inList = false;
+        listItems = [];
+      }
+      elements.push(
+        <p key={idx} className="text-[11px] leading-relaxed text-zinc-300 font-sans my-1">
+          {parseInline(trimmed)}
+        </p>
+      );
+    }
+  });
+
+  if (inList) {
+    elements.push(<ul key={`ul-end`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
+  }
+
+  return <div className="space-y-1">{elements}</div>;
+}
+
 function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string; savedFinding?: any }) {
   const [expanded, setExpanded] = useState(false);
   const [investigating, setInvestigating] = useState(false);
+  const [elaborating, setElaborating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [report, setReport] = useState<string | null>(savedFinding?.investigation_report || null);
+  const [elaboratedReport, setElaboratedReport] = useState<string | null>(savedFinding?.elaborated_report || null);
   const [mcpQueries, setMcpQueries] = useState<any[]>(savedFinding?.mcp_queries_executed || []);
   const [extractedFrames, setExtractedFrames] = useState<any[]>(savedFinding?.extracted_frames || []);
   const [error, setError] = useState<string | null>(null);
@@ -453,6 +535,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
   useEffect(() => {
     if (savedFinding) {
       setReport(savedFinding.investigation_report || null);
+      setElaboratedReport(savedFinding.elaborated_report || null);
       setMcpQueries(savedFinding.mcp_queries_executed || []);
       setExtractedFrames(savedFinding.extracted_frames || []);
     }
@@ -481,6 +564,27 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
     }
   };
 
+  const handleElaborate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!screeningId) return;
+    setElaborating(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/elaborate`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
+      }
+      const data = await res.json();
+      setElaboratedReport(data.elaborated_report || 'No creative recommendations returned.');
+    } catch (err: any) {
+      setError(err.message || 'Elaboration failed');
+    } finally {
+      setElaborating(false);
+    }
+  };
+
   const handleDeleteFinding = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!screeningId) return;
@@ -494,6 +598,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
         throw new Error(`Server returned status ${res.status}`);
       }
       setReport(null);
+      setElaboratedReport(null);
       setMcpQueries([]);
       setExtractedFrames([]);
     } catch (err: any) {
@@ -575,10 +680,12 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
             {!report && !investigating && (
               <button
                 onClick={handleInvestigate}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-xs font-semibold transition-all group"
+                className="rainbow-border-wrapper group text-left cursor-pointer"
               >
-                <Sparkles className="h-3.5 w-3.5 text-sky-400 group-hover:rotate-12 transition-transform" />
-                <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP + Vision)</span>
+                <div className="rainbow-border-inner">
+                  <Play className="h-3.5 w-3.5 text-white fill-white group-hover:scale-110 transition-transform shrink-0" />
+                  <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP + Vision)</span>
+                </div>
               </button>
             )}
 
@@ -596,13 +703,13 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
             )}
 
             {report && (
-              <div className="p-3.5 rounded-lg bg-studio-950 border border-sky-500/30 space-y-3 text-xs font-mono text-foreground/90">
+              <div className="p-4 rounded-lg bg-studio-950 border border-sky-500/30 space-y-3.5 text-xs text-foreground/90">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 font-bold text-sky-300">
+                  <div className="flex items-center gap-1.5 font-bold text-sky-300 font-mono">
                     <Sparkles className="h-4 w-4 text-sky-400" />
                     <span>Frame Sense Multimodal AI Investigation Findings</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {mcpQueries.length > 0 && (
                       <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
                         ⚡ {mcpQueries.length} ClickHouse MCP query executed
@@ -610,17 +717,26 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
                     )}
                     <button
                       onClick={handleInvestigate}
-                      disabled={investigating || deleting}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      disabled={investigating || deleting || elaborating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
                       title="Re-run Gemini Vision & ClickHouse MCP investigation"
                     >
                       <RotateCcw className={`h-3 w-3 ${investigating ? 'animate-spin' : ''}`} />
                       <span>{investigating ? 'Regenerating...' : 'Regenerate'}</span>
                     </button>
                     <button
+                      onClick={handleElaborate}
+                      disabled={investigating || deleting || elaborating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                      title="Ask Gemini to elaborate & suggest creative post-production edits"
+                    >
+                      <Lightbulb className={`h-3 w-3 text-amber-400 ${elaborating ? 'animate-bounce' : ''}`} />
+                      <span>{elaborating ? 'Elaborating...' : 'More Detail'}</span>
+                    </button>
+                    <button
                       onClick={handleDeleteFinding}
-                      disabled={investigating || deleting}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[10px] font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      disabled={investigating || deleting || elaborating}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
                       title="Delete saved findings for this anomaly"
                     >
                       <Trash2 className={`h-3 w-3 ${deleting ? 'animate-spin' : ''}`} />
@@ -648,9 +764,28 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
                   </div>
                 )}
 
-                <div className="whitespace-pre-wrap leading-relaxed text-[11px] text-zinc-300 font-sans border-t border-white/10 pt-2">
-                  {report}
+                {/* Main Formatted Findings */}
+                <div className="border-t border-white/10 pt-2">
+                  <FormattedMarkdown text={report} />
                 </div>
+
+                {/* Creative Edit Recommendations Elaboration Section */}
+                {elaborating && (
+                  <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-mono animate-pulse">
+                    <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                    <span>Asking Gemini Text Model for Creative Edit & Post-Production Recommendations...</span>
+                  </div>
+                )}
+
+                {elaboratedReport && (
+                  <div className="mt-3 pt-3 border-t border-amber-500/30 bg-amber-500/[0.04] p-3.5 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-2 font-bold text-amber-300 text-xs uppercase tracking-wider font-mono">
+                      <Lightbulb className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Creative Post-Production Edit Recommendations (Gemini AI)</span>
+                    </div>
+                    <FormattedMarkdown text={elaboratedReport} />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1145,7 +1280,7 @@ interface ToastNotification {
       {/* Audience Intelligence Modal */}
       {aiScreening && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="w-full w-[92vw] max-w-6xl bg-studio-950 border rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-start justify-between p-6 border-b shrink-0">
               <div>
                 <div className="flex items-center gap-2">
