@@ -684,7 +684,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
               >
                 <div className="rainbow-border-inner">
                   <Play className="h-3.5 w-3.5 text-white fill-white group-hover:scale-110 transition-transform shrink-0" />
-                  <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP + Vision)</span>
+                  <span>Investigate Anomaly with Frame Sense AI</span>
                 </div>
               </button>
             )}
