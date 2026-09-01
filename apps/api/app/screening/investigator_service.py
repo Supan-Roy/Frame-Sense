@@ -15,6 +15,19 @@ from app.media.vision import extract_anomaly_frames, cleanup_temp_frames
 logger = logging.getLogger("frame_sense.investigator_service")
 
 
+def is_quota_exhausted_error(e: Exception) -> bool:
+    """Helper function to detect Gemini API 429 / RESOURCE_EXHAUSTED quota errors."""
+    err_str = str(e)
+    err_type = type(e).__name__
+    return (
+        "ResourceExhausted" in err_type
+        or "429" in err_str
+        or "RESOURCE_EXHAUSTED" in err_str
+        or "quota" in err_str.lower()
+        or "rate limit" in err_str.lower()
+    )
+
+
 async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[str, Any]:
     """
     Connects a detected Frame Sense anomaly to the Frame Sense Investigator agent.
@@ -137,6 +150,7 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
     content = Content(parts=parts)
     investigation_text = ""
     mcp_queries_executed = []
+    quota_exhausted = False
 
     try:
         async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
@@ -151,7 +165,14 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
                         })
     except Exception as e:
         logger.error(f"Investigation execution error: {e}")
-        if not investigation_text:
+        if is_quota_exhausted_error(e):
+            quota_exhausted = True
+            investigation_text = (
+                "⚠️ Gemini API Quota Exhausted (Error 429: RESOURCE_EXHAUSTED)\n\n"
+                "You have exceeded your free tier rate limit or daily quota on your Gemini API key. "
+                "Please wait a minute before retrying, or check your rate limits at https://ai.google.dev/gemini-api/docs/rate-limits"
+            )
+        elif not investigation_text:
             investigation_text = (
                 f"### 1. OBSERVED AUDIENCE BEHAVIOR\n"
                 f"Detected {target_anomaly.get('title')} ({target_anomaly.get('severity')} severity) between {start_sec}s and {end_sec}s.\n\n"
@@ -251,7 +272,14 @@ async def run_elaborated_investigation(screening_id: str, anomaly_id: str) -> Di
             elaborated_text = ""
     except Exception as e:
         logger.error(f"Elaboration generation error: {e}")
-        elaborated_text = ""
+        if is_quota_exhausted_error(e):
+            elaborated_text = (
+                "⚠️ Gemini API Quota Exhausted (Error 429: RESOURCE_EXHAUSTED)\n\n"
+                "You have exceeded your free tier rate limit or daily quota on your Gemini API key. "
+                "Please wait a minute before retrying, or check your rate limits at https://ai.google.dev/gemini-api/docs/rate-limits"
+            )
+        else:
+            elaborated_text = ""
 
     if not elaborated_text:
         elaborated_text = (
