@@ -113,7 +113,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
 
 
-def get_behavioral_signals(screening_id: str, bucket_sec: int = 10) -> Dict[str, Any]:
+def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """Per-time-bucket behavioral event rates. All aggregation in ClickHouse."""
     client = get_client()
     sid = screening_id.replace("'", "")
@@ -123,27 +123,55 @@ def get_behavioral_signals(screening_id: str, bucket_sec: int = 10) -> Dict[str,
     if unique_viewers == 0:
         return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
 
+    from app.screening.repository import screening_repo
+    screening = screening_repo.get_by_id(screening_id)
+    video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
+
+    max_dur_res = client.query(f"SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = '{sid}' AND video_timecode_sec >= 0")
+    event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
+    max_dur = max(video_dur, event_max) or 60.0
+
     query = f"""
+    WITH event_buckets AS (
+        SELECT
+            toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
+            countIf(event_type = 'PAUSE')         AS pauses,
+            countIf(event_type = 'SEEK_BACKWARD') AS rewinds,
+            countIf(event_type = 'SEEK_FORWARD')  AS skips,
+            countIf(event_type = 'REPLAY')        AS replays,
+            countIf(event_type = 'VOLUME_CHANGE') AS volume_changes,
+            countIf(event_type = 'TAB_HIDDEN')    AS tab_hides,
+            countIf(event_type = 'EXIT')          AS exits,
+            countIf(event_type = 'COMPLETE')      AS completions,
+            count(DISTINCT session_id)             AS sessions_active
+        FROM viewer_events
+        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+        GROUP BY bucket
+    )
     SELECT
-        intDiv(toInt32(video_timecode_sec), {b}) * {b} AS bucket,
-        countIf(event_type = 'PAUSE')         AS pauses,
-        countIf(event_type = 'SEEK_BACKWARD') AS rewinds,
-        countIf(event_type = 'SEEK_FORWARD')  AS skips,
-        countIf(event_type = 'REPLAY')        AS replays,
-        countIf(event_type = 'VOLUME_CHANGE') AS volume_changes,
-        countIf(event_type = 'TAB_HIDDEN')    AS tab_hides,
-        countIf(event_type = 'EXIT')          AS exits,
-        countIf(event_type = 'COMPLETE')      AS completions,
-        count(DISTINCT session_id)             AS sessions_active
-    FROM viewer_events
-    WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
-    GROUP BY bucket ORDER BY bucket
+        b.bucket,
+        coalesce(e.pauses, 0),
+        coalesce(e.rewinds, 0),
+        coalesce(e.skips, 0),
+        coalesce(e.replays, 0),
+        coalesce(e.volume_changes, 0),
+        coalesce(e.tab_hides, 0),
+        coalesce(e.exits, 0),
+        coalesce(e.completions, 0),
+        coalesce(e.sessions_active, 0)
+    FROM (
+        SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
+    ) AS b
+    LEFT JOIN event_buckets AS e ON e.bucket = b.bucket
+    ORDER BY b.bucket
     """
     result = client.query(query)
     denom = max(1, unique_viewers)
     signals = []
     for row in result.result_rows:
         bucket_t, pauses, rewinds, skips, replays, vol, tabs, exits, completions, sessions = row
+        if int(bucket_t) > int(max_dur):
+            continue
         signals.append({
             "time_sec": int(bucket_t),
             "sessions_active": int(sessions),
