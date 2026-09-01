@@ -3,7 +3,8 @@ import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
-  CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare
+  CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
+  Sparkles, Loader2
 } from 'lucide-react';
 
 interface Screening {
@@ -440,8 +441,35 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
   );
 }
 
-function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEngagement?: boolean }) {
+function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [investigating, setInvestigating] = useState(false);
+  const [report, setReport] = useState<string | null>(null);
+  const [mcpQueries, setMcpQueries] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInvestigate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!screeningId) return;
+    setInvestigating(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/investigate`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
+      }
+      const data = await res.json();
+      setReport(data.investigation_report || 'No detailed report returned.');
+      setMcpQueries(data.mcp_queries_executed || []);
+    } catch (err: any) {
+      setError(err.message || 'Investigation failed');
+    } finally {
+      setInvestigating(false);
+    }
+  };
+
   const border = isEngagement ? 'border-emerald-500/25 hover:border-emerald-500/50'
     : anomaly.severity === 'HIGH' ? 'border-rose-500/25 hover:border-rose-500/50'
     : anomaly.severity === 'MEDIUM' ? 'border-amber-500/25 hover:border-amber-500/50' : 'border-blue-500/25 hover:border-blue-500/50';
@@ -507,6 +535,51 @@ function AnomalyCard({ anomaly, isEngagement = false }: { anomaly: Anomaly; isEn
                 </div>
               );
             })}
+          </div>
+
+          {/* AI Investigation Section */}
+          <div className="pt-2 border-t border-white/10 space-y-2" onClick={e => e.stopPropagation()}>
+            {!report && !investigating && (
+              <button
+                onClick={handleInvestigate}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-xs font-semibold transition-all group"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-sky-400 group-hover:rotate-12 transition-transform" />
+                <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP)</span>
+              </button>
+            )}
+
+            {investigating && (
+              <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-sky-950/40 border border-sky-500/30 text-sky-300 text-xs font-mono animate-pulse">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                <span>Querying ClickHouse MCP & Running Frame Sense Investigator...</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                {error}
+              </div>
+            )}
+
+            {report && (
+              <div className="p-3.5 rounded-lg bg-studio-950 border border-sky-500/30 space-y-2 text-xs font-mono text-foreground/90">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center gap-1.5 font-bold text-sky-300">
+                    <Sparkles className="h-4 w-4 text-sky-400" />
+                    <span>Frame Sense AI Investigation Findings</span>
+                  </div>
+                  {mcpQueries.length > 0 && (
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+                      ⚡ {mcpQueries.length} ClickHouse MCP query executed
+                    </span>
+                  )}
+                </div>
+                <div className="whitespace-pre-wrap leading-relaxed text-[11px] text-zinc-300 font-sans">
+                  {report}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -826,7 +899,7 @@ interface ToastNotification {
           <div className="space-y-2">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Top Findings</div>
             {[...aiAnomalies.anomalies.slice(0, 2), ...aiAnomalies.exceptional_engagement.slice(0, 1)].map(a => (
-              <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement={a.type === 'EXCEPTIONAL_ENGAGEMENT'} />
+              <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement={a.type === 'EXCEPTIONAL_ENGAGEMENT'} screeningId={aiScreening?.screening_id} />
             ))}
           </div>
         )}
@@ -874,13 +947,13 @@ interface ToastNotification {
             {aiAnomalies.exceptional_engagement.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-emerald-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Exceptional Engagement ({aiAnomalies.exceptional_engagement.length})</span></div>
-                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement />)}
+                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement screeningId={aiScreening?.screening_id} />)}
               </div>
             )}
             {aiAnomalies.anomalies.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Behavioral Anomalies ({aiAnomalies.anomalies.length})</span></div>
-                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} />)}
+                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} screeningId={aiScreening?.screening_id} />)}
               </div>
             )}
             {aiAnomalies.baseline_methodology && (

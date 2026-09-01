@@ -199,6 +199,22 @@ def audience_anomalies(
         raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
 
 
+@router.post("/{screening_id}/audience/anomalies/{anomaly_id}/investigate")
+async def investigate_screening_anomaly(screening_id: str, anomaly_id: str):
+    """
+    Executes the Frame Sense Investigator agent via ClickHouse Cloud MCP to analyze a detected anomaly.
+    Queries default.viewer_events in ClickHouse for quantitative evidence and generates a structured report.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.investigator_service import run_anomaly_investigation
+        return await run_anomaly_investigation(screening_id, anomaly_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Investigation error: {e}")
+
+
 @router.delete("/{screening_id}/audience")
 def reset_screening_audience_data(screening_id: str):
     """

@@ -2,6 +2,11 @@ import os
 import httpx
 from typing import Dict, Any, Optional
 from functools import cached_property
+from dotenv import load_dotenv
+
+# Load environment variables from apps/api/.env or current working directory
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
+load_dotenv()
 
 from google.adk.agents import LlmAgent
 from google.adk.models import Gemini
