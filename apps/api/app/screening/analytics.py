@@ -57,6 +57,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     """
     High-resolution Audience Retention Curve.
     Calculates active viewer retention across timecode buckets with organic presence tracking.
+    Uses range expansion for continuous play spans.
     """
     client = get_client()
     sid = screening_id.replace("'", "")
@@ -78,12 +79,17 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     b = max(1, min(5, int(bucket_sec)))
 
     query = f"""
-    WITH viewer_buckets AS (
+    WITH viewer_active_ranges AS (
         SELECT DISTINCT
             anonymous_viewer_id,
-            toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket
-        FROM viewer_events
-        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+            toUInt32(floor(tc / {b}) * {b}) AS bucket
+        FROM (
+            SELECT
+                anonymous_viewer_id,
+                arrayJoin(range(toUInt32(floor(video_timecode_sec)), toUInt32(floor(video_timecode_sec)) + if(event_type IN ('PLAY', 'PROGRESS'), 5, 1))) AS tc
+            FROM viewer_events
+            WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+        )
     )
     SELECT
         b.bucket,
@@ -91,7 +97,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     FROM (
         SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
     ) AS b
-    LEFT JOIN viewer_buckets AS v ON v.bucket = b.bucket
+    LEFT JOIN viewer_active_ranges AS v ON v.bucket = b.bucket
     GROUP BY b.bucket
     ORDER BY b.bucket
     """
@@ -354,48 +360,15 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             domain = "COGNITIVE"
             evidence.append(f"Rewind micro-burst peak at {_fmt_time(peak_t)} ({c_rewinds} rewind events)")
             sev_score = max(sev_score, 1.5)
-        elif c_tabs > 0:
-            cat_title = "Psychological Attention Shift"
-            domain = "PSYCHOLOGICAL"
-            evidence.append(f"Tab hide / window blur peak at {_fmt_time(peak_t)} ({c_tabs} tab switch events)")
-            sev_score = max(sev_score, 1.5)
-        elif c_skips > 0 and c_exits > 0:
-            cat_title = "Dead Zone Pacing Skip"
-            domain = "PACING"
-            evidence.append(f"Pacing friction peak at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s) in {dur}s window (slow narrative pace)")
-            sev_score = max(sev_score, 2.5)
-        elif c_exits > 0:
-            cat_title = "Critical Scene Exit Drop"
-            domain = "RETENTION"
-            evidence.append(f"Audience exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit events, {exit_rate*100:.1f}%)")
-            sev_score = max(sev_score, 2.5)
-        elif c_vol > 0:
-            cat_title = "Audio Mix Perception Spike"
-            domain = "PERCEPTUAL"
-            evidence.append(f"Sound mix perception peak at {_fmt_time(peak_t)} ({c_vol} volume change events, dialogue/music imbalance)")
-            sev_score = max(sev_score, 1.5)
-        elif c_pauses > 0:
-            cat_title = "Scene Pause Spike"
-            domain = "COGNITIVE"
-            evidence.append(f"Pause micro-burst peak at {_fmt_time(peak_t)} ({c_pauses} pause events)")
-            sev_score = max(sev_score, 1.5)
-        elif c_rewinds > 0:
-            cat_title = "Rewind Hotspot"
-            domain = "COGNITIVE"
-            evidence.append(f"Rewind micro-burst peak at {_fmt_time(peak_t)} ({c_rewinds} rewind events)")
-            sev_score = max(sev_score, 1.5)
-        elif c_tabs > 0:
-            cat_title = "Psychological Attention Shift"
-            domain = "PSYCHOLOGICAL"
-            evidence.append(f"Tab hide / window blur peak at {_fmt_time(peak_t)} ({c_tabs} tab switch events)")
-            sev_score = max(sev_score, 1.5)
-
         if c_vol > 0 and "Audio" not in cat_title:
             evidence.append(f"Audio adjustment co-occurred ({c_vol} volume events)")
         if c_tabs > 0 and "Psychological" not in cat_title:
             evidence.append(f"Attention shift co-occurred ({c_tabs} tab hides)")
 
-        sev_label = "HIGH" if sev_score >= 2.5 else ("MEDIUM" if sev_score >= 2.0 else "LOW")
+        if unique_viewers < 10:
+            sev_label = "LOW"
+        else:
+            sev_label = "HIGH" if sev_score >= 2.5 else ("MEDIUM" if sev_score >= 2.0 else "LOW")
 
         anomalies.append({
             "anomaly_id": f"anm_{uuid.uuid4().hex[:12]}",
