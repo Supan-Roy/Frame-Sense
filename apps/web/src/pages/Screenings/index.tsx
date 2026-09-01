@@ -130,6 +130,22 @@ function RetentionChart({ data }: { data: RetentionData }) {
 
   const points = curve.map(p => ({ x: xS(p.time_sec), y: yS(p.retention_rate), point: p }));
 
+  // Detect key milestone edges (Max Replay Peak after 0s, Exit Drop)
+  const nonZeroPoints = points.slice(1).filter(pt => pt.point.retention_rate > 0);
+  const peakPoint = nonZeroPoints.length > 0 
+    ? nonZeroPoints.reduce((max, pt) => pt.point.retention_rate >= max.point.retention_rate ? pt : max, nonZeroPoints[0])
+    : null;
+
+  let steepDropPoint: typeof points[0] | null = null;
+  let maxDropDelta = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const drop = points[i].point.retention_rate - points[i+1].point.retention_rate;
+    if (drop > maxDropDelta && drop > 0.15) {
+      maxDropDelta = drop;
+      steepDropPoint = points[i + 1];
+    }
+  }
+
   const getSmoothPath = (pts: { x: number; y: number }[]) => {
     if (pts.length === 0) return '';
     if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
@@ -201,6 +217,54 @@ function RetentionChart({ data }: { data: RetentionData }) {
             strokeLinejoin="round"
             filter="url(#neon-glow)"
           />
+
+          {/* Peak Milestone Highlight */}
+          {peakPoint && peakPoint.point.time_sec > 2 && (
+            <g className="animate-pulse">
+              <circle
+                cx={peakPoint.x}
+                cy={peakPoint.y}
+                r="6"
+                fill="#22c55e"
+                stroke="#ffffff"
+                strokeWidth="2"
+                className="drop-shadow-lg"
+              />
+              <text
+                x={peakPoint.x}
+                y={Math.max(10, peakPoint.y - 10)}
+                textAnchor="middle"
+                fontSize="9"
+                className="fill-emerald-400 font-mono font-bold select-none pointer-events-none drop-shadow"
+              >
+                🔥 Peak {fmtTime(peakPoint.point.time_sec)} ({fmtPct(peakPoint.point.retention_rate)})
+              </text>
+            </g>
+          )}
+
+          {/* Drop Milestone Highlight */}
+          {steepDropPoint && (!peakPoint || Math.abs(steepDropPoint.x - peakPoint.x) > 30) && (
+            <g>
+              <circle
+                cx={steepDropPoint.x}
+                cy={steepDropPoint.y}
+                r="5"
+                fill="#ef4444"
+                stroke="#ffffff"
+                strokeWidth="1.5"
+                className="drop-shadow-lg"
+              />
+              <text
+                x={steepDropPoint.x}
+                y={Math.min(plotH - 5, steepDropPoint.y + 16)}
+                textAnchor="middle"
+                fontSize="9"
+                className="fill-rose-400 font-mono font-bold select-none pointer-events-none drop-shadow"
+              >
+                📉 Drop {fmtTime(steepDropPoint.point.time_sec)}
+              </text>
+            </g>
+          )}
 
           {yTicks.map(t => (
             <text
@@ -282,13 +346,23 @@ function RetentionChart({ data }: { data: RetentionData }) {
           }}
         >
           <div className="flex items-center justify-between gap-3 text-muted-foreground border-b border-white/10 pb-1 text-[10px]">
-            <span>Time: <strong className="text-foreground">{fmtTime(hoveredPoint.point.time_sec)}</strong></span>
+            <span>Exact Sec: <strong className="text-foreground">{fmtTime(hoveredPoint.point.time_sec)} ({hoveredPoint.point.time_sec}s)</strong></span>
             <span className="text-sky-400 font-semibold">{fmtPct(hoveredPoint.point.retention_rate)}</span>
           </div>
           <div className="flex items-center justify-between gap-3 text-foreground font-semibold pt-0.5">
             <span className="text-[10px] text-muted-foreground font-normal">Active Viewers:</span>
             <span className="text-sky-300">{hoveredPoint.point.viewers.toLocaleString()}</span>
           </div>
+          {peakPoint && hoveredPoint.point.time_sec === peakPoint.point.time_sec && (
+            <div className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-center">
+              🔥 Replay Peak Hotspot
+            </div>
+          )}
+          {steepDropPoint && hoveredPoint.point.time_sec === steepDropPoint.point.time_sec && (
+            <div className="text-[9px] text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 text-center">
+              📉 Major Audience Drop
+            </div>
+          )}
         </div>
       )}
     </div>

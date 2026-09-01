@@ -149,7 +149,7 @@ def audience_overview(screening_id: str):
 @router.get("/{screening_id}/audience/retention")
 def audience_retention(
     screening_id: str,
-    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+    bucket_sec: int = Query(default=1, ge=1, le=60, description="Time bucket size in seconds"),
 ):
     """Viewer retention curve: how many viewers remain at each point in the video."""
     screening = screening_repo.get_by_id(screening_id)
@@ -165,7 +165,7 @@ def audience_retention(
 @router.get("/{screening_id}/audience/signals")
 def audience_signals(
     screening_id: str,
-    bucket_sec: int = Query(default=10, ge=1, le=60, description="Time bucket size in seconds"),
+    bucket_sec: int = Query(default=1, ge=1, le=60, description="Time bucket size in seconds"),
 ):
     """Per-time-bucket behavioral signal breakdown (pause, rewind, skip, replay, exit rates)."""
     screening = screening_repo.get_by_id(screening_id)
