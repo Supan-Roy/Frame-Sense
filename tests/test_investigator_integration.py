@@ -125,3 +125,41 @@ async def test_investigate_api_route():
         assert data["screening_id"] == sid
         assert "investigation_report" in data
         assert len(data["mcp_queries_executed"]) == 1
+
+
+def test_investigation_persistence_and_deletion():
+    """Verify SQLite persistence: save, retrieve all, get specific, and manual delete."""
+    screening = _get_or_create_test_screening()
+    sid = screening["screening_id"]
+    anm_id = "anm_persist_test_999"
+
+    # 1. Save investigation
+    saved = screening_repo.save_investigation(
+        screening_id=sid,
+        anomaly_id=anm_id,
+        investigation_report="Persisted Multimodal Report Findings",
+        mcp_queries=[{"tool": "run_select_query"}],
+        extracted_frames=[{"time_sec": 26.0, "base64": "data:image/jpeg;base64,mock"}]
+    )
+    assert saved["screening_id"] == sid
+    assert saved["anomaly_id"] == anm_id
+
+    # 2. Retrieve specific investigation
+    retrieved = screening_repo.get_investigation(sid, anm_id)
+    assert retrieved is not None
+    assert retrieved["investigation_report"] == "Persisted Multimodal Report Findings"
+    assert len(retrieved["mcp_queries_executed"]) == 1
+    assert len(retrieved["extracted_frames"]) == 1
+
+    # 3. Retrieve all investigations for screening
+    all_inv = screening_repo.get_all_investigations(sid)
+    assert anm_id in all_inv
+    assert all_inv[anm_id]["investigation_report"] == "Persisted Multimodal Report Findings"
+
+    # 4. Delete investigation
+    deleted = screening_repo.delete_investigation(sid, anm_id)
+    assert deleted is True
+
+    # 5. Verify deleted
+    assert screening_repo.get_investigation(sid, anm_id) is None
+

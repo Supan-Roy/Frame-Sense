@@ -181,12 +181,24 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
         for f in extracted_frames
     ]
 
+    report_text = investigation_text.strip()
+
+    # Persist investigation findings in SQLite database
+    saved_record = screening_repo.save_investigation(
+        screening_id=screening_id,
+        anomaly_id=target_anomaly.get("anomaly_id", anomaly_id),
+        investigation_report=report_text,
+        mcp_queries=mcp_queries_executed,
+        extracted_frames=frontend_frames
+    )
+
     return {
         "status": "success",
         "screening_id": screening_id,
         "media_id": media_id,
         "anomaly": target_anomaly,
-        "investigation_report": investigation_text.strip(),
+        "investigation_report": report_text,
         "mcp_queries_executed": mcp_queries_executed,
         "extracted_frames": frontend_frames,
+        "updated_at": saved_record.get("updated_at")
     }

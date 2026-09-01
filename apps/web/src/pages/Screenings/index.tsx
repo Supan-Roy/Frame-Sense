@@ -441,13 +441,22 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
   );
 }
 
-function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string }) {
+function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string; savedFinding?: any }) {
   const [expanded, setExpanded] = useState(false);
   const [investigating, setInvestigating] = useState(false);
-  const [report, setReport] = useState<string | null>(null);
-  const [mcpQueries, setMcpQueries] = useState<any[]>([]);
-  const [extractedFrames, setExtractedFrames] = useState<any[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [report, setReport] = useState<string | null>(savedFinding?.investigation_report || null);
+  const [mcpQueries, setMcpQueries] = useState<any[]>(savedFinding?.mcp_queries_executed || []);
+  const [extractedFrames, setExtractedFrames] = useState<any[]>(savedFinding?.extracted_frames || []);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (savedFinding) {
+      setReport(savedFinding.investigation_report || null);
+      setMcpQueries(savedFinding.mcp_queries_executed || []);
+      setExtractedFrames(savedFinding.extracted_frames || []);
+    }
+  }, [savedFinding]);
 
   const handleInvestigate = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -469,6 +478,28 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
       setError(err.message || 'Investigation failed');
     } finally {
       setInvestigating(false);
+    }
+  };
+
+  const handleDeleteFinding = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!screeningId) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/investigate`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
+      }
+      setReport(null);
+      setMcpQueries([]);
+      setExtractedFrames([]);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete investigation findings');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -566,16 +597,36 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
 
             {report && (
               <div className="p-3.5 rounded-lg bg-studio-950 border border-sky-500/30 space-y-3 text-xs font-mono text-foreground/90">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 font-bold text-sky-300">
                     <Sparkles className="h-4 w-4 text-sky-400" />
                     <span>Frame Sense Multimodal AI Investigation Findings</span>
                   </div>
-                  {mcpQueries.length > 0 && (
-                    <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
-                      ⚡ {mcpQueries.length} ClickHouse MCP query executed
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {mcpQueries.length > 0 && (
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+                        ⚡ {mcpQueries.length} ClickHouse MCP query executed
+                      </span>
+                    )}
+                    <button
+                      onClick={handleInvestigate}
+                      disabled={investigating || deleting}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      title="Re-run Gemini Vision & ClickHouse MCP investigation"
+                    >
+                      <RotateCcw className={`h-3 w-3 ${investigating ? 'animate-spin' : ''}`} />
+                      <span>{investigating ? 'Regenerating...' : 'Regenerate'}</span>
+                    </button>
+                    <button
+                      onClick={handleDeleteFinding}
+                      disabled={investigating || deleting}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[10px] font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      title="Delete saved findings for this anomaly"
+                    >
+                      <Trash2 className={`h-3 w-3 ${deleting ? 'animate-spin' : ''}`} />
+                      <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {extractedFrames.length > 0 && (
@@ -719,17 +770,21 @@ interface ToastNotification {
 
   useEffect(() => { fetchScreenings(); }, []);
 
+  const [savedInvestigations, setSavedInvestigations] = useState<Record<string, any>>({});
+
   const loadAIData = async (sid: string) => {
-    const [ovR, retR, sigR, anmR] = await Promise.all([
+    const [ovR, retR, sigR, anmR, invR] = await Promise.all([
       fetch(`/api/v1/screenings/${sid}/audience/overview`),
       fetch(`/api/v1/screenings/${sid}/audience/retention`),
       fetch(`/api/v1/screenings/${sid}/audience/signals`),
       fetch(`/api/v1/screenings/${sid}/audience/anomalies`),
+      fetch(`/api/v1/screenings/${sid}/audience/anomalies/investigations`),
     ]);
     if (ovR.ok) setAiOverview(await ovR.json());
     if (retR.ok) setAiRetention(await retR.json());
     if (sigR.ok) { const d = await sigR.json(); setAiSignals(d.signals); }
     if (anmR.ok) setAiAnomalies(await anmR.json());
+    if (invR.ok) setSavedInvestigations(await invR.json());
   };
 
   const openAI = async (s: Screening) => {
@@ -969,13 +1024,13 @@ interface ToastNotification {
             {aiAnomalies.exceptional_engagement.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-emerald-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Exceptional Engagement ({aiAnomalies.exceptional_engagement.length})</span></div>
-                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement screeningId={aiScreening?.screening_id} />)}
+                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement screeningId={aiScreening?.screening_id} savedFinding={savedInvestigations[a.anomaly_id]} />)}
               </div>
             )}
             {aiAnomalies.anomalies.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Behavioral Anomalies ({aiAnomalies.anomalies.length})</span></div>
-                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} screeningId={aiScreening?.screening_id} />)}
+                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} screeningId={aiScreening?.screening_id} savedFinding={savedInvestigations[a.anomaly_id]} />)}
               </div>
             )}
             {aiAnomalies.baseline_methodology && (

@@ -202,8 +202,8 @@ def audience_anomalies(
 @router.post("/{screening_id}/audience/anomalies/{anomaly_id}/investigate")
 async def investigate_screening_anomaly(screening_id: str, anomaly_id: str):
     """
-    Executes the Frame Sense Investigator agent via ClickHouse Cloud MCP to analyze a detected anomaly.
-    Queries default.viewer_events in ClickHouse for quantitative evidence and generates a structured report.
+    Executes the Frame Sense Investigator agent via ClickHouse Cloud MCP & FFmpeg Vision to analyze a detected anomaly.
+    Persists findings into SQLite and returns structured response.
     """
     screening = screening_repo.get_by_id(screening_id)
     if not screening:
@@ -213,6 +213,35 @@ async def investigate_screening_anomaly(screening_id: str, anomaly_id: str):
         return await run_anomaly_investigation(screening_id, anomaly_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation error: {e}")
+
+
+@router.get("/{screening_id}/audience/anomalies/investigations")
+def get_screening_investigations(screening_id: str):
+    """
+    Returns all preserved AI investigation findings for a screening.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        return screening_repo.get_all_investigations(screening_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch investigations: {e}")
+
+
+@router.delete("/{screening_id}/audience/anomalies/{anomaly_id}/investigate")
+def delete_screening_anomaly_investigation(screening_id: str, anomaly_id: str):
+    """
+    Manually deletes a preserved AI investigation finding for an anomaly.
+    """
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        deleted = screening_repo.delete_investigation(screening_id, anomaly_id)
+        return {"status": "success", "deleted": deleted, "anomaly_id": anomaly_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete investigation: {e}")
 
 
 @router.delete("/{screening_id}/audience")

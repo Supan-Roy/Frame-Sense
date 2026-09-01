@@ -1,4 +1,5 @@
 import os
+import json
 import sqlite3
 import secrets
 from datetime import datetime, timezone
@@ -52,6 +53,18 @@ class ScreeningRepository:
                     content TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
+                    FOREIGN KEY (screening_id) REFERENCES screenings(screening_id) ON DELETE CASCADE
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS investigations (
+                    screening_id TEXT NOT NULL,
+                    anomaly_id TEXT NOT NULL,
+                    investigation_report TEXT NOT NULL,
+                    mcp_queries_json TEXT NOT NULL,
+                    extracted_frames_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (screening_id, anomaly_id),
                     FOREIGN KEY (screening_id) REFERENCES screenings(screening_id) ON DELETE CASCADE
                 )
             """)
@@ -232,6 +245,103 @@ class ScreeningRepository:
         conn = self._get_connection()
         try:
             cursor = conn.execute("DELETE FROM screenings WHERE screening_id = ?", (screening_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    # --- AI Investigation Persistence Methods ---
+
+    def save_investigation(
+        self,
+        screening_id: str,
+        anomaly_id: str,
+        investigation_report: str,
+        mcp_queries: List[Dict[str, Any]],
+        extracted_frames: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Upserts an AI investigation report for a screening anomaly into SQLite."""
+        conn = self._get_connection()
+        now = datetime.now(timezone.utc).isoformat()
+        mcp_json = json.dumps(mcp_queries or [])
+        frames_json = json.dumps(extracted_frames or [])
+        try:
+            conn.execute("""
+                INSERT INTO investigations (
+                    screening_id, anomaly_id, investigation_report, mcp_queries_json, extracted_frames_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(screening_id, anomaly_id) DO UPDATE SET
+                    investigation_report = excluded.investigation_report,
+                    mcp_queries_json = excluded.mcp_queries_json,
+                    extracted_frames_json = excluded.extracted_frames_json,
+                    updated_at = excluded.updated_at
+            """, (screening_id, anomaly_id, investigation_report, mcp_json, frames_json, now))
+            conn.commit()
+            return {
+                "screening_id": screening_id,
+                "anomaly_id": anomaly_id,
+                "investigation_report": investigation_report,
+                "mcp_queries_executed": mcp_queries,
+                "extracted_frames": extracted_frames,
+                "updated_at": now
+            }
+        finally:
+            conn.close()
+
+    def get_investigation(self, screening_id: str, anomaly_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves saved AI investigation for a specific anomaly."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM investigations WHERE screening_id = ? AND anomaly_id = ?",
+                (screening_id, anomaly_id)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            r = dict(row)
+            return {
+                "screening_id": r["screening_id"],
+                "anomaly_id": r["anomaly_id"],
+                "investigation_report": r["investigation_report"],
+                "mcp_queries_executed": json.loads(r["mcp_queries_json"] or "[]"),
+                "extracted_frames": json.loads(r["extracted_frames_json"] or "[]"),
+                "updated_at": r["updated_at"]
+            }
+        finally:
+            conn.close()
+
+    def get_all_investigations(self, screening_id: str) -> Dict[str, Dict[str, Any]]:
+        """Returns a dictionary mapping anomaly_id -> saved investigation record for a screening."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM investigations WHERE screening_id = ? ORDER BY updated_at DESC",
+                (screening_id,)
+            )
+            results = {}
+            for row in cursor.fetchall():
+                r = dict(row)
+                results[r["anomaly_id"]] = {
+                    "screening_id": r["screening_id"],
+                    "anomaly_id": r["anomaly_id"],
+                    "investigation_report": r["investigation_report"],
+                    "mcp_queries_executed": json.loads(r["mcp_queries_json"] or "[]"),
+                    "extracted_frames": json.loads(r["extracted_frames_json"] or "[]"),
+                    "updated_at": r["updated_at"]
+                }
+            return results
+        finally:
+            conn.close()
+
+    def delete_investigation(self, screening_id: str, anomaly_id: str) -> bool:
+        """Deletes a saved AI investigation for a screening anomaly."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "DELETE FROM investigations WHERE screening_id = ? AND anomaly_id = ?",
+                (screening_id, anomaly_id)
+            )
             conn.commit()
             return cursor.rowcount > 0
         finally:
