@@ -69,6 +69,27 @@ class ScreeningRepository:
                     FOREIGN KEY (screening_id) REFERENCES screenings(screening_id) ON DELETE CASCADE
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    screening_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (screening_id) REFERENCES screenings(screening_id) ON DELETE CASCADE
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    message_id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    screening_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
+                )
+            """)
             try:
                 conn.execute("ALTER TABLE investigations ADD COLUMN elaborated_report TEXT")
             except Exception:
@@ -378,6 +399,109 @@ class ScreeningRepository:
             return cursor.rowcount > 0
         finally:
             conn.close()
+
+    # --- Sense AI Chat Persistence Methods ---
+
+    def create_chat_session(self, screening_id: str, title: str = "New Chat Session") -> Dict[str, Any]:
+        """Creates a new Sense AI chat session for a screening."""
+        conn = self._get_connection()
+        session_id = f"cs_{secrets.token_hex(8)}"
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            conn.execute("""
+                INSERT INTO chat_sessions (session_id, screening_id, title, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (session_id, screening_id, title, now, now))
+            conn.commit()
+            return {
+                "session_id": session_id,
+                "screening_id": screening_id,
+                "title": title,
+                "created_at": now,
+                "updated_at": now
+            }
+        finally:
+            conn.close()
+
+    def get_chat_sessions(self, screening_id: str) -> List[Dict[str, Any]]:
+        """Returns all chat sessions for a screening ordered by most recent."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM chat_sessions WHERE screening_id = ? ORDER BY updated_at DESC",
+                (screening_id,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_chat_session(self, session_id: str) -> Dict[str, Any] | None:
+        """Retrieves a chat session by ID."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("SELECT * FROM chat_sessions WHERE session_id = ?", (session_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def delete_chat_session(self, session_id: str) -> bool:
+        """Deletes a chat session and all its messages."""
+        conn = self._get_connection()
+        try:
+            conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+            cursor = conn.execute("DELETE FROM chat_sessions WHERE session_id = ?", (session_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def save_chat_message(self, session_id: str, screening_id: str, role: str, content: str) -> Dict[str, Any]:
+        """Saves a user or assistant chat message and updates session timestamp."""
+        conn = self._get_connection()
+        message_id = f"cm_{secrets.token_hex(8)}"
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            conn.execute("""
+                INSERT INTO chat_messages (message_id, session_id, screening_id, role, content, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (message_id, session_id, screening_id, role, content, now))
+
+            if role == "user":
+                cursor = conn.execute("SELECT COUNT(*) as cnt FROM chat_messages WHERE session_id = ?", (session_id,))
+                cnt = cursor.fetchone()["cnt"]
+                if cnt <= 1:
+                    title_snippet = content[:35] + ("..." if len(content) > 35 else "")
+                    conn.execute("UPDATE chat_sessions SET title = ?, updated_at = ? WHERE session_id = ?", (title_snippet, now, session_id))
+                else:
+                    conn.execute("UPDATE chat_sessions SET updated_at = ? WHERE session_id = ?", (now, session_id))
+            else:
+                conn.execute("UPDATE chat_sessions SET updated_at = ? WHERE session_id = ?", (now, session_id))
+
+            conn.commit()
+            return {
+                "message_id": message_id,
+                "session_id": session_id,
+                "screening_id": screening_id,
+                "role": role,
+                "content": content,
+                "created_at": now
+            }
+        finally:
+            conn.close()
+
+    def get_chat_messages(self, session_id: str) -> List[Dict[str, Any]]:
+        """Returns all messages in a chat session chronologically."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC",
+                (session_id,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
 
 # Export single repository instance
 screening_repo = ScreeningRepository()

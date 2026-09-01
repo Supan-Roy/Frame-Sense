@@ -1,5 +1,6 @@
 import uuid
 from typing import List, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from app.schemas.screening import (
     ScreeningCreate,
@@ -257,6 +258,67 @@ async def elaborate_screening_anomaly(screening_id: str, anomaly_id: str):
         return await run_elaborated_investigation(screening_id, anomaly_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elaboration error: {e}")
+
+
+# --- Sense AI Interactive Chat Endpoints ---
+
+class CreateChatSessionRequest(BaseModel):
+    title: Optional[str] = "New Chat Session"
+
+
+class SendChatMessageRequest(BaseModel):
+    prompt: str
+
+
+@router.get("/{screening_id}/chat/sessions")
+def get_screening_chat_sessions(screening_id: str):
+    """Returns all Sense AI chat sessions for a screening."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    return screening_repo.get_chat_sessions(screening_id)
+
+
+@router.post("/{screening_id}/chat/sessions")
+def create_screening_chat_session(screening_id: str, body: CreateChatSessionRequest):
+    """Creates a new Sense AI chat session for a screening."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    return screening_repo.create_chat_session(screening_id, title=body.title or "New Chat Session")
+
+
+@router.delete("/{screening_id}/chat/sessions/{session_id}")
+def delete_screening_chat_session(screening_id: str, session_id: str):
+    """Deletes a chat session and its message history."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    deleted = screening_repo.delete_chat_session(session_id)
+    return {"status": "success", "deleted": deleted, "session_id": session_id}
+
+
+@router.get("/{screening_id}/chat/sessions/{session_id}/messages")
+def get_screening_chat_messages(screening_id: str, session_id: str):
+    """Returns all messages for a Sense AI chat session."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    return screening_repo.get_chat_messages(session_id)
+
+
+@router.post("/{screening_id}/chat/sessions/{session_id}/messages")
+async def send_screening_chat_message(screening_id: str, session_id: str, body: SendChatMessageRequest):
+    """Sends a user prompt to Sense AI agent (ClickHouse MCP + Vision + Search) and returns response."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.chat_service import run_sense_ai_chat
+        return await run_sense_ai_chat(screening_id, session_id, body.prompt)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sense AI Chat Error: {e}")
+
 
 
 

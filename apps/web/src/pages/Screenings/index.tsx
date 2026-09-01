@@ -4,7 +4,7 @@ import {
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, FlaskConical, Users,
   CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
-  Sparkles, Loader2, Play, Lightbulb
+  Sparkles, Loader2, Play, Lightbulb, Send
 } from 'lucide-react';
 
 interface Screening {
@@ -817,6 +817,365 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
   );
 }
 
+interface ChatSession {
+  session_id: string;
+  screening_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatMessage {
+  message_id: string;
+  session_id: string;
+  screening_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClose: () => void }) {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputPrompt, setInputPrompt] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
+      if (!res.ok) throw new Error('Failed to fetch chat sessions');
+      const data: ChatSession[] = await res.json();
+      setSessions(data);
+      if (data.length > 0) {
+        setActiveSessionId(data[0].session_id);
+      } else {
+        handleCreateSession();
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, [screening.screening_id]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const fetchMessages = async () => {
+      try {
+        setLoadingMessages(true);
+        const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`);
+        if (!res.ok) throw new Error('Failed to fetch chat messages');
+        const data: ChatMessage[] = await res.json();
+        setMessages(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+    fetchMessages();
+  }, [activeSessionId]);
+
+  const handleCreateSession = async () => {
+    try {
+      setError(null);
+      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Chat Session' }),
+      });
+      if (!res.ok) throw new Error('Failed to create chat session');
+      const newSession: ChatSession = await res.json();
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(newSession.session_id);
+      setMessages([]);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sid: string) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${sid}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete session');
+      const updated = sessions.filter(s => s.session_id !== sid);
+      setSessions(updated);
+      if (activeSessionId === sid) {
+        setActiveSessionId(updated.length > 0 ? updated[0].session_id : null);
+        if (updated.length === 0) setMessages([]);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const prompt = inputPrompt.trim();
+    if (!prompt || !activeSessionId || sending) return;
+
+    setInputPrompt('');
+    setSending(true);
+    setError(null);
+
+    const tempUserMsg: ChatMessage = {
+      message_id: `temp_${Date.now()}`,
+      session_id: activeSessionId,
+      screening_id: screening.screening_id,
+      role: 'user',
+      content: prompt,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempUserMsg]);
+
+    try {
+      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+      const data = await res.json();
+      if (data.messages) {
+        setMessages(data.messages);
+      }
+      const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
+      if (sessRes.ok) setSessions(await sessRes.json());
+    } catch (err: any) {
+      setError(err.message || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const activeSession = sessions.find(s => s.session_id === activeSessionId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4" onClick={e => e.stopPropagation()}>
+      <div className="w-[92vw] max-w-6xl h-[88vh] bg-studio-950 border border-cyan-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        {/* Modal Top Bar Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-studio-900/60 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+              <Sparkles className="h-5 w-5 text-cyan-400 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold tracking-wide uppercase text-foreground font-mono">Sense AI</h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-semibold">
+                  ClickHouse MCP &middot; Gemini Vision &middot; Search
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Interactive Screening Intelligence Assistant for &ldquo;<span className="text-sky-300 font-semibold">{screening.title}</span>&rdquo;
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg border border-white/10 hover:bg-studio-900 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Modal Body: Sidebar + Main Chat Thread */}
+        <div className="flex-1 flex min-h-0">
+          {/* Left Sidebar: Chat Sessions History */}
+          <div className="w-72 shrink-0 border-r border-white/10 bg-studio-950/80 p-4 flex flex-col gap-3">
+            <button
+              onClick={handleCreateSession}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer group"
+            >
+              <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform text-cyan-400" />
+              <span>New Chat Session</span>
+            </button>
+
+            <div className="text-[10px] uppercase font-mono font-bold tracking-wider text-muted-foreground px-1 mt-1">
+              Chat History &amp; Sessions
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+              {loadingSessions ? (
+                <div className="flex items-center justify-center py-8 text-xs text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                  <span>Loading sessions...</span>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  No past sessions yet.
+                </div>
+              ) : (
+                sessions.map(s => {
+                  const isActive = s.session_id === activeSessionId;
+                  return (
+                    <div
+                      key={s.session_id}
+                      onClick={() => setActiveSessionId(s.session_id)}
+                      className={`group flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                        isActive
+                          ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200 font-semibold shadow-sm'
+                          : 'bg-studio-900/40 border-white/5 text-muted-foreground hover:bg-studio-900 hover:text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-muted-foreground'}`} />
+                        <span className="truncate">{s.title || 'Untitled Chat'}</span>
+                      </div>
+                      <button
+                        onClick={e => handleDeleteSession(e, s.session_id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
+                        title="Delete session"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Main Chat Thread */}
+          <div className="flex-1 flex flex-col bg-studio-900/20 min-w-0">
+            {/* Thread Banner */}
+            <div className="px-5 py-2.5 border-b border-white/5 bg-studio-950/40 flex items-center justify-between text-xs text-muted-foreground font-mono">
+              <span className="truncate">Session: <strong className="text-cyan-300">{activeSession?.title || 'Active Chat'}</strong></span>
+              <span className="text-[10px] text-muted-foreground/70">{messages.length} messages</span>
+            </div>
+
+            {/* Message Thread Scroll Area */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center py-12 text-xs text-muted-foreground gap-2 font-mono">
+                  <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                  <span>Loading message thread...</span>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+                  <div className="p-3 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                    <Sparkles className="h-8 w-8 text-cyan-400" />
+                  </div>
+                  <div className="space-y-1 max-w-md">
+                    <h3 className="text-sm font-bold text-foreground">Ask Sense AI Anything About This Screening</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Ask about second-by-second viewer telemetry from ClickHouse Cloud, exit drop-off causes, pacing, visual scene analysis, or film post-production suggestions.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 flex-wrap justify-center max-w-lg">
+                    {[
+                      'What percentage of viewers paused or dropped off?',
+                      'Explain the behavioral anomaly around timecode 26s.',
+                      'What edits would improve retention in the first minute?',
+                    ].map((q, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setInputPrompt(q)}
+                        className="text-[11px] px-3 py-1.5 rounded-lg bg-studio-900 border border-white/10 hover:border-cyan-500/40 text-cyan-300/90 hover:text-cyan-200 transition-all cursor-pointer"
+                      >
+                        &ldquo;{q}&rdquo;
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map(m => {
+                  const isUser = m.role === 'user';
+                  const isQuota = m.content.includes('Quota Exhausted') || m.content.includes('RESOURCE_EXHAUSTED') || m.content.includes('429');
+
+                  if (isUser) {
+                    return (
+                      <div key={m.message_id} className="flex justify-end">
+                        <div className="max-w-[78%] bg-sky-600/25 border border-sky-500/40 text-sky-100 rounded-2xl rounded-tr-none px-4 py-3 text-xs leading-relaxed font-sans shadow-md">
+                          <div className="text-[9px] font-mono uppercase tracking-wider text-sky-400 font-bold mb-1">You</div>
+                          {m.content}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={m.message_id} className="flex justify-start">
+                      <div className="max-w-[85%] bg-studio-950 border border-cyan-500/30 text-foreground rounded-2xl rounded-tl-none p-4 space-y-2 shadow-xl shadow-cyan-950/20">
+                        <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-2">
+                          <Sparkles className="h-4 w-4 text-cyan-400 shrink-0" />
+                          <span className="text-xs font-bold font-mono tracking-wider text-cyan-300 uppercase">Sense AI</span>
+                          <span className="text-[10px] font-mono text-muted-foreground ml-auto">
+                            {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        {isQuota ? (
+                          <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 font-mono text-xs space-y-1.5">
+                            <div className="flex items-center gap-2 font-bold text-amber-300">
+                              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                              <span>Gemini API Quota Exhausted (Error 429: RESOURCE_EXHAUSTED)</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed opacity-90">{m.content}</p>
+                          </div>
+                        ) : (
+                          <FormattedMarkdown text={m.content} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="bg-studio-950 border border-cyan-500/30 rounded-2xl rounded-tl-none p-4 text-xs text-cyan-300 font-mono flex items-center gap-3 animate-pulse">
+                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400 shrink-0" />
+                    <span>Sense AI is querying ClickHouse Cloud MCP &amp; reasoning...</span>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Input Bar */}
+            <form onSubmit={handleSendMessage} className="p-3.5 border-t border-white/10 bg-studio-950 flex items-center gap-2">
+              <input
+                type="text"
+                value={inputPrompt}
+                onChange={e => setInputPrompt(e.target.value)}
+                placeholder="Ask Sense AI about viewer telemetry, exit drop-offs, pacing, or film insights..."
+                disabled={sending}
+                className="flex-1 bg-studio-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 font-sans"
+              />
+              <button
+                type="submit"
+                disabled={sending || !inputPrompt.trim()}
+                className="p-2.5 rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40 transition-all cursor-pointer font-bold shrink-0"
+                title="Send Prompt to Sense AI"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Screenings() {
   const [screenings, setScreenings] = useState<Screening[]>([]);
   const [loading, setLoading] = useState(true);
@@ -831,6 +1190,7 @@ export default function Screenings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [aiScreening, setAiScreening] = useState<Screening | null>(null);
+  const [senseAIScreening, setSenseAIScreening] = useState<Screening | null>(null);
   const [aiTab, setAiTab] = useState<AITab>('overview');
   const [aiOverview, setAiOverview] = useState<Overview | null>(null);
   const [aiRetention, setAiRetention] = useState<RetentionData | null>(null);
@@ -1260,6 +1620,9 @@ interface ToastNotification {
                     <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
                       <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
                     </button>
+                    <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
+                      <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
+                    </button>
                     <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
                       <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
                     </button>
@@ -1297,6 +1660,11 @@ interface ToastNotification {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Sense AI Chat Assistant Modal */}
+      {senseAIScreening && (
+        <SenseAIChatModal screening={senseAIScreening} onClose={() => setSenseAIScreening(null)} />
       )}
 
       {/* Audience Intelligence Modal */}
