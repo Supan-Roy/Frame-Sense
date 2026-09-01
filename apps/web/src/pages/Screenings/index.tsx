@@ -854,7 +854,17 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       if (data.length > 0) {
         setActiveSessionId(data[0].session_id);
       } else {
-        handleCreateSession();
+        // Create initial single chat session
+        const createRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New Chat Session' }),
+        });
+        if (createRes.ok) {
+          const newSession: ChatSession = await createRes.json();
+          setSessions([newSession]);
+          setActiveSessionId(newSession.session_id);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -886,6 +896,11 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   }, [activeSessionId]);
 
   const handleCreateSession = async () => {
+    // If the active session is currently empty (0 messages), reuse it instead of spawning a duplicate empty session!
+    if (messages.length === 0 && activeSessionId) {
+      return;
+    }
+
     try {
       setError(null);
       const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
@@ -895,7 +910,10 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       });
       if (!res.ok) throw new Error('Failed to create chat session');
       const newSession: ChatSession = await res.json();
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => {
+        const exists = prev.some(s => s.session_id === newSession.session_id);
+        return exists ? prev : [newSession, ...prev];
+      });
       setActiveSessionId(newSession.session_id);
       setMessages([]);
     } catch (err: any) {

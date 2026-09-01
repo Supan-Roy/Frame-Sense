@@ -403,11 +403,26 @@ class ScreeningRepository:
     # --- Sense AI Chat Persistence Methods ---
 
     def create_chat_session(self, screening_id: str, title: str = "New Chat Session") -> Dict[str, Any]:
-        """Creates a new Sense AI chat session for a screening."""
+        """Creates a new Sense AI chat session for a screening, reusing existing empty session if present."""
         conn = self._get_connection()
-        session_id = f"cs_{secrets.token_hex(8)}"
-        now = datetime.now(timezone.utc).isoformat()
         try:
+            # Check if there is already an empty session (0 messages) for this screening
+            cursor = conn.execute("""
+                SELECT s.* FROM chat_sessions s
+                LEFT JOIN chat_messages m ON s.session_id = m.session_id
+                WHERE s.screening_id = ?
+                GROUP BY s.session_id
+                HAVING COUNT(m.message_id) = 0
+                ORDER BY s.created_at DESC
+                LIMIT 1
+            """, (screening_id,))
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+
+            # Create new session if no empty session exists
+            session_id = f"cs_{secrets.token_hex(8)}"
+            now = datetime.now(timezone.utc).isoformat()
             conn.execute("""
                 INSERT INTO chat_sessions (session_id, screening_id, title, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
