@@ -204,17 +204,20 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
 
     report_text = investigation_text.strip()
 
-    # Persist investigation findings in SQLite database
-    saved_record = screening_repo.save_investigation(
-        screening_id=screening_id,
-        anomaly_id=target_anomaly.get("anomaly_id", anomaly_id),
-        investigation_report=report_text,
-        mcp_queries=mcp_queries_executed,
-        extracted_frames=frontend_frames
-    )
+    # Only persist valid findings in SQLite database (do not persist API quota errors)
+    saved_record = {}
+    if not quota_exhausted:
+        saved_record = screening_repo.save_investigation(
+            screening_id=screening_id,
+            anomaly_id=target_anomaly.get("anomaly_id", anomaly_id),
+            investigation_report=report_text,
+            mcp_queries=mcp_queries_executed,
+            extracted_frames=frontend_frames
+        )
 
     return {
-        "status": "success",
+        "status": "quota_exhausted" if quota_exhausted else "success",
+        "quota_exhausted": quota_exhausted,
         "screening_id": screening_id,
         "media_id": media_id,
         "anomaly": target_anomaly,

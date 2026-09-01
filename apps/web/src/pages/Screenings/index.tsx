@@ -697,14 +697,36 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
             )}
 
             {error && (
-              <div className={`p-3.5 rounded-lg border text-xs space-y-1.5 ${
+              <div className={`p-4 rounded-lg border text-xs space-y-2.5 ${
                 error.includes('429') || error.includes('Quota') || error.includes('RESOURCE_EXHAUSTED')
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-200 font-mono'
                   : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
               }`}>
-                <div className="flex items-center gap-2 font-bold text-amber-300">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                  <span>Gemini API Rate Limit / Quota Exhausted (Error 429)</span>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-300">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Gemini API Rate Limit / Quota Exhausted (Error 429)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleInvestigate}
+                      disabled={investigating || deleting}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                      title="Retry Gemini Vision & ClickHouse MCP investigation"
+                    >
+                      <RotateCcw className={`h-3 w-3 ${investigating ? 'animate-spin' : ''}`} />
+                      <span>{investigating ? 'Retrying...' : 'Regenerate'}</span>
+                    </button>
+                    <button
+                      onClick={handleDeleteFinding}
+                      disabled={investigating || deleting}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                      title="Clear error and remove saved finding"
+                    >
+                      <Trash2 className={`h-3 w-3 ${deleting ? 'animate-spin' : ''}`} />
+                      <span>{deleting ? 'Removing...' : 'Delete'}</span>
+                    </button>
+                  </div>
                 </div>
                 <p className="text-[11px] leading-relaxed opacity-90">{error}</p>
                 <div className="text-[10px] text-amber-300/80 pt-1 border-t border-amber-500/20">
@@ -775,27 +797,60 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
                   </div>
                 )}
 
-                {/* Main Formatted Findings */}
-                <div className="border-t border-white/10 pt-2">
-                  <FormattedMarkdown text={report} />
-                </div>
-
-                {/* Creative Edit Recommendations Elaboration Section */}
-                {elaborating && (
-                  <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-mono animate-pulse">
-                    <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                    <span>Asking Gemini Text Model for Creative Edit & Post-Production Recommendations...</span>
-                  </div>
-                )}
-
-                {elaboratedReport && (
-                  <div className="mt-3 pt-3 border-t border-amber-500/30 bg-amber-500/[0.04] p-3.5 rounded-lg border">
-                    <div className="flex items-center gap-2 mb-2 font-bold text-amber-300 text-xs uppercase tracking-wider font-mono">
-                      <Lightbulb className="h-4 w-4 text-amber-400 shrink-0" />
-                      <span>Creative Post-Production Edit Recommendations (Gemini AI)</span>
+                {/* Main Formatted Findings or Quota Error Alert */}
+                {report.includes('Quota Exhausted') || report.includes('RESOURCE_EXHAUSTED') || report.includes('Error 429') ? (
+                  <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 font-mono text-xs space-y-2.5 mt-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2 font-bold text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                        <span>Gemini API Quota Exhausted (Error 429: RESOURCE_EXHAUSTED)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleInvestigate}
+                          disabled={investigating || deleting}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                          title="Retry Gemini Vision & ClickHouse MCP investigation"
+                        >
+                          <RotateCcw className={`h-3 w-3 ${investigating ? 'animate-spin' : ''}`} />
+                          <span>{investigating ? 'Retrying...' : 'Regenerate'}</span>
+                        </button>
+                        <button
+                          onClick={handleDeleteFinding}
+                          disabled={investigating || deleting}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                          title="Delete saved finding record"
+                        >
+                          <Trash2 className={`h-3 w-3 ${deleting ? 'animate-spin' : ''}`} />
+                          <span>{deleting ? 'Removing...' : 'Delete'}</span>
+                        </button>
+                      </div>
                     </div>
-                    <FormattedMarkdown text={elaboratedReport} />
+                    <p className="text-[11px] leading-relaxed text-amber-200/90">{report}</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="border-t border-white/10 pt-2">
+                      <FormattedMarkdown text={report} />
+                    </div>
+
+                    {elaborating && (
+                      <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs font-mono animate-pulse">
+                        <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                        <span>Asking Gemini Text Model for Creative Edit & Post-Production Recommendations...</span>
+                      </div>
+                    )}
+
+                    {elaboratedReport && (
+                      <div className="mt-3 pt-3 border-t border-amber-500/30 bg-amber-500/[0.04] p-3.5 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-2 font-bold text-amber-300 text-xs uppercase tracking-wider font-mono">
+                          <Lightbulb className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span>Creative Post-Production Edit Recommendations (Gemini AI)</span>
+                        </div>
+                        <FormattedMarkdown text={elaboratedReport} />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
