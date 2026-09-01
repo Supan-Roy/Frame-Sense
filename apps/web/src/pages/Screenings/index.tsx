@@ -651,11 +651,12 @@ interface ToastNotification {
     try { await loadAIData(s.screening_id); } catch (e: any) { setAiError(e.message); } finally { setAiLoading(false); }
   };
 
-  const runSimulation = async () => {
+  const runSimulation = async (overrideMode?: string) => {
     if (!aiScreening) return;
     setSimRunning(true); setSimResult(null); setSimError(null);
+    const targetMode = overrideMode || simMode;
     try {
-      const url = `/api/v1/screenings/${aiScreening.screening_id}/dev/simulate?num_viewers=${simViewers}&mode=${simMode}&variation=${simVariation}&inject_ground_truth=${simInjectGroundTruth}${simSeed ? `&seed=${simSeed}` : ''}`;
+      const url = `/api/v1/screenings/${aiScreening.screening_id}/dev/simulate?num_viewers=${simViewers}&mode=${targetMode}&variation=${targetMode === 'EXACT_REPLAY' ? 'LOW' : simVariation}&inject_ground_truth=${simInjectGroundTruth}${simSeed ? `&seed=${simSeed}` : ''}`;
       const res = await fetch(url, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Simulation failed');
@@ -1065,6 +1066,7 @@ interface ToastNotification {
                       <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Mode</label>
                       <select value={simMode} onChange={e => setSimMode(e.target.value)} className="bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
                         <option value="AUTO">Auto (Detect)</option>
+                        <option value="EXACT_REPLAY">⚡ Exact Replay (0 Jitter)</option>
                         <option value="REAL_ANCHORED">Real-Anchored (10+ Real)</option>
                         <option value="HYBRID">Hybrid (1-9 Real)</option>
                         <option value="COLD_START">Cold Start (0 Real)</option>
@@ -1078,6 +1080,9 @@ interface ToastNotification {
                         <option value={1000}>1,000 viewers</option>
                         <option value={5000}>5,000 viewers</option>
                         <option value={10000}>10,000 viewers</option>
+                        <option value={50000}>50,000 viewers</option>
+                        <option value={100000}>100,000 viewers</option>
+                        <option value={1000000}>1,000,000 viewers (1M)</option>
                       </select>
                     </div>
                     <div className="space-y-1">
@@ -1092,9 +1097,14 @@ interface ToastNotification {
                       <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Seed (optional)</label>
                       <input type="number" placeholder="e.g. 42" value={simSeed} onChange={e => setSimSeed(e.target.value)} className="w-24 bg-studio-900 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500" />
                     </div>
-                    <button onClick={runSimulation} disabled={simRunning} className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold rounded text-xs disabled:opacity-50">
-                      {simRunning ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Generating...</span></>) : (<><FlaskConical className="h-3.5 w-3.5" /><span>Run Simulation</span></>)}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => runSimulation()} disabled={simRunning} className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold rounded text-xs disabled:opacity-50 transition-colors">
+                        {simRunning ? (<><div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /><span>Generating...</span></>) : (<><FlaskConical className="h-3.5 w-3.5" /><span>Run Simulation</span></>)}
+                      </button>
+                      <button onClick={() => runSimulation('EXACT_REPLAY')} disabled={simRunning} title="Replicate original audience events exactly across target viewer count with 0% jitter" className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600/80 hover:bg-sky-600 text-white font-semibold rounded text-xs disabled:opacity-50 transition-colors border border-sky-400/30">
+                        <Zap className="h-3.5 w-3.5" /><span>Exact Real Replay</span>
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 pt-1">
                     <input

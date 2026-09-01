@@ -294,6 +294,32 @@ def _generate_cold_start_events(
 # Main Entry Point: run_simulation
 # ---------------------------------------------------------------------------
 
+def fetch_real_viewer_sessions(screening_id: str) -> List[List[Dict[str, Any]]]:
+    """Fetches real viewer event sequences from ClickHouse grouped by anonymous_viewer_id."""
+    client = get_client()
+    sid = screening_id.replace("'", "")
+    query = f"""
+    SELECT
+        anonymous_viewer_id,
+        event_type,
+        video_timecode_sec
+    FROM viewer_events
+    WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
+    ORDER BY anonymous_viewer_id, client_timestamp ASC
+    """
+    rows = client.query(query).result_rows
+    if not rows:
+        return []
+
+    sessions_map: Dict[str, List[Dict[str, Any]]] = {}
+    for vid, etype, tc in rows:
+        if vid not in sessions_map:
+            sessions_map[vid] = []
+        sessions_map[vid].append({"event_type": etype, "video_timecode_sec": float(tc)})
+
+    return list(sessions_map.values())
+
+
 def run_simulation(
     screening_id: str,
     video_id: str,
@@ -326,6 +352,58 @@ def run_simulation(
     else:
         effective_mode = req_mode
 
+    total_events = 0
+    batch: List[Dict[str, Any]] = []
+
+    # Handle EXACT_REPLAY mode: replicate exact real viewer event streams with zero jitter
+    if effective_mode in ("EXACT_REPLAY", "EXACT_CLONE"):
+        real_sessions = fetch_real_viewer_sessions(screening_id)
+        if not real_sessions:
+            raise ValueError("No original real viewer telemetry found for this screening. Original real viewer data is required for Exact Replay mode.")
+
+        num_real = len(real_sessions)
+        for i in range(num_viewers):
+            current_viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
+            current_session_id = f"synth_s_{uuid.uuid4().hex[:16]}"
+            target_real_session = real_sessions[i % num_real]
+
+            v_events = []
+            for ev in target_real_session:
+                v_events.append({
+                    "event_id": str(uuid.uuid4()),
+                    "screening_id": screening_id,
+                    "session_id": current_session_id,
+                    "anonymous_viewer_id": current_viewer_id,
+                    "video_id": video_id,
+                    "event_type": ev["event_type"],
+                    "video_timecode_sec": round(ev["video_timecode_sec"], 2),
+                    "client_timestamp": run_ts,
+                    "server_timestamp": run_ts,
+                })
+
+            batch.extend(v_events)
+            total_events += len(v_events)
+
+            if len(batch) >= batch_size:
+                insert_events(batch)
+                batch = []
+
+        if batch:
+            insert_events(batch)
+
+        return {
+            "screening_id": screening_id,
+            "video_id": video_id,
+            "num_viewers": num_viewers,
+            "total_events_generated": total_events,
+            "simulation_mode": "EXACT_REPLAY",
+            "requested_mode": mode,
+            "real_viewers_analyzed": num_real,
+            "variation_strength": "NONE (0% Jitter)",
+            "ground_truth_injected": False,
+            "seed": seed,
+        }
+
     # 2. Extract real behavioral fingerprint if REAL_ANCHORED or HYBRID
     fingerprint = None
     if effective_mode in ("REAL_ANCHORED", "HYBRID"):
@@ -337,8 +415,6 @@ def run_simulation(
     profiles = list(PROFILE_WEIGHTS.keys())
     weights = list(PROFILE_WEIGHTS.values())
 
-    total_events = 0
-    batch: List[Dict[str, Any]] = []
     viewer_pool: List[str] = []
 
     for _ in range(num_viewers):
