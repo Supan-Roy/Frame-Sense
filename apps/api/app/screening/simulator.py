@@ -357,39 +357,43 @@ def run_simulation(
 
     # Handle EXACT_REPLAY mode: replicate exact real viewer event streams with zero jitter
     if effective_mode in ("EXACT_REPLAY", "EXACT_CLONE"):
-        real_sessions = fetch_real_viewer_sessions(screening_id)
-        if not real_sessions:
+        client = get_client()
+        sid = screening_id.replace("'", "")
+        vid = video_id.replace("'", "")
+
+        real_count = int(client.command(f"SELECT count() FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
+        if real_count == 0:
             raise ValueError("No original real viewer telemetry found for this screening. Original real viewer data is required for Exact Replay mode.")
 
-        num_real = len(real_sessions)
-        for i in range(num_viewers):
-            current_viewer_id = f"synth_v_{uuid.uuid4().hex[:16]}"
-            current_session_id = f"synth_s_{uuid.uuid4().hex[:16]}"
-            target_real_session = real_sessions[i % num_real]
+        num_real_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
 
-            v_events = []
-            for ev in target_real_session:
-                v_events.append({
-                    "event_id": str(uuid.uuid4()),
-                    "screening_id": screening_id,
-                    "session_id": current_session_id,
-                    "anonymous_viewer_id": current_viewer_id,
-                    "video_id": video_id,
-                    "event_type": ev["event_type"],
-                    "video_timecode_sec": round(ev["video_timecode_sec"], 2),
-                    "client_timestamp": run_ts,
-                    "server_timestamp": run_ts,
-                })
-
-            batch.extend(v_events)
-            total_events += len(v_events)
-
-            if len(batch) >= batch_size:
-                insert_events(batch)
-                batch = []
-
-        if batch:
-            insert_events(batch)
+        # Execute ultra-fast native C++ SQL vector insert in ClickHouse (zero Python overhead)
+        insert_sql = f"""
+        INSERT INTO viewer_events (
+            event_id, screening_id, session_id, anonymous_viewer_id,
+            video_id, event_type, video_timecode_sec, client_timestamp, server_timestamp
+        )
+        SELECT
+            generateUUIDv4() AS event_id,
+            '{sid}' AS screening_id,
+            concat('synth_s_', substring(hex(MD5(concat(toString(v.idx), '_s'))), 1, 16)) AS session_id,
+            concat('synth_v_', substring(hex(MD5(concat(toString(v.idx), '_v'))), 1, 16)) AS anonymous_viewer_id,
+            '{vid}' AS video_id,
+            r.event_type AS event_type,
+            r.video_timecode_sec AS video_timecode_sec,
+            now64(3, 'UTC') AS client_timestamp,
+            now64(3, 'UTC') AS server_timestamp
+        FROM (
+            SELECT event_type, video_timecode_sec
+            FROM viewer_events
+            WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
+        ) AS r
+        CROSS JOIN (
+            SELECT number AS idx FROM numbers({num_viewers})
+        ) AS v
+        """
+        client.command(insert_sql)
+        total_events = real_count * num_viewers
 
         return {
             "screening_id": screening_id,
@@ -398,8 +402,8 @@ def run_simulation(
             "total_events_generated": total_events,
             "simulation_mode": "EXACT_REPLAY",
             "requested_mode": mode,
-            "real_viewers_analyzed": num_real,
-            "variation_strength": "NONE (0% Jitter)",
+            "real_viewers_analyzed": num_real_viewers,
+            "variation_strength": "NONE (0% Jitter - Accelerated)",
             "ground_truth_injected": False,
             "seed": seed,
         }
