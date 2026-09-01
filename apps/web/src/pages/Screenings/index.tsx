@@ -224,21 +224,12 @@ function RetentionChart({ data }: { data: RetentionData }) {
               <circle
                 cx={peakPoint.x}
                 cy={peakPoint.y}
-                r="6"
+                r="5"
                 fill="#22c55e"
                 stroke="#ffffff"
                 strokeWidth="2"
                 className="drop-shadow-lg"
               />
-              <text
-                x={peakPoint.x}
-                y={Math.max(10, peakPoint.y - 10)}
-                textAnchor="middle"
-                fontSize="9"
-                className="fill-emerald-400 font-mono font-bold select-none pointer-events-none drop-shadow"
-              >
-                🔥 Peak {fmtTime(peakPoint.point.time_sec)} ({fmtPct(peakPoint.point.retention_rate)})
-              </text>
             </g>
           )}
 
@@ -248,21 +239,12 @@ function RetentionChart({ data }: { data: RetentionData }) {
               <circle
                 cx={steepDropPoint.x}
                 cy={steepDropPoint.y}
-                r="5"
+                r="4.5"
                 fill="#ef4444"
                 stroke="#ffffff"
                 strokeWidth="1.5"
                 className="drop-shadow-lg"
               />
-              <text
-                x={steepDropPoint.x}
-                y={Math.min(plotH - 5, steepDropPoint.y + 16)}
-                textAnchor="middle"
-                fontSize="9"
-                className="fill-rose-400 font-mono font-bold select-none pointer-events-none drop-shadow"
-              >
-                📉 Drop {fmtTime(steepDropPoint.point.time_sec)}
-              </text>
             </g>
           )}
 
