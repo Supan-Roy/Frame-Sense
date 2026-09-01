@@ -5,16 +5,20 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
 # We store metadata inside apps/api/data/metadata.db
-DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata.db"))
+DEFAULT_DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data/metadata.db"))
 
 
 class ScreeningRepository:
-    def __init__(self, db_file: str = DB_FILE):
-        self.db_file = db_file
+    def __init__(self, db_file: Optional[str] = None):
+        self._custom_db_file = db_file
         # Ensure data folder exists
         os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
         # Initialize schema
         self._init_db()
+
+    @property
+    def db_file(self) -> str:
+        return self._custom_db_file or os.environ.get("FRAME_SENSE_DB_PATH", DEFAULT_DB_FILE)
 
     def _get_connection(self):
         # Use sqlite3 connection with dict-factory to easily return rows as dicts
