@@ -53,7 +53,7 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     }
 
 
-def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
+def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """
     High-resolution Audience Retention Curve.
     Calculates active viewer retention across timecode buckets with organic presence tracking.
@@ -70,14 +70,12 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any
     video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
 
     max_dur_res = client.query(f"SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = '{sid}' AND video_timecode_sec >= 0")
-    max_dur = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else (video_dur or 60.0)
+    event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
 
-    if video_dur > 0:
-        max_dur = min(max_dur, video_dur)
-    if max_dur <= 0:
-        max_dur = 60.0
+    # Ensure max_dur spans full video duration (e.g. 32s) or max observed timecode
+    max_dur = max(video_dur, event_max) or 60.0
 
-    b = max(1, min(10, int(bucket_sec)))
+    b = max(1, min(5, int(bucket_sec)))
 
     query = f"""
     WITH viewer_buckets AS (
@@ -89,7 +87,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any
     )
     SELECT
         b.bucket,
-        count(DISTINCT v.anonymous_viewer_id) AS active_viewers
+        count(DISTINCT nullIf(v.anonymous_viewer_id, '')) AS active_viewers
     FROM (
         SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
     ) AS b
