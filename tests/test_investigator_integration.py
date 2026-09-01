@@ -33,9 +33,9 @@ def test_investigator_agent_structure_and_instruction():
     """Verify Frame Sense Investigator agent instruction and tool composition."""
     assert root_agent.name == "Frame_Sense_Investigator"
     assert "ClickHouse MCP" in root_agent.instruction or "default.viewer_events" in root_agent.instruction
-    assert "Observed audience behavior" in root_agent.instruction
-    assert "Quantitative evidence" in root_agent.instruction
-    assert "Plausible explanations" in root_agent.instruction
+    assert "OBSERVED AUDIENCE BEHAVIOR" in root_agent.instruction
+    assert "QUANTITATIVE EVIDENCE" in root_agent.instruction
+    assert "VISUAL EVIDENCE" in root_agent.instruction
 
 
 def test_existing_anomaly_detection_unchanged():
