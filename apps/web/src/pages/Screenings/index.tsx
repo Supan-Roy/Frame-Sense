@@ -446,6 +446,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
   const [investigating, setInvestigating] = useState(false);
   const [report, setReport] = useState<string | null>(null);
   const [mcpQueries, setMcpQueries] = useState<any[]>([]);
+  const [extractedFrames, setExtractedFrames] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleInvestigate = async (e: React.MouseEvent) => {
@@ -463,6 +464,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
       const data = await res.json();
       setReport(data.investigation_report || 'No detailed report returned.');
       setMcpQueries(data.mcp_queries_executed || []);
+      setExtractedFrames(data.extracted_frames || []);
     } catch (err: any) {
       setError(err.message || 'Investigation failed');
     } finally {
@@ -545,14 +547,14 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-xs font-semibold transition-all group"
               >
                 <Sparkles className="h-3.5 w-3.5 text-sky-400 group-hover:rotate-12 transition-transform" />
-                <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP)</span>
+                <span>Investigate Anomaly with Frame Sense AI (ClickHouse MCP + Vision)</span>
               </button>
             )}
 
             {investigating && (
               <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-sky-950/40 border border-sky-500/30 text-sky-300 text-xs font-mono animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                <span>Querying ClickHouse MCP & Running Frame Sense Investigator...</span>
+                <span>Extracting Video Frames via FFmpeg & Running Multimodal Investigator...</span>
               </div>
             )}
 
@@ -563,11 +565,11 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
             )}
 
             {report && (
-              <div className="p-3.5 rounded-lg bg-studio-950 border border-sky-500/30 space-y-2 text-xs font-mono text-foreground/90">
+              <div className="p-3.5 rounded-lg bg-studio-950 border border-sky-500/30 space-y-3 text-xs font-mono text-foreground/90">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
                   <div className="flex items-center gap-1.5 font-bold text-sky-300">
                     <Sparkles className="h-4 w-4 text-sky-400" />
-                    <span>Frame Sense AI Investigation Findings</span>
+                    <span>Frame Sense Multimodal AI Investigation Findings</span>
                   </div>
                   {mcpQueries.length > 0 && (
                     <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
@@ -575,7 +577,27 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId }: { anomaly: 
                     </span>
                   )}
                 </div>
-                <div className="whitespace-pre-wrap leading-relaxed text-[11px] text-zinc-300 font-sans">
+
+                {extractedFrames.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono font-semibold text-sky-400 uppercase tracking-wider">
+                      <Film className="h-3 w-3" />
+                      <span>Extracted Video Frames Analyzed by Gemini Vision ({extractedFrames.length})</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {extractedFrames.map((fr, idx) => (
+                        <div key={idx} className="relative rounded border border-sky-500/20 overflow-hidden bg-black/60 group">
+                          <img src={fr.base64} alt={`Frame at ${fr.time_sec}s`} className="w-full h-16 object-cover" />
+                          <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] font-mono font-bold text-cyan-300 text-center py-0.5">
+                            {fmtTime(fr.time_sec)} ({fr.time_sec}s)
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="whitespace-pre-wrap leading-relaxed text-[11px] text-zinc-300 font-sans border-t border-white/10 pt-2">
                   {report}
                 </div>
               </div>
