@@ -109,7 +109,7 @@ def create_clickhouse_mcp_toolset() -> McpToolset:
     )
 
 
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 clickhouse_mcp_toolset = create_clickhouse_mcp_toolset()
 
