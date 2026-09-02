@@ -886,16 +886,26 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                 </div>
 
                 {extractedFrames.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
+                  <div className="space-y-2 pt-1">
                     <div className="flex items-center gap-1.5 text-[10px] font-mono font-semibold text-sky-400 uppercase tracking-wider">
-                      <Film className="h-3 w-3" />
+                      <Film className="h-3.5 w-3.5 text-cyan-400" />
                       <span>Extracted Video Frames Analyzed by Gemini Vision ({extractedFrames.length})</span>
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                       {extractedFrames.map((fr, idx) => (
-                        <div key={idx} className="relative rounded border border-sky-500/20 overflow-hidden bg-black/60 group">
-                          <img src={fr.base64} alt={`Frame at ${fr.time_sec}s`} className="w-full h-16 object-cover" />
-                          <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] font-mono font-bold text-cyan-300 text-center py-0.5">
+                        <div
+                          key={idx}
+                          className="relative rounded-xl border border-cyan-500/30 overflow-hidden bg-black/90 shadow-md shadow-black/60 select-none group"
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          <img
+                            src={fr.base64}
+                            alt={`Frame at ${fr.time_sec}s`}
+                            onContextMenu={(e) => e.preventDefault()}
+                            onDragStart={(e) => e.preventDefault()}
+                            className="w-full aspect-video object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
+                          />
+                          <div className="absolute bottom-0 inset-x-0 bg-black/85 backdrop-blur-xs text-[10px] font-mono font-bold text-cyan-300 text-center py-1 border-t border-cyan-500/20">
                             {fmtTime(fr.time_sec)} ({fr.time_sec}s)
                           </div>
                         </div>
