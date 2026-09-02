@@ -534,7 +534,7 @@ function FormattedMarkdown({ text }: { text: string }) {
       const trimmed = line.trim();
       if (!trimmed) {
         if (inList) {
-          elements.push(<ul key={`ul-${idx}`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
+          elements.push(<ul key={`ul-${idx}`} className="space-y-2 my-2.5 pl-5 list-disc text-slate-100">{listItems}</ul>);
           inList = false;
           listItems = [];
         }
@@ -545,18 +545,18 @@ function FormattedMarkdown({ text }: { text: string }) {
         inList = true;
         const itemContent = trimmed.replace(/^([-*]|\d+\.)\s*/, '');
         listItems.push(
-          <li key={idx} className="text-[13px] leading-relaxed text-slate-200 font-sans">
+          <li key={idx} className="text-[13.5px] leading-relaxed text-slate-100 font-sans my-1">
             {parseInline(itemContent)}
           </li>
         );
       } else {
         if (inList) {
-          elements.push(<ul key={`ul-${idx}`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
+          elements.push(<ul key={`ul-${idx}`} className="space-y-2 my-2.5 pl-5 list-disc text-slate-100">{listItems}</ul>);
           inList = false;
           listItems = [];
         }
         elements.push(
-          <p key={idx} className="text-[13px] leading-relaxed text-slate-200 font-sans my-1.5">
+          <p key={idx} className="text-[13.5px] leading-relaxed text-slate-100 font-sans my-2">
             {parseInline(trimmed)}
           </p>
         );
@@ -564,37 +564,84 @@ function FormattedMarkdown({ text }: { text: string }) {
     });
 
     if (inList) {
-      elements.push(<ul key={`ul-end`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
+      elements.push(<ul key={`ul-end`} className="space-y-2 my-2.5 pl-5 list-disc text-slate-100">{listItems}</ul>);
     }
 
     return elements;
   };
 
+  const getSectionTitleStyle = (title: string) => {
+    const t = title.toUpperCase();
+    if (t.includes('OBSERVED')) {
+      return {
+        box: 'bg-cyan-950/90 border-cyan-500/50 text-cyan-300 shadow-cyan-950/60',
+        dot: 'from-cyan-400 to-cyan-600',
+      };
+    }
+    if (t.includes('QUANTITATIVE')) {
+      return {
+        box: 'bg-sky-950/90 border-sky-500/50 text-sky-300 shadow-sky-950/60',
+        dot: 'from-sky-400 to-blue-600',
+      };
+    }
+    if (t.includes('VISUAL')) {
+      return {
+        box: 'bg-indigo-950/90 border-indigo-500/50 text-indigo-300 shadow-indigo-950/60',
+        dot: 'from-indigo-400 to-indigo-600',
+      };
+    }
+    if (t.includes('CORRELATION') || t.includes('TELEMETRY')) {
+      return {
+        box: 'bg-purple-950/90 border-purple-500/50 text-purple-300 shadow-purple-950/60',
+        dot: 'from-purple-400 to-fuchsia-600',
+      };
+    }
+    if (t.includes('EXPLANATION') || t.includes('PLAUSIBLE')) {
+      return {
+        box: 'bg-amber-950/90 border-amber-500/50 text-amber-300 shadow-amber-950/60',
+        dot: 'from-amber-400 to-amber-600',
+      };
+    }
+    if (t.includes('CONFIDENCE')) {
+      return {
+        box: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-300 shadow-emerald-950/60',
+        dot: 'from-emerald-400 to-teal-600',
+      };
+    }
+    return {
+      box: 'bg-slate-900/95 border-cyan-500/40 text-cyan-200 shadow-slate-950/60',
+      dot: 'from-cyan-400 to-sky-500',
+    };
+  };
+
   if (sections.length === 0 || (sections.length === 1 && !sections[0].title)) {
     return (
-      <div className="p-4.5 rounded-xl bg-studio-950/80 border border-cyan-500/25 shadow-xl my-3 space-y-2 backdrop-blur-md">
+      <div className="p-5 rounded-2xl bg-studio-950/90 border border-cyan-500/25 shadow-xl my-4 space-y-3 backdrop-blur-md">
         {renderContentLines(lines)}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3.5 my-3">
-      {sections.map((sec, idx) => (
-        <div key={idx} className="p-4.5 rounded-xl bg-studio-950/85 border border-cyan-500/20 shadow-lg space-y-3 backdrop-blur-md transition-all hover:border-cyan-500/40">
-          {sec.title && (
-            <div className="flex items-center gap-2.5 border-b border-white/10 pb-2.5">
-              <div className="w-2 h-4 bg-gradient-to-b from-cyan-400 to-sky-500 rounded-full shrink-0 shadow-sm shadow-cyan-500/50" />
-              <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-cyan-300">
-                {sec.title}
-              </h4>
+    <div className="space-y-5 my-4">
+      {sections.map((sec, idx) => {
+        const style = getSectionTitleStyle(sec.title || '');
+        return (
+          <div key={idx} className="p-5 rounded-2xl bg-studio-950/90 border border-white/10 shadow-xl space-y-3.5 backdrop-blur-md transition-all hover:border-cyan-500/35">
+            {sec.title && (
+              <div className="mb-1">
+                <div className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg border shadow-md font-mono text-xs font-bold uppercase tracking-wider ${style.box}`}>
+                  <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${style.dot} animate-pulse`} />
+                  <span>{sec.title}</span>
+                </div>
+              </div>
+            )}
+            <div className="space-y-2 pt-1 text-[13.5px] leading-relaxed text-slate-100 font-sans px-1">
+              {renderContentLines(sec.content)}
             </div>
-          )}
-          <div className="space-y-1.5">
-            {renderContentLines(sec.content)}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
