@@ -109,12 +109,13 @@ def create_clickhouse_mcp_toolset() -> McpToolset:
     )
 
 
-clickhouse_mcp_toolset = create_clickhouse_mcp_toolset()
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+clickhouse_mcp_toolset = create_clickhouse_mcp_toolset()
 
 frame_sense_investigator_google_search_agent = LlmAgent(
   name='Frame_Sense_Investigator_google_search_agent',
-  model=GlobalGemini(model='gemini-3.5-flash'),
+  model=GlobalGemini(model=DEFAULT_MODEL),
   description=(
       'Agent specialized in performing Google searches.'
   ),
@@ -126,7 +127,7 @@ frame_sense_investigator_google_search_agent = LlmAgent(
 )
 frame_sense_investigator_url_context_agent = LlmAgent(
   name='Frame_Sense_Investigator_url_context_agent',
-  model=GlobalGemini(model='gemini-3.5-flash'),
+  model=GlobalGemini(model=DEFAULT_MODEL),
   description=(
       'Agent specialized in fetching content from URLs.'
   ),
@@ -160,7 +161,7 @@ INVESTIGATOR_INSTRUCTION = (
 
 root_agent = LlmAgent(
   name='Frame_Sense_Investigator',
-  model=GlobalGemini(model='gemini-3.5-flash'),
+  model=GlobalGemini(model=DEFAULT_MODEL),
   description=(
       'Investigates audience behavior anomalies detected during film screenings by correlating viewer telemetry with media and narrative evidence.'
   ),

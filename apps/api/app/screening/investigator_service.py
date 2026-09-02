@@ -267,7 +267,7 @@ async def run_elaborated_investigation(screening_id: str, anomaly_id: str) -> Di
         client = Client(api_key=api_key) if api_key else None
         if client:
             response = client.models.generate_content(
-                model="gemini-3.5-flash",
+                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
                 contents=prompt
             )
             elaborated_text = response.text.strip() if hasattr(response, "text") and response.text else ""
