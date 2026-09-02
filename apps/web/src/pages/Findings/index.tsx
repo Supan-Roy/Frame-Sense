@@ -171,6 +171,7 @@ export default function Findings() {
     setActiveCueId(null);
     setExpandedCueId(null);
     setCurrentTime(0);
+    setDuration(s.media_duration || 0);
     setIsPlaying(false);
 
     try {
@@ -323,9 +324,16 @@ export default function Findings() {
     const v = videoRef.current;
     if (!v) return;
 
+    if (v.duration && !isNaN(v.duration) && v.duration > 0) {
+      setDuration(v.duration);
+    }
+
     const handleTimeUpdate = () => {
       const t = v.currentTime;
       setCurrentTime(t);
+      if (v.duration && !isNaN(v.duration) && v.duration > 0 && duration !== v.duration) {
+        setDuration(v.duration);
+      }
 
       // Check if current video timecode intersects any edit cue window
       const matched = editCues.find(c => t >= c.time_start_sec - 0.5 && t <= c.time_end_sec + 0.5);
@@ -337,7 +345,9 @@ export default function Findings() {
     };
 
     const handleLoadedMetadata = () => {
-      setDuration(v.duration);
+      if (v.duration && !isNaN(v.duration) && v.duration > 0) {
+        setDuration(v.duration);
+      }
     };
 
     v.addEventListener('timeupdate', handleTimeUpdate);
@@ -346,7 +356,13 @@ export default function Findings() {
       v.removeEventListener('timeupdate', handleTimeUpdate);
       v.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
-  }, [editCues]);
+  }, [editCues, selectedScreening]);
+
+  const effectiveDuration = (duration && !isNaN(duration) && duration > 0)
+    ? duration
+    : ((videoRef.current?.duration && !isNaN(videoRef.current.duration) && videoRef.current.duration > 0)
+      ? videoRef.current.duration
+      : (selectedScreening?.media_duration || 32));
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -364,7 +380,7 @@ export default function Findings() {
     const v = videoRef.current;
     if (!v) return;
     try {
-      const maxDur = (v.duration && !isNaN(v.duration) && v.duration > 0) ? v.duration : (selectedScreening?.media_duration || duration || 300);
+      const maxDur = effectiveDuration > 0 ? effectiveDuration : 300;
       const targetSec = Math.max(0, Math.min(sec, maxDur));
       v.currentTime = targetSec;
       setCurrentTime(targetSec);
@@ -383,7 +399,7 @@ export default function Findings() {
     const v = videoRef.current;
     if (!v) return;
     try {
-      const maxDur = (v.duration && !isNaN(v.duration) && v.duration > 0) ? v.duration : (selectedScreening?.media_duration || duration || 300);
+      const maxDur = effectiveDuration > 0 ? effectiveDuration : 300;
       const currentSec = !isNaN(v.currentTime) ? v.currentTime : currentTime;
       const targetSec = Math.min(Math.max(0, currentSec + delta), maxDur);
       v.currentTime = targetSec;
@@ -699,24 +715,27 @@ export default function Findings() {
               {/* Custom Video Control Bar */}
               <div className="p-4 bg-studio-900 border-t border-studio-800 space-y-3 shrink-0">
                 {/* Scrubbing Progress Bar with Cut Cue Markers */}
-                <div className="relative w-full h-3 bg-studio-950 rounded-full cursor-pointer overflow-hidden border border-studio-800 group"
+                <div
+                  className="relative w-full h-3.5 bg-studio-950 rounded-full cursor-pointer overflow-hidden border border-studio-800 group select-none"
                   onClick={e => {
                     const rect = e.currentTarget.getBoundingClientRect();
-                    const pos = (e.clientX - rect.left) / rect.width;
-                    jumpToTimecode(pos * duration);
+                    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    if (effectiveDuration > 0) {
+                      jumpToTimecode(pos * effectiveDuration);
+                    }
                   }}
                 >
-                  {/* Played progress */}
+                  {/* Played progress fill */}
                   <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-75 relative"
-                    style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                    className="h-full bg-amber-500 rounded-full relative transition-[width] duration-75 pointer-events-none"
+                    style={{ width: `${effectiveDuration > 0 ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100)) : 0}%` }}
                   >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-amber-300 rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-amber-300 rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform" />
                   </div>
 
                   {/* Render Cut Cue Marker Flags on Progress Bar */}
-                  {duration > 0 && editCues.map(c => {
-                    const leftPct = (c.time_start_sec / duration) * 100;
+                  {effectiveDuration > 0 && editCues.map(c => {
+                    const leftPct = (c.time_start_sec / effectiveDuration) * 100;
                     return (
                       <div
                         key={c.id}
@@ -770,7 +789,7 @@ export default function Findings() {
                     <span className="text-amber-400 font-bold bg-studio-950 px-2.5 py-1 rounded border border-studio-800">
                       SMPTE: {fmtSMPTE(currentTime)}
                     </span>
-                    <span className="text-muted-foreground">/ {fmtSec(duration)}</span>
+                    <span className="text-muted-foreground">/ {fmtSec(effectiveDuration)}</span>
                   </div>
                 </div>
               </div>
