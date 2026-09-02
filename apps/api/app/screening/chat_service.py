@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from google.genai.types import Content, Part
 from google.adk.runners import InMemoryRunner
 
-from agents.frame_sense_investigator import root_agent
+from agents.frame_sense_investigator import sense_ai_chat_agent
 from app.screening.repository import screening_repo
 from app.screening.investigator_service import is_quota_exhausted_error
 
@@ -13,10 +13,10 @@ logger = logging.getLogger("frame_sense.chat_service")
 
 async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str) -> Dict[str, Any]:
     """
-    Executes Sense AI chat interaction for a screening using Frame_Sense_Investigator root agent.
+    Executes Sense AI chat interaction for a screening using dedicated sense_ai_chat_agent.
     1. Saves the user prompt in SQLite.
     2. Builds conversation context (screening metadata + session chat history).
-    3. Invokes root_agent via Google ADK InMemoryRunner.
+    3. Invokes sense_ai_chat_agent via Google ADK InMemoryRunner.
     4. Handles 429 RESOURCE_EXHAUSTED rate limit errors gracefully.
     5. Saves assistant reply in SQLite.
     6. Returns updated message list for the session.
@@ -48,8 +48,9 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
         f"- Use run_select_query (ClickHouse Cloud MCP) to run SQL queries on default.viewer_events for telemetry data.\n"
         f"- Use GoogleSearchTool for general film intelligence or industry benchmarking.\n\n"
         f"INSTRUCTIONS:\n"
-        f"- Answer questions clearly with rich Markdown formatting (bold **terms**, bullet points - item, code `snippets`, headers ### Section).\n"
-        f"- Correlate quantitative telemetry facts with visual/pacing hypotheses.\n"
+        f"- Answer the user's specific question directly, concisely, and naturally.\n"
+        f"- DO NOT output rigid 7-part investigation report headers (e.g. '1. OBSERVED AUDIENCE BEHAVIOR') for simple conversational questions.\n"
+        f"- Format response with rich, clear Markdown (bold terms, bullet points, concise paragraphs).\n"
         f"- Be concise, direct, professional, and helpful.\n\n"
         f"CONVERSATION HISTORY:\n"
     )
@@ -64,7 +65,7 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
 
     parts.append(Part.from_text(text=f"USER QUESTION: {user_prompt}\n\nSENSE AI RESPONSE:"))
 
-    runner = InMemoryRunner(agent=root_agent)
+    runner = InMemoryRunner(agent=sense_ai_chat_agent)
     runner_session_id = f"chat_session_{session_id}_{uuid.uuid4().hex[:6]}"
     user_id = "frame_sense_user"
 
