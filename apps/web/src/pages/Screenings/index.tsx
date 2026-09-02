@@ -657,6 +657,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
   const [mcpQueries, setMcpQueries] = useState<any[]>(savedFinding?.mcp_queries_executed || []);
   const [extractedFrames, setExtractedFrames] = useState<any[]>(savedFinding?.extracted_frames || []);
   const [error, setError] = useState<string | null>(null);
+  const [activeFrame, setActiveFrame] = useState<{ base64: string; time_sec: number } | null>(null);
 
   useEffect(() => {
     if (savedFinding) {
@@ -889,14 +890,19 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center gap-1.5 text-[10px] font-mono font-semibold text-sky-400 uppercase tracking-wider">
                       <Film className="h-3.5 w-3.5 text-cyan-400" />
-                      <span>Extracted Video Frames Analyzed by Gemini Vision ({extractedFrames.length})</span>
+                      <span>Extracted Video Frames Analyzed by Gemini Vision ({extractedFrames.length}) &middot; <span className="text-cyan-300 font-normal">Click to enlarge</span></span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                       {extractedFrames.map((fr, idx) => (
                         <div
                           key={idx}
-                          className="relative rounded-xl border border-cyan-500/30 overflow-hidden bg-black/90 shadow-md shadow-black/60 select-none group"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveFrame(fr);
+                          }}
+                          className="relative rounded-xl border border-cyan-500/30 overflow-hidden bg-black/90 shadow-md shadow-black/60 select-none group cursor-pointer hover:border-cyan-400/80 hover:shadow-cyan-950/50 transition-all"
                           onContextMenu={(e) => e.preventDefault()}
+                          title="Click to view large frame"
                         >
                           <img
                             src={fr.base64}
@@ -910,6 +916,55 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lightbox Modal Overlay for Enlarged Vision Frame */}
+                {activeFrame && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200 select-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveFrame(null);
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    <div
+                      className="relative max-w-4xl w-full bg-studio-950 border border-cyan-500/40 rounded-2xl shadow-2xl overflow-hidden p-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Lightbox Top Bar Header */}
+                      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-studio-950/90">
+                        <div className="flex items-center gap-2 text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                          <Film className="h-4 w-4 text-cyan-400" />
+                          <span>Extracted Vision Frame &middot; {fmtTime(activeFrame.time_sec)} ({activeFrame.time_sec}s)</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveFrame(null);
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-studio-900 transition-colors cursor-pointer"
+                          title="Close preview"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Large Protected Widescreen Image */}
+                      <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden rounded-b-xl">
+                        <img
+                          src={activeFrame.base64}
+                          alt={`Enlarged frame at ${activeFrame.time_sec}s`}
+                          onContextMenu={(e) => e.preventDefault()}
+                          onDragStart={(e) => e.preventDefault()}
+                          className="w-full h-full object-contain select-none pointer-events-none"
+                        />
+                        <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-black/85 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold shadow-lg">
+                          Timecode: {fmtTime(activeFrame.time_sec)} ({activeFrame.time_sec}s)
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
