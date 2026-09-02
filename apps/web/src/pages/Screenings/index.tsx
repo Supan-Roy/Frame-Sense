@@ -521,7 +521,7 @@ function FormattedMarkdown({ text }: { text: string }) {
   return <div className="space-y-1">{elements}</div>;
 }
 
-function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string; savedFinding?: any }) {
+function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding, onUpdate }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string; savedFinding?: any; onUpdate?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [investigating, setInvestigating] = useState(false);
   const [elaborating, setElaborating] = useState(false);
@@ -557,6 +557,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
       setReport(data.investigation_report || 'No detailed report returned.');
       setMcpQueries(data.mcp_queries_executed || []);
       setExtractedFrames(data.extracted_frames || []);
+      if (onUpdate) onUpdate();
     } catch (err: any) {
       setError(err.message || 'Investigation failed');
     } finally {
@@ -578,6 +579,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
       }
       const data = await res.json();
       setElaboratedReport(data.elaborated_report || 'No creative recommendations returned.');
+      if (onUpdate) onUpdate();
     } catch (err: any) {
       setError(err.message || 'Elaboration failed');
     } finally {
@@ -601,6 +603,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding 
       setElaboratedReport(null);
       setMcpQueries([]);
       setExtractedFrames([]);
+      if (onUpdate) onUpdate();
     } catch (err: any) {
       setError(err.message || 'Failed to delete investigation findings');
     } finally {
@@ -1559,13 +1562,30 @@ interface ToastNotification {
             {aiAnomalies.exceptional_engagement.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 text-emerald-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Exceptional Engagement ({aiAnomalies.exceptional_engagement.length})</span></div>
-                {aiAnomalies.exceptional_engagement.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement screeningId={aiScreening?.screening_id} savedFinding={savedInvestigations[a.anomaly_id]} />)}
+                {aiAnomalies.exceptional_engagement.map(a => (
+                  <AnomalyCard
+                    key={a.anomaly_id}
+                    anomaly={a}
+                    isEngagement
+                    screeningId={aiScreening?.screening_id}
+                    savedFinding={savedInvestigations[a.anomaly_id]}
+                    onUpdate={() => { if (aiScreening) loadAIData(aiScreening.screening_id); }}
+                  />
+                ))}
               </div>
             )}
             {aiAnomalies.anomalies.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-rose-400" /><span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Behavioral Anomalies ({aiAnomalies.anomalies.length})</span></div>
-                {aiAnomalies.anomalies.map(a => <AnomalyCard key={a.anomaly_id} anomaly={a} screeningId={aiScreening?.screening_id} savedFinding={savedInvestigations[a.anomaly_id]} />)}
+                {aiAnomalies.anomalies.map(a => (
+                  <AnomalyCard
+                    key={a.anomaly_id}
+                    anomaly={a}
+                    screeningId={aiScreening?.screening_id}
+                    savedFinding={savedInvestigations[a.anomaly_id]}
+                    onUpdate={() => { if (aiScreening) loadAIData(aiScreening.screening_id); }}
+                  />
+                ))}
               </div>
             )}
             {aiAnomalies.baseline_methodology && (

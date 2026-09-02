@@ -52,7 +52,8 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
     target_anomaly = next((a for a in all_anomalies if a.get("anomaly_id") == anomaly_id), None)
     if not target_anomaly:
         if all_anomalies:
-            target_anomaly = all_anomalies[0]
+            target_anomaly = dict(all_anomalies[0])
+            target_anomaly["anomaly_id"] = anomaly_id
         else:
             target_anomaly = {
                 "anomaly_id": anomaly_id,
@@ -209,7 +210,7 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
     if not quota_exhausted:
         saved_record = screening_repo.save_investigation(
             screening_id=screening_id,
-            anomaly_id=target_anomaly.get("anomaly_id", anomaly_id),
+            anomaly_id=anomaly_id,
             investigation_report=report_text,
             mcp_queries=mcp_queries_executed,
             extracted_frames=frontend_frames
