@@ -143,9 +143,11 @@ export default function Findings() {
             if (anmRes.ok) {
               const anmData = await anmRes.json();
               const count = (anmData.anomalies?.length || 0) + (anmData.exceptional_engagement?.length || 0);
+              const rel = anmData.reliability;
+              const relLabel = typeof rel === 'string' ? rel : (rel?.label || rel?.status || 'STRONG');
               stats[s.screening_id] = {
                 anomaliesCount: count,
-                reliability: anmData.reliability || 'STRONG'
+                reliability: relLabel
               };
             }
           } catch {
@@ -571,7 +573,7 @@ export default function Findings() {
                       <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">AI Reliability</div>
                       <div className="text-sm font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
                         <Shield className="h-3.5 w-3.5" />
-                        <span>{stats.reliability}</span>
+                        <span>{typeof stats.reliability === 'string' ? stats.reliability : ((stats.reliability as any)?.label || (stats.reliability as any)?.status || 'STRONG')}</span>
                       </div>
                     </div>
                   </div>
