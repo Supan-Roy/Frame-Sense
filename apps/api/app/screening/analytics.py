@@ -16,10 +16,18 @@ Baseline methodology:
     MEDIUM z > 2.0
     LOW    z > 1.5
 """
+import hashlib
 import uuid
 import math
 from typing import List, Dict, Any, Optional
 from app.database.clickhouse import get_client
+
+
+def _make_anomaly_id(prefix: str, screening_id: str, start_t: float, end_t: float, peak_t: float, title: str) -> str:
+    """Generates a deterministic anomaly ID based on screening, window timecodes, and title."""
+    raw_key = f"{screening_id}_{start_t}_{end_t}_{peak_t}_{title}"
+    h = hashlib.md5(raw_key.encode("utf-8")).hexdigest()[:12]
+    return f"{prefix}_{h}"
 
 
 def _reliability(unique_viewers: int) -> Dict[str, str]:
@@ -323,7 +331,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         if c_replays > max(1, c_exits * 2) and c_replays >= 1:
             ratio = replay_rate / (baselines["replays"][0] / max(1, unique_viewers) + eps)
             exceptional_engagement.append({
-                "anomaly_id": f"eng_{uuid.uuid4().hex[:12]}",
+                "anomaly_id": _make_anomaly_id("eng", screening_id, start_t, end_t, peak_t, "Emotional Scene Replay Hotspot"),
                 "screening_id": screening_id,
                 "start_time_sec": start_t,
                 "end_time_sec": end_t,
@@ -399,7 +407,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             sev_label = "HIGH" if sev_score >= 2.5 else ("MEDIUM" if sev_score >= 2.0 else "LOW")
 
         anomalies.append({
-            "anomaly_id": f"anm_{uuid.uuid4().hex[:12]}",
+            "anomaly_id": _make_anomaly_id("anm", screening_id, start_t, end_t, peak_t, cat_title),
             "screening_id": screening_id,
             "start_time_sec": start_t,
             "end_time_sec": end_t,
