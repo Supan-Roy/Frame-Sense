@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
-  Activity, ChevronDown, ChevronRight, FlaskConical, Users,
+  Activity, ChevronDown, ChevronRight, ChevronLeft, FlaskConical, Users,
   CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
   Sparkles, Loader2, Play, Lightbulb, Send
 } from 'lucide-react';
@@ -657,7 +657,34 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
   const [mcpQueries, setMcpQueries] = useState<any[]>(savedFinding?.mcp_queries_executed || []);
   const [extractedFrames, setExtractedFrames] = useState<any[]>(savedFinding?.extracted_frames || []);
   const [error, setError] = useState<string | null>(null);
-  const [activeFrame, setActiveFrame] = useState<{ base64: string; time_sec: number } | null>(null);
+  const [activeFrameIdx, setActiveFrameIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeFrameIdx === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setActiveFrameIdx((prev) => (prev === null || prev <= 0 ? extractedFrames.length - 1 : prev - 1));
+      } else if (e.key === 'ArrowRight') {
+        setActiveFrameIdx((prev) => (prev === null || prev >= extractedFrames.length - 1 ? 0 : prev + 1));
+      } else if (e.key === 'Escape') {
+        setActiveFrameIdx(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeFrameIdx, extractedFrames.length]);
+
+  const activeFrame = activeFrameIdx !== null && extractedFrames[activeFrameIdx] ? extractedFrames[activeFrameIdx] : null;
+
+  const handlePrevFrame = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveFrameIdx((prev) => (prev === null || prev <= 0 ? extractedFrames.length - 1 : prev - 1));
+  };
+
+  const handleNextFrame = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveFrameIdx((prev) => (prev === null || prev >= extractedFrames.length - 1 ? 0 : prev + 1));
+  };
 
   useEffect(() => {
     if (savedFinding) {
@@ -898,7 +925,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                           key={idx}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveFrame(fr);
+                            setActiveFrameIdx(idx);
                           }}
                           className="relative rounded-xl border border-cyan-500/30 overflow-hidden bg-black/90 shadow-md shadow-black/60 select-none group cursor-pointer hover:border-cyan-400/80 hover:shadow-cyan-950/50 transition-all"
                           onContextMenu={(e) => e.preventDefault()}
@@ -920,13 +947,13 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                   </div>
                 )}
 
-                {/* Lightbox Modal Overlay for Enlarged Vision Frame */}
-                {activeFrame && (
+                {/* Lightbox Modal Overlay for Enlarged Vision Frame with Next/Prev Navigation */}
+                {activeFrameIdx !== null && activeFrame && (
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200 select-none"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setActiveFrame(null);
+                      setActiveFrameIdx(null);
                     }}
                     onContextMenu={(e) => e.preventDefault()}
                   >
@@ -939,21 +966,36 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                         <div className="flex items-center gap-2 text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
                           <Film className="h-4 w-4 text-cyan-400" />
                           <span>Extracted Vision Frame &middot; {fmtTime(activeFrame.time_sec)} ({activeFrame.time_sec}s)</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 ml-2">
+                            Frame {activeFrameIdx + 1} of {extractedFrames.length}
+                          </span>
                         </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveFrame(null);
+                            setActiveFrameIdx(null);
                           }}
                           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-studio-900 transition-colors cursor-pointer"
-                          title="Close preview"
+                          title="Close preview (Esc)"
                         >
                           <X className="h-5 w-5" />
                         </button>
                       </div>
 
-                      {/* Large Protected Widescreen Image */}
+                      {/* Large Protected Widescreen Image with Overlay Nav Buttons */}
                       <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden rounded-b-xl">
+                        {/* Previous Button */}
+                        {extractedFrames.length > 1 && (
+                          <button
+                            onClick={handlePrevFrame}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/75 hover:bg-cyan-950 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all shadow-xl hover:scale-110 cursor-pointer z-10"
+                            title="Previous Frame (Left Arrow)"
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </button>
+                        )}
+
+                        {/* Protected Image */}
                         <img
                           src={activeFrame.base64}
                           alt={`Enlarged frame at ${activeFrame.time_sec}s`}
@@ -961,8 +1003,20 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                           onDragStart={(e) => e.preventDefault()}
                           className="w-full h-full object-contain select-none pointer-events-none"
                         />
-                        <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-black/85 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold shadow-lg">
-                          Timecode: {fmtTime(activeFrame.time_sec)} ({activeFrame.time_sec}s)
+
+                        {/* Next Button */}
+                        {extractedFrames.length > 1 && (
+                          <button
+                            onClick={handleNextFrame}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/75 hover:bg-cyan-950 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all shadow-xl hover:scale-110 cursor-pointer z-10"
+                            title="Next Frame (Right Arrow)"
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </button>
+                        )}
+
+                        <div className="absolute bottom-3 left-3 px-3 py-1 rounded-md bg-black/85 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold shadow-lg z-10">
+                          Timecode: {fmtTime(activeFrame.time_sec)} ({activeFrame.time_sec}s) &middot; Frame {activeFrameIdx + 1}/{extractedFrames.length}
                         </div>
                       </div>
                     </div>
