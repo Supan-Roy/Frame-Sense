@@ -6,7 +6,6 @@ import {
   Pause,
   Volume2,
   VolumeX,
-  Sparkles,
   Download,
   ArrowLeft,
   Clock,
@@ -119,7 +118,6 @@ export default function Findings() {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [activeCueId, setActiveCueId] = useState<string | null>(null);
-  const [expandedCueId, setExpandedCueId] = useState<string | null>(null);
 
   // Lightbox Modal state for extracted frames
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -170,7 +168,6 @@ export default function Findings() {
     setSelectedScreening(s);
     setLoadingWorkspace(true);
     setActiveCueId(null);
-    setExpandedCueId(null);
     setCurrentTime(0);
     setDuration(s.media_duration || 0);
     setIsPlaying(false);
@@ -936,7 +933,6 @@ export default function Findings() {
                 ) : (
                   filteredCues.map(c => {
                     const isActive = activeCueId === c.id;
-                    const isExpanded = expandedCueId === c.id;
 
                     return (
                       <div
@@ -1019,60 +1015,8 @@ export default function Findings() {
                                 <span>Vision Frames ({c.extracted_frames.length})</span>
                               </button>
                             )}
-
-                            <button
-                              onClick={() => setExpandedCueId(isExpanded ? null : c.id)}
-                              className="py-1.5 px-3 rounded-md bg-studio-800/60 hover:bg-studio-800 text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors ml-auto flex items-center gap-1"
-                            >
-                              <Sparkles className="h-3 w-3 text-amber-400" />
-                              <span>{isExpanded ? 'Hide Deep Dive' : 'AI Deep Dive'}</span>
-                            </button>
                           </div>
                         </div>
-
-                        {/* Expanded AI Elaboration & Extracted Vision Frames */}
-                        {isExpanded && (
-                          <div className="p-4 bg-studio-950 border-t border-studio-800 space-y-4 animate-in fade-in duration-150">
-                            {/* Vision Frames Preview Row */}
-                            {c.extracted_frames && c.extracted_frames.length > 0 && (
-                              <div className="space-y-2">
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                  Extracted Video Frames Analyzed by Gemini Vision ({c.extracted_frames.length})
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                  {c.extracted_frames.map((frame, idx) => (
-                                    <div
-                                      key={idx}
-                                      onClick={() => openLightbox(c.extracted_frames, idx)}
-                                      className="group relative rounded border border-studio-800 overflow-hidden cursor-pointer hover:border-amber-500 transition-colors bg-black"
-                                    >
-                                      <img
-                                        src={frame.image_base64.startsWith('data:') ? frame.image_base64 : `data:${frame.mime_type || 'image/jpeg'};base64,${frame.image_base64}`}
-                                        alt={`Frame ${frame.frame_index}`}
-                                        className="w-full aspect-video object-cover pointer-events-none"
-                                        onContextMenu={e => e.preventDefault()}
-                                        onDragStart={e => e.preventDefault()}
-                                      />
-                                      <div className="absolute bottom-1 left-1 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-mono text-amber-300">
-                                        {frame.timecode}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Deep Dive Narrative Report */}
-                            <div className="space-y-2">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                                Autonomous Post-Production Narrative Synthesis
-                              </div>
-                              <div className="text-xs text-muted-foreground leading-relaxed bg-studio-900/60 p-3 rounded-lg border border-studio-800 whitespace-pre-wrap font-sans">
-                                {c.elaborated_report || 'Multimodal analysis confirms pacing drop at peak timecode.'}
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })
