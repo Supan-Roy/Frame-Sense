@@ -204,8 +204,6 @@ sense_ai_chat_agent = LlmAgent(
   instruction=SENSE_AI_CHAT_INSTRUCTION,
   tools=[
     clickhouse_mcp_toolset,
-    agent_tool.AgentTool(agent=frame_sense_investigator_google_search_agent),
-    agent_tool.AgentTool(agent=frame_sense_investigator_url_context_agent)
   ],
 )
 
