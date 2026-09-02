@@ -444,8 +444,67 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
 function FormattedMarkdown({ text }: { text: string }) {
   if (!text) return null;
 
-  const lines = text.split('\n');
-  const elements: JSX.Element[] = [];
+  // Clean up any outer quotes or escaped quotes
+  let cleanedText = text
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n');
+
+  // Split into lines
+  const lines = cleanedText.split('\n');
+  
+  type Section = { title: string; content: string[] };
+  const sections: Section[] = [];
+  let currentSection: Section = { title: '', content: [] };
+
+  const isHeaderLine = (line: string) => {
+    const trimmed = line.trim();
+    if (/^(#{1,4}|\*|-|\d+\.)\s+(OBSERVED|QUANTITATIVE|VISUAL|TELEMETRY|PLAUSIBLE|CONFIDENCE|VALIDATION|ACTIONABLE|[A-Z\s]{4,}:)/i.test(trimmed)) {
+      return true;
+    }
+    if (/^#{1,4}\s+/.test(trimmed)) return true;
+    return false;
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (currentSection.content.length > 0) {
+        currentSection.content.push('');
+      }
+      return;
+    }
+
+    if (isHeaderLine(line)) {
+      if (currentSection.title || currentSection.content.length > 0) {
+        sections.push(currentSection);
+      }
+      const rawTitle = trimmed.replace(/^(#{1,4}|\*|-|\d+\.)\s*/, '').replace(/:$/, '');
+      currentSection = { title: rawTitle, content: [] };
+    } else {
+      currentSection.content.push(line);
+    }
+  });
+
+  if (currentSection.title || currentSection.content.length > 0) {
+    sections.push(currentSection);
+  }
+
+  const humanizeCode = (codeText: string) => {
+    // Hide raw internal developer IDs from executive UI
+    if (/^sc_[a-f0-9]+$/i.test(codeText) || /^med_[a-f0-9]+$/i.test(codeText) || /^anm_[a-f0-9]+$/i.test(codeText)) {
+      return null;
+    }
+    // Convert snake_case variable assignments like exit_rate = 1.0 to 100.0% Exit Rate
+    const varMatch = codeText.match(/^([a-z_]+)\s*=\s*([\d.]+)/i);
+    if (varMatch) {
+      const varName = varMatch[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const val = parseFloat(varMatch[2]);
+      const pct = !isNaN(val) && val <= 1.0 ? `${(val * 100).toFixed(1)}%` : varMatch[2];
+      return `${pct} ${varName}`;
+    }
+    return codeText;
+  };
 
   const parseInline = (str: string) => {
     const parts = str.split(/(\*\*.*?\*\*|`.*?`|\$.*?\$)/g);
@@ -454,71 +513,90 @@ function FormattedMarkdown({ text }: { text: string }) {
         return <strong key={i} className="font-bold text-sky-200">{part.slice(2, -2)}</strong>;
       }
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={i} className="bg-sky-950/60 border border-sky-500/30 text-cyan-300 px-1.5 py-0.5 rounded text-[11px] font-mono">{part.slice(1, -1)}</code>;
+        const inner = part.slice(1, -1);
+        const human = humanizeCode(inner);
+        if (human === null) return null;
+        return <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 font-medium text-xs shadow-sm mx-0.5">{human}</span>;
       }
       if (part.startsWith('$') && part.endsWith('$')) {
-        return <span key={i} className="bg-purple-950/40 border border-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-mono font-semibold text-[11px]">{part.slice(1, -1)}</span>;
+        return <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-950/70 border border-purple-500/40 text-purple-300 font-semibold text-xs shadow-sm mx-0.5">{part.slice(1, -1)}</span>;
       }
       return part;
     });
   };
 
-  let inList = false;
-  let listItems: JSX.Element[] = [];
+  const renderContentLines = (contentLines: string[]) => {
+    const elements: JSX.Element[] = [];
+    let inList = false;
+    let listItems: JSX.Element[] = [];
 
-  lines.forEach((line, idx) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (inList) {
-        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
-        inList = false;
-        listItems = [];
+    contentLines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        if (inList) {
+          elements.push(<ul key={`ul-${idx}`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
+          inList = false;
+          listItems = [];
+        }
+        return;
       }
-      return;
+
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || /^\d+\.\s/.test(trimmed)) {
+        inList = true;
+        const itemContent = trimmed.replace(/^([-*]|\d+\.)\s*/, '');
+        listItems.push(
+          <li key={idx} className="text-[13px] leading-relaxed text-slate-200 font-sans">
+            {parseInline(itemContent)}
+          </li>
+        );
+      } else {
+        if (inList) {
+          elements.push(<ul key={`ul-${idx}`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
+          inList = false;
+          listItems = [];
+        }
+        elements.push(
+          <p key={idx} className="text-[13px] leading-relaxed text-slate-200 font-sans my-1.5">
+            {parseInline(trimmed)}
+          </p>
+        );
+      }
+    });
+
+    if (inList) {
+      elements.push(<ul key={`ul-end`} className="space-y-1.5 my-2 pl-4 list-disc text-slate-200">{listItems}</ul>);
     }
 
-    if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
-      if (inList) {
-        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
-        inList = false;
-        listItems = [];
-      }
-      const headerText = trimmed.replace(/^#+\s*/, '');
-      elements.push(
-        <div key={idx} className="mt-3.5 mb-1.5 pt-2 border-t border-white/10 flex items-center gap-2">
-          <div className="w-1.5 h-3.5 bg-sky-400 rounded-full shrink-0" />
-          <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-sky-300">
-            {headerText}
-          </h4>
-        </div>
-      );
-    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || /^\d+\.\s/.test(trimmed)) {
-      inList = true;
-      const itemContent = trimmed.replace(/^([-*]|\d+\.)\s*/, '');
-      listItems.push(
-        <li key={idx} className="text-[11px] leading-relaxed text-zinc-300 font-sans">
-          {parseInline(itemContent)}
-        </li>
-      );
-    } else {
-      if (inList) {
-        elements.push(<ul key={`ul-${idx}`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
-        inList = false;
-        listItems = [];
-      }
-      elements.push(
-        <p key={idx} className="text-[11px] leading-relaxed text-zinc-300 font-sans my-1">
-          {parseInline(trimmed)}
-        </p>
-      );
-    }
-  });
+    return elements;
+  };
 
-  if (inList) {
-    elements.push(<ul key={`ul-end`} className="space-y-1 my-1.5 pl-4 list-disc text-zinc-300">{listItems}</ul>);
+  if (sections.length === 0 || (sections.length === 1 && !sections[0].title)) {
+    return (
+      <div className="p-4.5 rounded-xl bg-studio-950/80 border border-cyan-500/25 shadow-xl my-3 space-y-2 backdrop-blur-md">
+        {renderContentLines(lines)}
+      </div>
+    );
   }
 
-  return <div className="space-y-1">{elements}</div>;
+  return (
+    <div className="space-y-3.5 my-3">
+      {sections.map((sec, idx) => (
+        <div key={idx} className="p-4.5 rounded-xl bg-studio-950/85 border border-cyan-500/20 shadow-lg space-y-3 backdrop-blur-md transition-all hover:border-cyan-500/40">
+          {sec.title && (
+            <div className="flex items-center gap-2.5 border-b border-white/10 pb-2.5">
+              <div className="w-2 h-4 bg-gradient-to-b from-cyan-400 to-sky-500 rounded-full shrink-0 shadow-sm shadow-cyan-500/50" />
+              <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-cyan-300">
+                {sec.title}
+              </h4>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {renderContentLines(sec.content)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding, onUpdate }: { anomaly: Anomaly; isEngagement?: boolean; screeningId?: string; savedFinding?: any; onUpdate?: () => void }) {

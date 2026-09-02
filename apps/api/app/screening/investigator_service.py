@@ -98,15 +98,16 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
     prompt_header = (
         f"Investigate the following audience anomaly detected by Frame Sense with BOTH ClickHouse MCP telemetry evidence AND extracted video vision frames:\n\n"
         f"ANOMALY CONTEXT:\n"
-        f"- Screening ID: {screening_id}\n"
-        f"- Video ID: {media_id}\n"
-        f"- Anomaly ID: {target_anomaly.get('anomaly_id')}\n"
-        f"- Title: {target_anomaly.get('title')}\n"
+        f"- Film Title: {screening.get('title')}\n"
+        f"- Anomaly: {target_anomaly.get('title')}\n"
         f"- Domain: {target_anomaly.get('domain')}\n"
         f"- Severity: {target_anomaly.get('severity')}\n"
         f"- Time Window: {start_sec}s to {end_sec}s (Peak at {peak_sec}s, Duration {duration_sec}s)\n"
-        f"- Observed Signals: {target_anomaly.get('signals')}\n"
         f"- Observational Evidence: {target_anomaly.get('evidence')}\n\n"
+        f"EXECUTIVE FORMATTING INSTRUCTION:\n"
+        f"- DO NOT print raw internal system IDs (such as screening ID sc_..., media ID med_..., or anomaly ID anm_...).\n"
+        f"- DO NOT print raw code variables like exit_rate = 1.0. Instead, write human-readable percentages (e.g. 100% Exit Drop Rate, 100% Pause Rate).\n"
+        f"- Use structured markdown section headers: `### 1. OBSERVED AUDIENCE BEHAVIOR`, `### 2. QUANTITATIVE EVIDENCE`, `### 3. VISUAL EVIDENCE`, `### 4. TELEMETRY ↔ VISUAL CORRELATION`, `### 5. PLAUSIBLE EXPLANATIONS`, `### 6. CONFIDENCE`, `### 7. VALIDATION EVIDENCE`.\n\n"
     )
     
     if extracted_frames:
@@ -124,14 +125,7 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
         f"1. Query ClickHouse via MCP (using run_select_query) for quantitative evidence from default.viewer_events in and around timecode {start_sec}s–{end_sec}s for screening '{screening_id}'.\n"
         f"2. Inspect the attached video frames (if present) to observe what is visually occurring in the scene (characters, lighting, visual motion, camera cuts, text/dialogue density).\n"
         f"3. Correlate the quantitative audience telemetry with the visual content observations without assuming causality.\n"
-        f"4. Format response strictly into 7 sections:\n"
-        f"   1. OBSERVED AUDIENCE BEHAVIOR\n"
-        f"   2. QUANTITATIVE EVIDENCE (from ClickHouse MCP)\n"
-        f"   3. VISUAL EVIDENCE (from attached video frames)\n"
-        f"   4. TELEMETRY ↔ VISUAL CORRELATION\n"
-        f"   5. PLAUSIBLE EXPLANATIONS\n"
-        f"   6. CONFIDENCE (Telemetry Confidence, Visual Confidence, Causal Confidence)\n"
-        f"   7. VALIDATION EVIDENCE"
+        f"4. Format response strictly into 7 sections using Markdown headers `### 1. OBSERVED AUDIENCE BEHAVIOR`, `### 2. QUANTITATIVE EVIDENCE`, `### 3. VISUAL EVIDENCE`, `### 4. TELEMETRY ↔ VISUAL CORRELATION`, `### 5. PLAUSIBLE EXPLANATIONS`, `### 6. CONFIDENCE`, `### 7. VALIDATION EVIDENCE`."
     )
     parts.append(Part.from_text(text=prompt_footer))
 
