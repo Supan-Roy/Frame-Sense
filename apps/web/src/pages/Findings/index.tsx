@@ -646,8 +646,6 @@ export default function Findings() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3 text-studio-400" />
                         <span>{fmtSec(s.media_duration || 0)}</span>
-                        <span>•</span>
-                        <span className="font-mono text-[10px] text-studio-400">ID: {s.screening_id.slice(0, 10)}</span>
                       </div>
                     </div>
                     <span className="shrink-0 text-[10px] px-2 py-0.5 rounded font-mono uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
