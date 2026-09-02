@@ -15,7 +15,9 @@ import {
   Eye,
   ChevronRight,
   Shield,
-  Search
+  Search,
+  RotateCcw,
+  RotateCw
 } from 'lucide-react';
 
 interface Screening {
@@ -361,20 +363,34 @@ export default function Findings() {
   const jumpToTimecode = (sec: number, cueId?: string) => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = Math.max(0, sec);
-    if (!isPlaying) {
-      v.play();
-      setIsPlaying(true);
-    }
-    if (cueId) {
-      setActiveCueId(cueId);
+    try {
+      const maxDur = (v.duration && !isNaN(v.duration) && v.duration > 0) ? v.duration : (selectedScreening?.media_duration || duration || 300);
+      const targetSec = Math.max(0, Math.min(sec, maxDur));
+      v.currentTime = targetSec;
+      setCurrentTime(targetSec);
+      if (v.paused) {
+        v.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+      if (cueId) {
+        setActiveCueId(cueId);
+      }
+    } catch (err) {
+      console.warn('Jump to timecode failed:', err);
     }
   };
 
   const seekRelative = (delta: number) => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = Math.min(Math.max(0, v.currentTime + delta), duration);
+    try {
+      const maxDur = (v.duration && !isNaN(v.duration) && v.duration > 0) ? v.duration : (selectedScreening?.media_duration || duration || 300);
+      const currentSec = !isNaN(v.currentTime) ? v.currentTime : currentTime;
+      const targetSec = Math.min(Math.max(0, currentSec + delta), maxDur);
+      v.currentTime = targetSec;
+      setCurrentTime(targetSec);
+    } catch (err) {
+      console.warn('Seek relative failed:', err);
+    }
   };
 
   const toggleMute = () => {
@@ -485,9 +501,6 @@ export default function Findings() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 Editorial Findings Workspace
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  Hollywood NLE Suite
-                </span>
               </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Autonomous cinematic edit decision lists (EDL), pacing friction analysis, and SMPTE cut recommendations.
@@ -613,9 +626,6 @@ export default function Findings() {
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                   <span>{selectedScreening.title}</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                    SMPTE NLE Suite
-                  </span>
                   {loadingWorkspace && (
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent ml-2" />
                   )}
@@ -733,17 +743,19 @@ export default function Findings() {
                     </button>
                     <button
                       onClick={() => seekRelative(-5)}
-                      className="p-1.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                      title="Seek back 5s"
+                      className="p-1.5 px-2.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-amber-400 border border-studio-700/50 transition-colors flex items-center gap-1"
+                      title="Rewind 5 seconds"
                     >
-                      -5s
+                      <RotateCcw className="h-3.5 w-3.5 text-amber-400" />
+                      <span className="text-[10px] font-mono font-bold">5s</span>
                     </button>
                     <button
                       onClick={() => seekRelative(5)}
-                      className="p-1.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-foreground text-[11px] font-mono"
-                      title="Seek forward 5s"
+                      className="p-1.5 px-2.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-amber-400 border border-studio-700/50 transition-colors flex items-center gap-1"
+                      title="Fast forward 5 seconds"
                     >
-                      +5s
+                      <RotateCw className="h-3.5 w-3.5 text-amber-400" />
+                      <span className="text-[10px] font-mono font-bold">5s</span>
                     </button>
                     <button
                       onClick={toggleMute}
