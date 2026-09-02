@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Plus, Film, Link as LinkIcon, BarChart2, X, ClipboardCheck,
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
@@ -955,12 +955,50 @@ interface ChatSession {
 }
 
 interface ChatMessage {
-  message_id: string;
+message_id: string;
   session_id: string;
   screening_id: string;
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
+}
+
+function TypewriterMarkdown({ text, animate = false, onProgress }: { text: string; animate?: boolean; onProgress?: () => void }) {
+  const [visibleLength, setVisibleLength] = useState(animate ? 0 : text.length);
+  const isTyping = animate && visibleLength < text.length;
+
+  useEffect(() => {
+    if (!animate) {
+      setVisibleLength(text.length);
+      return;
+    }
+
+    setVisibleLength(0);
+    const chunkSize = 3;
+    const interval = setInterval(() => {
+      setVisibleLength((prev) => {
+        const next = Math.min(prev + chunkSize, text.length);
+        if (next >= text.length) {
+          clearInterval(interval);
+        }
+        return next;
+      });
+      if (onProgress) onProgress();
+    }, 12);
+
+    return () => clearInterval(interval);
+  }, [text, animate]);
+
+  const displayedText = text.slice(0, visibleLength);
+
+  return (
+    <div className="relative">
+      <FormattedMarkdown text={displayedText} />
+      {isTyping && (
+        <span className="inline-block w-2 h-4 bg-cyan-400 animate-pulse ml-1 align-middle rounded-sm shadow-sm shadow-cyan-400" />
+      )}
+    </div>
+  );
 }
 
 function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClose: () => void }) {
@@ -972,6 +1010,23 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [animatedMsgId, setAnimatedMsgId] = useState<string | null>(null);
+
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({
+        top: chatScrollRef.current.scrollHeight,
+        behavior,
+      });
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, sending]);
 
   const fetchSessions = async () => {
     try {
@@ -983,7 +1038,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       if (data.length > 0) {
         setActiveSessionId(data[0].session_id);
       } else {
-        // Create initial single chat session
         const createRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1025,7 +1079,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   }, [activeSessionId]);
 
   const handleCreateSession = async () => {
-    // If the active session is currently empty (0 messages), reuse it instead of spawning a duplicate empty session!
     if (messages.length === 0 && activeSessionId) {
       return;
     }
@@ -1095,7 +1148,11 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       });
       if (!res.ok) throw new Error(`Server returned status ${res.status}`);
       const data = await res.json();
-      if (data.messages) {
+      if (data.messages && data.messages.length > 0) {
+        const lastMsg = data.messages[data.messages.length - 1];
+        if (lastMsg.role === 'assistant') {
+          setAnimatedMsgId(lastMsg.message_id);
+        }
         setMessages(data.messages);
       }
       const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
@@ -1110,31 +1167,31 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   const activeSession = sessions.find(s => s.session_id === activeSessionId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4" onClick={e => e.stopPropagation()}>
-      <div className="w-[92vw] max-w-6xl h-[88vh] bg-studio-950 border border-cyan-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        {/* Modal Top Bar Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-studio-900/60 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+      <div className="bg-studio-950 border border-cyan-500/30 rounded-2xl w-full max-w-6xl h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-studio-950/90">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-              <Sparkles className="h-5 w-5 text-cyan-400 animate-pulse" />
+            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+              <Sparkles className="h-5 w-5 text-cyan-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold tracking-wide uppercase text-foreground font-mono">Sense AI</h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-semibold">
-                  ClickHouse MCP &middot; Gemini Vision &middot; Search
+                <h2 className="text-sm font-bold text-foreground font-mono tracking-wide uppercase">Sense AI Assistant</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono font-semibold border border-cyan-500/40">
+                  Gemini 3.5 Flash-lite + MCP
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Interactive Screening Intelligence Assistant for &ldquo;<span className="text-sky-300 font-semibold">{screening.title}</span>&rdquo;
+              <p className="text-xs text-muted-foreground truncate max-w-xl">
+                Conversational Intelligence for <strong className="text-sky-300">{screening.title}</strong>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-white/10 hover:bg-studio-900 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-studio-900 transition-colors cursor-pointer"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -1181,13 +1238,15 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                         <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-muted-foreground'}`} />
                         <span className="truncate">{s.title || 'Untitled Chat'}</span>
                       </div>
-                      <button
-                        onClick={e => handleDeleteSession(e, s.session_id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
-                        title="Delete session"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      {sessions.length > 1 && (
+                        <button
+                          onClick={(e) => handleDeleteSession(e, s.session_id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
+                          title="Delete session"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   );
                 })
@@ -1196,7 +1255,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
           </div>
 
           {/* Right Main Chat Thread */}
-          <div className="flex-1 flex flex-col bg-studio-900/20 min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 bg-studio-900/20">
             {/* Thread Banner */}
             <div className="px-5 py-2.5 border-b border-white/5 bg-studio-950/40 flex items-center justify-between text-xs text-muted-foreground font-mono">
               <span className="truncate">Session: <strong className="text-cyan-300">{activeSession?.title || 'Active Chat'}</strong></span>
@@ -1204,7 +1263,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
             </div>
 
             {/* Message Thread Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-5 space-y-4">
               {loadingMessages ? (
                 <div className="flex items-center justify-center py-12 text-xs text-muted-foreground gap-2 font-mono">
                   <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
@@ -1220,21 +1279,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       Ask about second-by-second viewer telemetry from ClickHouse Cloud, exit drop-off causes, pacing, visual scene analysis, or film post-production suggestions.
                     </p>
-                  </div>
-                  <div className="flex items-center gap-2 pt-2 flex-wrap justify-center max-w-lg">
-                    {[
-                      'What percentage of viewers paused or dropped off?',
-                      'Explain the behavioral anomaly around timecode 26s.',
-                      'What edits would improve retention in the first minute?',
-                    ].map((q, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setInputPrompt(q)}
-                        className="text-[11px] px-3 py-1.5 rounded-lg bg-studio-900 border border-white/10 hover:border-cyan-500/40 text-cyan-300/90 hover:text-cyan-200 transition-all cursor-pointer"
-                      >
-                        &ldquo;{q}&rdquo;
-                      </button>
-                    ))}
                   </div>
                 </div>
               ) : (
@@ -1273,7 +1317,11 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                             <p className="text-[11px] leading-relaxed opacity-90">{m.content}</p>
                           </div>
                         ) : (
-                          <FormattedMarkdown text={m.content} />
+                          <TypewriterMarkdown
+                            text={m.content}
+                            animate={m.message_id === animatedMsgId}
+                            onProgress={() => scrollToBottom('auto')}
+                          />
                         )}
                       </div>
                     </div>
@@ -1295,6 +1343,8 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                   {error}
                 </div>
               )}
+
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Bar */}
