@@ -17,7 +17,8 @@ import {
   Shield,
   Search,
   RotateCcw,
-  RotateCw
+  RotateCw,
+  FileText
 } from 'lucide-react';
 
 interface Screening {
@@ -454,6 +455,79 @@ export default function Findings() {
     URL.revokeObjectURL(url);
   };
 
+  // Generate downloadable Final Cut Pro / Premiere Pro XML Cut List (.xml)
+  const exportXML = () => {
+    if (!selectedScreening) return;
+    const marked = editCues.filter(c => c.markedForEdl);
+    if (marked.length === 0) {
+      alert('Please select at least one edit cue to export to XML.');
+      return;
+    }
+
+    const totalFrames = Math.floor((selectedScreening.media_duration || 32) * 24);
+    const escapeXml = (str: string) =>
+      str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+    let markersXml = '';
+    marked.forEach(c => {
+      const inFrame = Math.floor(c.time_start_sec * 24);
+      const outFrame = Math.floor(c.time_end_sec * 24);
+      markersXml += `
+            <marker>
+              <name>${escapeXml(c.editing_action)}</name>
+              <comment>${escapeXml(`${c.editorial_tip} | Recovery: ${c.retention_recovery_pct}`)}</comment>
+              <in>${inFrame}</in>
+              <out>${outFrame}</out>
+            </marker>`;
+    });
+
+    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="5">
+  <sequence>
+    <name>${escapeXml(selectedScreening.title)} - Frame Sense Editorial Findings</name>
+    <duration>${totalFrames}</duration>
+    <rate>
+      <timebase>24</timebase>
+      <ntsc>FALSE</ntsc>
+    </rate>
+    <media>
+      <video>
+        <track>
+          <clipitem id="clipitem-1">
+            <name>${escapeXml(selectedScreening.title)}</name>
+            <duration>${totalFrames}</duration>
+            <rate>
+              <timebase>24</timebase>
+              <ntsc>FALSE</ntsc>
+            </rate>
+            <in>0</in>
+            <out>${totalFrames}</out>
+            <start>0</start>
+            <end>${totalFrames}</end>${markersXml}
+          </clipitem>
+        </track>
+      </video>
+    </media>
+  </sequence>
+</xmeml>`;
+
+    const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedScreening.title.replace(/[^a-zA-Z0-9]/g, '_')}_Editorial_Findings.xml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const filteredCues = editCues.filter(c => {
     if (activeTab !== 'ALL' && c.category !== activeTab) return false;
     if (searchCueQuery.trim()) {
@@ -656,13 +730,22 @@ export default function Findings() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
-                onClick={exportEDL}
-                className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                onClick={exportXML}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                title="Export FCPXML Timeline for Premiere Pro, DaVinci Resolve & Final Cut Pro"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Export EDL / XML Cut List</span>
+                <span>Export XML (Premiere / Resolve)</span>
+              </button>
+              <button
+                onClick={exportEDL}
+                className="px-3 py-1.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-foreground text-xs font-semibold border border-studio-700 transition-colors flex items-center gap-1.5"
+                title="Export CMX3600 Edit Decision List text file"
+              >
+                <FileText className="h-3.5 w-3.5 text-amber-400" />
+                <span>EDL (.edl)</span>
               </button>
             </div>
           </div>
