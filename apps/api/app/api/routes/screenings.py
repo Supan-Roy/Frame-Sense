@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi.responses import FileResponse
 from app.schemas.screening import (
     ScreeningCreate,
     ScreeningResponse,
@@ -177,6 +178,27 @@ def audience_signals(
         return get_behavioral_signals(screening_id, bucket_sec)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analytics error: {e}")
+
+
+@router.get("/{screening_id}/video")
+def stream_screening_video(screening_id: str):
+    """Streams the video file for a screening directly by screening_id."""
+    record = screening_repo.get_by_id(screening_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        file_path = storage_backend.get_file_path(record["media_filename"])
+        return FileResponse(
+            file_path,
+            media_type="video/mp4",
+            headers={
+                "Accept-Ranges": "bytes",
+            }
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{screening_id}/audience/anomalies")
