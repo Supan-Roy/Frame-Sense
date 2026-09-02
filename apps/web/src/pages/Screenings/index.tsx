@@ -1605,6 +1605,30 @@ interface ToastNotification {
 
   const [savedInvestigations, setSavedInvestigations] = useState<Record<string, any>>({});
 
+  const getSavedFinding = (anomaly: Anomaly) => {
+    if (!savedInvestigations) return undefined;
+    if (savedInvestigations[anomaly.anomaly_id]) {
+      return savedInvestigations[anomaly.anomaly_id];
+    }
+    const keys = Object.keys(savedInvestigations);
+    const peak = anomaly.peak_time_sec ?? anomaly.start_time_sec;
+    for (const k of keys) {
+      const inv = savedInvestigations[k];
+      if (inv && (inv.investigation_report || (inv.extracted_frames && inv.extracted_frames.length > 0))) {
+        const rep = inv.investigation_report || '';
+        if (
+          rep.includes(`${anomaly.start_time_sec}-second`) ||
+          rep.includes(`${peak}-second`) ||
+          rep.includes(`0:${peak < 10 ? '0' : ''}${peak}`) ||
+          (anomaly.title && rep.includes(anomaly.title))
+        ) {
+          return inv;
+        }
+      }
+    }
+    return undefined;
+  };
+
   const loadAIData = async (sid: string) => {
     const [ovR, retR, sigR, anmR, invR] = await Promise.all([
       fetch(`/api/v1/screenings/${sid}/audience/overview`),
@@ -1809,7 +1833,14 @@ interface ToastNotification {
           <div className="space-y-2">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Top Findings</div>
             {[...aiAnomalies.anomalies.slice(0, 2), ...aiAnomalies.exceptional_engagement.slice(0, 1)].map(a => (
-              <AnomalyCard key={a.anomaly_id} anomaly={a} isEngagement={a.type === 'EXCEPTIONAL_ENGAGEMENT'} screeningId={aiScreening?.screening_id} />
+              <AnomalyCard
+                key={a.anomaly_id}
+                anomaly={a}
+                isEngagement={a.type === 'EXCEPTIONAL_ENGAGEMENT'}
+                screeningId={aiScreening?.screening_id}
+                savedFinding={getSavedFinding(a)}
+                onUpdate={() => { if (aiScreening) loadAIData(aiScreening.screening_id); }}
+              />
             ))}
           </div>
         )}
@@ -1863,7 +1894,7 @@ interface ToastNotification {
                     anomaly={a}
                     isEngagement
                     screeningId={aiScreening?.screening_id}
-                    savedFinding={savedInvestigations[a.anomaly_id]}
+                    savedFinding={getSavedFinding(a)}
                     onUpdate={() => { if (aiScreening) loadAIData(aiScreening.screening_id); }}
                   />
                 ))}
@@ -1877,7 +1908,7 @@ interface ToastNotification {
                     key={a.anomaly_id}
                     anomaly={a}
                     screeningId={aiScreening?.screening_id}
-                    savedFinding={savedInvestigations[a.anomaly_id]}
+                    savedFinding={getSavedFinding(a)}
                     onUpdate={() => { if (aiScreening) loadAIData(aiScreening.screening_id); }}
                   />
                 ))}
