@@ -239,7 +239,8 @@ def delete_screening_anomaly_investigation(screening_id: str, anomaly_id: str):
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
     try:
-        deleted = screening_repo.delete_investigation(screening_id, anomaly_id)
+        from app.screening.investigator_service import delete_anomaly_investigation
+        deleted = delete_anomaly_investigation(screening_id, anomaly_id)
         return {"status": "success", "deleted": deleted, "anomaly_id": anomaly_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete investigation: {e}")

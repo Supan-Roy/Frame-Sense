@@ -304,3 +304,38 @@ async def run_elaborated_investigation(screening_id: str, anomaly_id: str) -> Di
         "elaborated_report": elaborated_text,
         "updated_at": saved_record.get("updated_at")
     }
+
+
+def delete_anomaly_investigation(screening_id: str, anomaly_id: str) -> bool:
+    """
+    Deletes saved AI investigation report and all related legacy/timecode matching records from SQLite.
+    """
+    # 1. Direct deletion by anomaly_id
+    deleted = screening_repo.delete_investigation(screening_id, anomaly_id)
+
+    # 2. Find matching timecode anomalies in get_anomalies to purge legacy records for this window
+    try:
+        anomalies_data = get_anomalies(screening_id)
+        all_anomalies = anomalies_data.get("anomalies", []) + anomalies_data.get("exceptional_engagement", [])
+        target = next((a for a in all_anomalies if a.get("anomaly_id") == anomaly_id), None)
+        
+        all_inv = screening_repo.get_all_investigations(screening_id)
+        for inv_id, inv_data in list(all_inv.items()):
+            rep = inv_data.get("investigation_report") or ""
+            if target:
+                start_s = target.get("start_time_sec")
+                peak_s = target.get("peak_time_sec")
+                title = target.get("title")
+                if (
+                    (start_s is not None and f"{start_s}-second" in rep) or
+                    (peak_s is not None and f"{peak_s}-second" in rep) or
+                    (peak_s is not None and f"0:{peak_s:02d}" in rep) or
+                    (title and title in rep)
+                ):
+                    screening_repo.delete_investigation(screening_id, inv_id)
+            elif inv_id == anomaly_id:
+                screening_repo.delete_investigation(screening_id, inv_id)
+    except Exception as e:
+        logger.warning(f"Error during deep investigation purge: {e}")
+
+    return True
