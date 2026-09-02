@@ -33,18 +33,29 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
         content=user_prompt
     )
 
-    # 2. Get past messages for conversation context
+    # 2. Get live telemetry overview summary for instant context
+    from app.screening.analytics import get_audience_overview
+    overview = {}
+    try:
+        overview = get_audience_overview(screening_id)
+    except Exception:
+        pass
+
+    # 3. Get past messages for conversation context
     past_messages = screening_repo.get_chat_messages(session_id)
     
     # Construct context system prompt
     context_header = (
         f"You are Sense AI, the primary interactive screening intelligence assistant for Frame Sense.\n"
         f"You are conversing with a studio executive/director regarding screening '{screening['title']}'.\n\n"
-        f"SCREENING METADATA:\n"
+        f"SCREENING METADATA & LIVE TELEMETRY SUMMARY:\n"
         f"- Title: {screening['title']}\n"
         f"- Screening Database ID (Use in SQL queries): {screening_id}\n"
         f"- Video Duration: {screening.get('media_duration')} seconds\n"
-        f"- Description: {screening.get('description') or 'N/A'}\n\n"
+        f"- Total Unique Viewers: {overview.get('unique_viewers', 0)} ({overview.get('real_viewers', 0)} real, {overview.get('synthetic_viewers', 0)} synthetic)\n"
+        f"- Total Telemetry Events: {overview.get('total_events', 0)}\n"
+        f"- Total Viewer Sessions: {overview.get('unique_sessions', 0)}\n"
+        f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n\n"
         f"DATA QUERYING RULE:\n"
         f"- Use ClickHouse Cloud MCP (`run_select_query`) to query default.viewer_events.\n"
         f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` to fetch exact telemetry for this screening.\n\n"
