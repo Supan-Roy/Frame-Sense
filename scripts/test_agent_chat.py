@@ -10,7 +10,7 @@ if API_DIR not in sys.path:
 
 load_dotenv(os.path.join(API_DIR, ".env"))
 
-from agent.frame_sense_investigator import root_agent
+from agents.frame_sense_investigator import root_agent
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 

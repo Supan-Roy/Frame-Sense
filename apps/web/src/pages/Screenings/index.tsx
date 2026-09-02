@@ -507,10 +507,11 @@ function FormattedMarkdown({ text }: { text: string }) {
   };
 
   const parseInline = (str: string) => {
-    const parts = str.split(/(\*\*.*?\*\*|`.*?`|\$.*?\$)/g);
+    const parts = str.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|\$.*?\$)/g);
     return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="font-bold text-sky-200">{part.slice(2, -2)}</strong>;
+      if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('*') && part.endsWith('*') && part.length > 2)) {
+        const rawContent = part.replace(/^\*+|\*+$/g, '');
+        return <strong key={i} className="font-bold text-sky-200">{rawContent}</strong>;
       }
       if (part.startsWith('`') && part.endsWith('`')) {
         const inner = part.slice(1, -1);
