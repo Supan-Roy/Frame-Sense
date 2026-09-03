@@ -25,13 +25,8 @@ def test_screening_id():
     )
     yield sid
     # Cleanup
-    client = get_client()
-    sid_clean = sid.replace("'", "")
-    try:
-        client.command(f"ALTER TABLE viewer_events DELETE WHERE screening_id = '{sid_clean}' SETTINGS mutations_sync = 2")
-    except Exception:
-        pass
-    screening_repo.delete(sid)
+    from app.database.clickhouse import delete_screening_events
+    delete_screening_events(sid)
 
 
 def _emit(sid: str, vid: str, event_type: str, timecode: float, sess_id: str = None):
