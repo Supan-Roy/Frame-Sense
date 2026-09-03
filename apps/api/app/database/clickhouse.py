@@ -121,7 +121,7 @@ def get_global_stats() -> Dict[str, Any]:
 def delete_screening_events(screening_id: str):
     client = get_client()
     try:
-        client.command(f"DELETE FROM viewer_events WHERE screening_id = '{screening_id}'")
+        client.command("DELETE FROM viewer_events WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
     except Exception as e:
         print(f"Error executing ClickHouse delete events for {screening_id}: {e}")
 
@@ -133,60 +133,64 @@ def rollback_last_batch(screening_id: str) -> Dict[str, Any]:
     Executes bulk deletion directly by timestamp to prevent SQL query size limits.
     """
     client = get_client()
-    sid = screening_id.replace("'", "")
+    params = {"sid": screening_id}
 
     # 1. Check if synthetic viewers exist for this screening
     synth_ts_res = client.query(
-        f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id LIKE 'synth_v_%'"
+        "SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id LIKE 'synth_v_%'",
+        parameters=params
     )
     has_synth = synth_ts_res.result_rows and synth_ts_res.result_rows[0][0] is not None
 
     if has_synth:
         max_ts = synth_ts_res.result_rows[0][0]
-        c_res = client.query(f"""
+        params_ts = {"sid": screening_id, "max_ts": max_ts}
+        c_res = client.query("""
         SELECT count(DISTINCT session_id), count(DISTINCT anonymous_viewer_id)
         FROM viewer_events
-        WHERE screening_id = '{sid}'
+        WHERE screening_id = {sid:String}
           AND anonymous_viewer_id LIKE 'synth_v_%'
-          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """)
+          AND server_timestamp = {max_ts:DateTime64(3, 'UTC')}
+        """, parameters=params_ts)
         num_sessions = c_res.result_rows[0][0] if c_res.result_rows else 0
         num_viewers = c_res.result_rows[0][1] if c_res.result_rows else 0
 
         if num_sessions == 0:
             return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
-        client.command(f"""
+        client.command("""
         DELETE FROM viewer_events
-        WHERE screening_id = '{sid}'
+        WHERE screening_id = {sid:String}
           AND anonymous_viewer_id LIKE 'synth_v_%'
-          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """)
+          AND server_timestamp = {max_ts:DateTime64(3, 'UTC')}
+        """, parameters=params_ts)
     else:
         real_ts_res = client.query(
-            f"SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = '{sid}'"
+            "SELECT max(server_timestamp) FROM viewer_events WHERE screening_id = {sid:String}",
+            parameters=params
         )
         if not real_ts_res.result_rows or not real_ts_res.result_rows[0][0]:
             return {"status": "empty", "message": "No telemetry data to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
         max_ts = real_ts_res.result_rows[0][0]
-        c_res = client.query(f"""
+        params_ts = {"sid": screening_id, "max_ts": max_ts}
+        c_res = client.query("""
         SELECT count(DISTINCT session_id), count(DISTINCT anonymous_viewer_id)
         FROM viewer_events
-        WHERE screening_id = '{sid}'
-          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """)
+        WHERE screening_id = {sid:String}
+          AND server_timestamp = {max_ts:DateTime64(3, 'UTC')}
+        """, parameters=params_ts)
         num_sessions = c_res.result_rows[0][0] if c_res.result_rows else 0
         num_viewers = c_res.result_rows[0][1] if c_res.result_rows else 0
 
         if num_sessions == 0:
             return {"status": "empty", "message": "No session batch found to roll back.", "deleted_sessions": 0, "deleted_viewers": 0}
 
-        client.command(f"""
+        client.command("""
         DELETE FROM viewer_events
-        WHERE screening_id = '{sid}'
-          AND server_timestamp = toDateTime64('{max_ts}', 3, 'UTC')
-        """)
+        WHERE screening_id = {sid:String}
+          AND server_timestamp = {max_ts:DateTime64(3, 'UTC')}
+        """, parameters=params_ts)
 
     return {
         "status": "success",

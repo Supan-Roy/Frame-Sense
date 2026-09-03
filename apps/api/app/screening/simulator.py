@@ -297,17 +297,16 @@ def _generate_cold_start_events(
 def fetch_real_viewer_sessions(screening_id: str) -> List[List[Dict[str, Any]]]:
     """Fetches real viewer event sequences from ClickHouse grouped by anonymous_viewer_id."""
     client = get_client()
-    sid = screening_id.replace("'", "")
-    query = f"""
+    query = """
     SELECT
         anonymous_viewer_id,
         event_type,
         video_timecode_sec
     FROM viewer_events
-    WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
+    WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'
     ORDER BY anonymous_viewer_id, client_timestamp ASC
     """
-    rows = client.query(query).result_rows
+    rows = client.query(query, parameters={"sid": screening_id}).result_rows
     if not rows:
         return []
 
@@ -357,7 +356,8 @@ def run_simulation(
 
     # Handle EXACT_REPLAY mode: replicate exact real viewer event streams with zero jitter
     if effective_mode in ("EXACT_REPLAY", "EXACT_CLONE"):
-        params = {"sid": screening_id}
+        client = get_client()
+        params = {"sid": screening_id, "vid": video_id}
 
         real_count = int(client.command("SELECT count() FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'", parameters=params))
         if real_count == 0:
@@ -369,17 +369,18 @@ def run_simulation(
         chunk_size = 50_000
         for offset in range(0, num_viewers, chunk_size):
             cur_chunk = min(chunk_size, num_viewers - offset)
-            insert_sql = f"""
+            chunk_params = {"sid": screening_id, "vid": video_id, "offset": offset, "cur_chunk": cur_chunk}
+            insert_sql = """
             INSERT INTO viewer_events (
                 event_id, screening_id, session_id, anonymous_viewer_id,
                 video_id, event_type, video_timecode_sec, client_timestamp, server_timestamp
             )
             SELECT
                 generateUUIDv4() AS event_id,
-                '{sid}' AS screening_id,
-                concat('synth_s_', substring(hex(MD5(concat(toString({offset} + v.idx), '_s'))), 1, 16)) AS session_id,
-                concat('synth_v_', substring(hex(MD5(concat(toString({offset} + v.idx), '_v'))), 1, 16)) AS anonymous_viewer_id,
-                '{vid}' AS video_id,
+                {sid:String} AS screening_id,
+                concat('synth_s_', substring(hex(MD5(concat(toString({offset:UInt64} + v.idx), '_s'))), 1, 16)) AS session_id,
+                concat('synth_v_', substring(hex(MD5(concat(toString({offset:UInt64} + v.idx), '_v'))), 1, 16)) AS anonymous_viewer_id,
+                {vid:String} AS video_id,
                 r.event_type AS event_type,
                 r.video_timecode_sec AS video_timecode_sec,
                 now64(3, 'UTC') AS client_timestamp,
@@ -387,13 +388,13 @@ def run_simulation(
             FROM (
                 SELECT event_type, video_timecode_sec
                 FROM viewer_events
-                WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'
+                WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'
             ) AS r
             CROSS JOIN (
-                SELECT number AS idx FROM numbers({cur_chunk})
+                SELECT number AS idx FROM numbers({cur_chunk:UInt64})
             ) AS v
             """
-            client.command(insert_sql)
+            client.command(insert_sql, parameters=chunk_params)
 
         total_events = real_count * num_viewers
 

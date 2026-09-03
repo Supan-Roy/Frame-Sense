@@ -260,15 +260,24 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
       - unique_continued: viewers who continued watching past end_t + 3s or completed the video
     """
     client = get_client()
-    params = {"sid": screening_id}
-
     st_start = max(0.0, float(start_t) - 2.0)
     st_end = float(end_t) + 2.0
     st_after = float(end_t) + 3.0
     st_exp_start = max(0.0, float(start_t) - 5.0)
     st_exp_end = float(end_t) + 5.0
+    st_end_plus_5 = float(end_t) + 5.0
 
-    query = f"""
+    params = {
+        "sid": screening_id,
+        "st_start": st_start,
+        "st_end": st_end,
+        "st_after": st_after,
+        "st_exp_start": st_exp_start,
+        "st_exp_end": st_exp_end,
+        "st_end_plus_5": st_end_plus_5,
+    }
+
+    query = """
     WITH window_events AS (
         SELECT
             anonymous_viewer_id,
@@ -276,7 +285,7 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
             event_type,
             video_timecode_sec
         FROM viewer_events
-        WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
+        WHERE screening_id = {sid:String} AND video_timecode_sec >= 0
     ),
     session_summaries AS (
         SELECT
@@ -285,17 +294,17 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
             max(video_timecode_sec) AS max_tc,
             count() AS total_session_events,
             max(event_type = 'COMPLETE') AS completed,
-            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type IN ('REPLAY', 'SEEK_BACKWARD')) AS replayed_in_window,
-            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type = 'PAUSE') AS paused_in_window,
-            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type = 'EXIT') AS exited_in_window,
-            max(video_timecode_sec >= {st_exp_start} AND video_timecode_sec <= {st_exp_end}) AS exposed_to_window,
-            max(video_timecode_sec > {st_after} OR event_type = 'COMPLETE') AS continued_past_window
+            max(video_timecode_sec >= {st_start:Float64} AND video_timecode_sec <= {st_end:Float64} AND event_type IN ('REPLAY', 'SEEK_BACKWARD')) AS replayed_in_window,
+            max(video_timecode_sec >= {st_start:Float64} AND video_timecode_sec <= {st_end:Float64} AND event_type = 'PAUSE') AS paused_in_window,
+            max(video_timecode_sec >= {st_start:Float64} AND video_timecode_sec <= {st_end:Float64} AND event_type = 'EXIT') AS exited_in_window,
+            max(video_timecode_sec >= {st_exp_start:Float64} AND video_timecode_sec <= {st_exp_end:Float64}) AS exposed_to_window,
+            max(video_timecode_sec > {st_after:Float64} OR event_type = 'COMPLETE') AS continued_past_window
         FROM window_events
         GROUP BY anonymous_viewer_id, session_id
     )
     SELECT
         count(DISTINCT IF(exposed_to_window = 1, anonymous_viewer_id, NULL)) AS unique_exposed,
-        count(DISTINCT IF(exposed_to_window = 1 AND (exited_in_window = 1 OR max_tc <= {st_end} + 5.0) AND continued_past_window = 0 AND completed = 0, anonymous_viewer_id, NULL)) AS unique_permanent_exits,
+        count(DISTINCT IF(exposed_to_window = 1 AND (exited_in_window = 1 OR max_tc <= {st_end_plus_5:Float64}) AND continued_past_window = 0 AND completed = 0, anonymous_viewer_id, NULL)) AS unique_permanent_exits,
         count(DISTINCT IF(exposed_to_window = 1 AND (replayed_in_window = 1 OR paused_in_window = 1) AND continued_past_window = 1, anonymous_viewer_id, NULL)) AS unique_replayed_and_continued,
         count(DISTINCT IF(exposed_to_window = 1 AND replayed_in_window = 1, anonymous_viewer_id, NULL)) AS unique_replayed,
         count(DISTINCT IF(exposed_to_window = 1 AND paused_in_window = 1, anonymous_viewer_id, NULL)) AS unique_paused,
