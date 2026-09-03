@@ -6,24 +6,7 @@ import {
   CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
   Sparkles, Loader2, Play, Lightbulb, Send, Square
 } from 'lucide-react';
-
-interface Screening {
-  screening_id: string;
-  media_id: string;
-  title: string;
-  description: string | null;
-  media_filename: string;
-  media_duration: number;
-  created_at: string;
-  status: string;
-  public_token: string;
-  share_url: string;
-}
-
-interface Reliability {
-  status: 'INSUFFICIENT_DATA' | 'PRELIMINARY_SIGNAL' | 'STRONG_SIGNAL';
-  label: string;
-}
+import type { Screening, Anomaly, Reliability, RetentionData, SignalBucket, CommentInfo, AnomalyData } from '@frame-sense/types';
 
 interface Overview {
   screening_id: string;
@@ -32,75 +15,9 @@ interface Overview {
   synthetic_viewers?: number;
   unique_sessions: number;
   total_events: number;
-  completed_sessions: number;
+  completed_sessions?: number;
   completion_rate: number | null;
   reliability: Reliability;
-}
-
-interface RetentionPoint {
-  time_sec: number;
-  viewers: number;
-  retention_rate: number;
-}
-
-interface RetentionData {
-  curve: RetentionPoint[];
-  total_starters: number;
-  bucket_sec: number;
-}
-
-interface SignalBucket {
-  time_sec: number;
-  sessions_active: number;
-  pauses: number;
-  rewinds: number;
-  skips: number;
-  replays: number;
-  exits: number;
-  completions: number;
-  pause_rate: number;
-  rewind_rate: number;
-  skip_rate: number;
-  replay_rate: number;
-  exit_rate: number;
-}
-
-interface AnomalySignals {
-  [key: string]: number;
-}
-
-interface Anomaly {
-  anomaly_id: string;
-  screening_id: string;
-  start_time_sec: number;
-  end_time_sec: number;
-  peak_time_sec?: number;
-  window_duration_sec?: number;
-  title?: string;
-  domain?: 'COGNITIVE' | 'PSYCHOLOGICAL' | 'PACING' | 'PERCEPTUAL' | 'EMOTIONAL' | 'RETENTION';
-  type: 'BEHAVIORAL_ANOMALY' | 'EXCEPTIONAL_ENGAGEMENT';
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
-  signals: AnomalySignals;
-  evidence: string[];
-}
-
-interface AnomalyData {
-  unique_viewers: number;
-  reliability: Reliability;
-  anomalies: Anomaly[];
-  exceptional_engagement: Anomaly[];
-  baseline_methodology: string;
-}
-
-interface CommentInfo {
-  comment_id: string;
-  screening_id: string;
-  viewer_id: string;
-  display_name: string;
-  video_timecode_sec: number;
-  content: string;
-  created_at: string;
-  updated_at: string;
 }
 
 type AITab = 'overview' | 'retention' | 'signals' | 'anomalies';
@@ -433,9 +350,14 @@ function SeverityBadge({ severity }: { severity: 'HIGH' | 'MEDIUM' | 'LOW' }) {
 }
 
 function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
-  const s = { INSUFFICIENT_DATA: 'bg-rose-500/10 text-rose-400 border-rose-500/20', PRELIMINARY_SIGNAL: 'bg-amber-500/10 text-amber-400 border-amber-500/20', STRONG_SIGNAL: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+  const s: Record<string, string> = {
+    INSUFFICIENT_DATA: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    PRELIMINARY_SIGNAL: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    SUFFICIENT_SIGNAL: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    STRONG_SIGNAL: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+  };
   return (
-    <div className={`flex items-center gap-1.5 text-[10px] border px-2.5 py-1 rounded-full w-fit ${s[reliability.status]}`}>
+    <div className={`flex items-center gap-1.5 text-[10px] border px-2.5 py-1 rounded-full w-fit ${s[reliability.status] || s.PRELIMINARY_SIGNAL}`}>
       <CircleDot className="h-3 w-3" /><span>{reliability.label}</span>
     </div>
   );
@@ -772,7 +694,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
   const ic = isEngagement ? 'text-emerald-400' : 'text-rose-400';
 
   const peakSec = anomaly.peak_time_sec !== undefined ? anomaly.peak_time_sec : anomaly.start_time_sec;
-  const windowDur = anomaly.window_duration_sec !== undefined ? anomaly.window_duration_sec : (anomaly.end_time_sec - anomaly.start_time_sec);
+  const windowDur = anomaly.window_duration_sec !== undefined ? anomaly.window_duration_sec : ((anomaly.end_time_sec ?? anomaly.start_time_sec + 2) - anomaly.start_time_sec);
   const cardTitle = anomaly.title || (isEngagement ? 'Emotional Scene Replay Hotspot' : 'Behavioral Anomaly');
 
   const domain = anomaly.domain || (isEngagement ? 'EMOTIONAL' : 'COGNITIVE');
@@ -790,11 +712,11 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
         <Icon className={`h-4 w-4 shrink-0 ${ic}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-foreground">{fmtTime(anomaly.start_time_sec)} &ndash; {fmtTime(anomaly.end_time_sec)}</span>
+            <span className="text-xs font-bold text-foreground">{fmtTime(anomaly.start_time_sec)} &ndash; {fmtTime(anomaly.end_time_sec ?? anomaly.start_time_sec + 2)}</span>
             <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-studio-950/90 border border-cyan-500/30 text-cyan-300">
               {windowDur}s window &middot; Peak at {fmtTime(peakSec)}
             </span>
-            <SeverityBadge severity={anomaly.severity} />
+            <SeverityBadge severity={(anomaly.severity as 'HIGH' | 'MEDIUM' | 'LOW') || 'HIGH'} />
             <span className={`text-[9px] font-mono font-semibold px-2 py-0.5 rounded border uppercase tracking-wider ${domainCls}`}>
               {domain}
             </span>
@@ -815,8 +737,8 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(anomaly.signals).filter(([k]) => !k.startsWith('baseline_') && !k.endsWith('_ratio')).map(([key, val]) => {
-              const ratio = anomaly.signals[`${key}_ratio`], base = anomaly.signals[`baseline_${key}`];
+            {anomaly.signals && Object.entries(anomaly.signals).filter(([k]) => !k.startsWith('baseline_') && !k.endsWith('_ratio')).map(([key, val]) => {
+              const ratio = anomaly.signals?.[`${key}_ratio`], base = anomaly.signals?.[`baseline_${key}`];
               return (
                 <div key={key} className="bg-studio-900 border rounded p-2 space-y-0.5">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</div>
@@ -2047,12 +1969,12 @@ interface ToastNotification {
                     {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
                   </td>
                   <td className="p-4 text-muted-foreground">
-                    <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{Math.floor(s.media_duration/60)}m {Math.round(s.media_duration%60)}s</span></div>
+                    <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span></div>
                   </td>
-                  <td className="p-4 text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</td>
+                  <td className="p-4 text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</td>
                   <td className="p-4 text-right space-x-2">
-                    <button onClick={() => handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
-                      {copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
+                    <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
+                      {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
                     </button>
                     <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
                       <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>

@@ -24,13 +24,18 @@ export interface ViewerEvent {
 }
 
 export interface Screening {
-  id: string;
+  screening_id: string;
+  id?: string;
+  media_id?: string;
   title: string;
-  description?: string;
-  media_url?: string;
+  description?: string | null;
+  media_filename?: string;
   media_duration?: number;
   created_at?: string;
   updated_at?: string;
+  status?: string;
+  public_token?: string;
+  share_url?: string;
 }
 
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -42,6 +47,11 @@ export type AnomalyDomain =
   | 'PACING'
   | 'PERCEPTUAL'
   | 'PSYCHOLOGICAL';
+
+export interface Reliability {
+  status: 'INSUFFICIENT_DATA' | 'PRELIMINARY_SIGNAL' | 'SUFFICIENT_SIGNAL' | 'STRONG_SIGNAL';
+  label: string;
+}
 
 export interface TrajectorySignals {
   unique_exposed: number;
@@ -64,11 +74,28 @@ export interface Anomaly {
   window_duration_sec?: number;
   title: string;
   domain: AnomalyDomain;
+  type?: 'BEHAVIORAL_ANOMALY' | 'EXCEPTIONAL_ENGAGEMENT';
   severity: Severity;
   confidence_score?: number;
   evidence: string[];
   signals?: Record<string, number>;
   trajectory_signals?: TrajectorySignals;
+}
+
+export interface AnomalyData {
+  unique_viewers: number;
+  reliability: Reliability;
+  anomalies: Anomaly[];
+  exceptional_engagement: Anomaly[];
+  baseline_methodology?: string;
+}
+
+export interface ExtractedFrame {
+  frame_index?: number;
+  timestamp_sec?: number;
+  timecode?: string;
+  image_base64: string;
+  mime_type?: string;
 }
 
 export interface EditCue {
@@ -87,28 +114,70 @@ export interface EditCue {
   retention_recovery_pct: string;
   severity: Severity;
   evidence: string[];
-  extracted_frames?: string[];
+  extracted_frames?: ExtractedFrame[];
   elaborated_report?: string;
   markedForEdl: boolean;
 }
 
 export interface SavedInvestigation {
-  investigation_id: string;
+  investigation_id?: string;
   anomaly_id: string;
   screening_id: string;
   investigation_report: string;
+  mcp_queries_executed?: any[];
+  extracted_frames?: ExtractedFrame[];
   elaborated_report?: string;
-  extracted_frames?: string[];
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface AudienceOverview {
   screening_id: string;
   unique_viewers: number;
-  real_viewers: number;
-  synthetic_viewers: number;
+  real_viewers?: number;
+  synthetic_viewers?: number;
   total_events: number;
   unique_sessions: number;
-  completion_rate: number;
+  completed_sessions?: number;
+  completion_rate: number | null;
+  reliability?: Reliability;
 }
 
+export interface RetentionPoint {
+  time_sec: number;
+  viewers: number;
+  retention_rate: number;
+}
+
+export interface RetentionData {
+  curve: RetentionPoint[];
+  total_starters: number;
+  bucket_sec: number;
+}
+
+export interface SignalBucket {
+  time_sec: number;
+  sessions_active: number;
+  pauses: number;
+  rewinds: number;
+  skips: number;
+  replays: number;
+  exits: number;
+  completions: number;
+  pause_rate: number;
+  rewind_rate: number;
+  skip_rate: number;
+  replay_rate: number;
+  exit_rate: number;
+}
+
+export interface CommentInfo {
+  comment_id: string;
+  screening_id: string;
+  viewer_id: string;
+  display_name: string;
+  video_timecode_sec: number;
+  comment_text?: string;
+  content?: string;
+  created_at: string;
+}

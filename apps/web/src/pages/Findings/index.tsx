@@ -19,70 +19,9 @@ import {
   RotateCw,
   FileText
 } from 'lucide-react';
+import type { Screening, Anomaly, SavedInvestigation, EditCue } from '@frame-sense/types';
 
-interface Screening {
-  screening_id: string;
-  title: string;
-  description?: string;
-  media_filename: string;
-  media_duration: number;
-  public_token: string;
-  status: string;
-  created_at: string;
-}
 
-interface Anomaly {
-  anomaly_id: string;
-  screening_id: string;
-  start_time_sec: number;
-  end_time_sec: number;
-  peak_time_sec?: number;
-  window_duration_sec?: number;
-  title: string;
-  domain: string;
-  type: string;
-  severity: string;
-  signals: Record<string, number>;
-  evidence: string[];
-}
-
-interface SavedInvestigation {
-  screening_id: string;
-  anomaly_id: string;
-  investigation_report: string;
-  mcp_queries_executed: any[];
-  extracted_frames: Array<{
-    frame_index: number;
-    timestamp_sec: number;
-    timecode: string;
-    image_base64: string;
-    mime_type: string;
-  }>;
-  elaborated_report?: string;
-  updated_at: string;
-}
-
-// Professional Film Editing Cue interface derived from telemetry and Gemini Vision findings
-interface EditCue {
-  id: string;
-  anomaly_id: string;
-  timecode_start: string;
-  timecode_end: string;
-  time_start_sec: number;
-  time_end_sec: number;
-  peak_sec: number;
-  category: 'TRIM_PACING' | 'AUDIO_DUCKING' | 'SCENE_CUT' | 'NARRATIVE_BROLL';
-  category_label: string;
-  editing_action: string;
-  editorial_tip: string;
-  rationale: string;
-  retention_recovery_pct: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
-  evidence: string[];
-  extracted_frames?: SavedInvestigation['extracted_frames'];
-  elaborated_report?: string;
-  markedForEdl: boolean;
-}
 
 function fmtSMPTE(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -242,13 +181,13 @@ export default function Findings() {
         action = 'B-ROLL REACTION INSERT & SOUND DESIGN';
         tip = `Insert 1.2s B-Roll reaction shot at ${fmtSMPTE(peakS)} to reward viewer curiosity during high-rewind hotspot. Boost subtle room tone audio cues by +3dB.`;
         recovery = '+11.0%';
-      } else if (a.signals?.pause_rate > 0.3 || a.evidence.some(e => e.toLowerCase().includes('rewind'))) {
+      } else if ((a.signals?.pause_rate ?? 0) > 0.3 || a.evidence.some(e => e.toLowerCase().includes('rewind'))) {
         category = 'NARRATIVE_BROLL';
         catLabel = 'Narrative & B-Roll';
         action = 'DIALOGUE ENHANCEMENT & B-ROLL INSERT';
         tip = `Viewers paused or rewound at ${fmtSMPTE(peakS)}. Enhance dialogue audio track clarity and insert 1.0s reaction B-Roll shot to clarify narrative context.`;
         recovery = '+12.0%';
-      } else if (a.signals?.skip_rate > 0.2 || a.evidence.some(e => e.toLowerCase().includes('audio') || e.toLowerCase().includes('vol'))) {
+      } else if ((a.signals?.skip_rate ?? 0) > 0.2 || a.evidence.some(e => e.toLowerCase().includes('audio') || e.toLowerCase().includes('vol'))) {
         category = 'AUDIO_DUCKING';
         catLabel = 'Audio & Ducking';
         action = 'AUDIO DUCKING & J-CUT (-6dB BGM)';
@@ -517,7 +456,11 @@ export default function Findings() {
   // Lightbox view handlers
   const openLightbox = (frames: SavedInvestigation['extracted_frames'] | undefined, initialIdx: number) => {
     if (!frames || frames.length === 0) return;
-    const imgs = frames.map(f => f.image_base64.startsWith('data:') ? f.image_base64 : `data:${f.mime_type || 'image/jpeg'};base64,${f.image_base64}`);
+    const imgs = frames.map(f => {
+      if (typeof f === 'string') return f;
+      const base64 = f.image_base64 || '';
+      return base64.startsWith('data:') ? base64 : `data:${f.mime_type || 'image/jpeg'};base64,${base64}`;
+    });
     setLightboxImages(imgs);
     setLightboxIndex(initialIdx);
     setIsLightboxOpen(true);
