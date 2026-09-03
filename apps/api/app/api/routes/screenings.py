@@ -2,7 +2,7 @@ import uuid
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from app.schemas.screening import (
     ScreeningCreate,
     ScreeningResponse,
