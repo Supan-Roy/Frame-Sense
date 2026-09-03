@@ -1,15 +1,39 @@
-# Product Thesis
+# Frame Sense Product Specification
 
-Frame Sense transforms large-scale test-screening viewer behavior into evidence-backed post-production intelligence.
+Frame Sense transforms large-scale test-screening viewer behavior into evidence-backed, scientifically defensible post-production intelligence.
 
-## Concept Overview
-During post-production, filmmakers rely on feedback screenings to judge if a scene, trailer, or pilot is effective. Standard procedures gather post-screening comments, but miss the granular emotional and attention-span changes during the screening itself.
+---
 
-Frame Sense addresses this gap by capturing and analyzing real-time viewer playback telemetry at scale. It detects audience attention and emotional anomalies, investigates the underlying movie/script frames, and constructs actionable edit recommendations.
+## 1. Value Proposition
 
-## Core Features
-1. **Screening Management**: Track film projects and screening events.
-2. **Viewer Telemetry Collection**: Capture frame-by-frame engagement levels, fast-forwarding, pauses, and emotional metadata.
-3. **Behavioral Anomaly Detection**: Identify spikes in distraction, confusion, or drop-offs in viewer interest.
-4. **Multimodal Investigation**: Leverage Gemini's reasoning over video files, audio tracks, and scripts to understand why anomalies happened.
-5. **Editorial Findings & Actionable Recommendations**: Generate specific suggestions for editors (e.g., cutting a dragging scene, inserting reaction shots, or adjusting audio levels).
+During film post-production, directors and studio executives rely on test screenings to evaluate pacing, emotional impact, and audience retention. However, traditional paper surveys are retrospective, subjective, and lack frame-by-frame precision.
+
+Frame Sense captures real-time, second-by-second viewer telemetry, detects behavioral anomalies using sample-aware statistics, investigates underlying video frames with Gemini 2.5 Vision, and outputs actionable edit recommendations directly into professional editing software (Premiere Pro, DaVinci Resolve, Final Cut Pro).
+
+---
+
+## 2. Key Capabilities
+
+### 1. Screening Management & Telemetry Ingestion
+- Ingest and track film cuts, short films, and test screenings.
+- Capture granular playback events (`pauses`, `rewinds`, `exits`, `replays`, `skips`, `volume_changes`, `tab_hides`).
+- Store millions of timecoded events efficiently in ClickHouse Cloud.
+
+### 2. Sample-Aware Intelligence Engine
+- **Statistical Joint Gating**: Prevents false anomalies caused by small audience sizes ($n < 5 \rightarrow \text{INSUFFICIENT DATA}$).
+- **Laplace Smoothing & Wilson Lower Bounds**: Ensures small-sample rate calculations remain statistically sound.
+- **Local Window Exclusion Baseline**: Calculates z-scores against baseline mean excluding the anomaly window ($\pm 15$s).
+
+### 3. Multimodal Vision Frame Investigation
+- Extract video keyframes at exact peak anomaly timecodes via FFmpeg.
+- Pass keyframes + telemetry context into Gemini 2.5 Vision.
+- Formulate scientific editorial findings structured as **`OBSERVATION` $\rightarrow$ `INTERPRETATION` $\rightarrow$ `HYPOTHESIS` $\rightarrow$ `VALIDATION`**.
+
+### 4. Interactive Sense AI Assistant
+- Conversational chat assistant powered by Google ADK (`InMemoryRunner`) + ClickHouse MCP.
+- Real-time Server-Sent Events (SSE) token streaming.
+- Response cancellation control (Stop Button) and smooth typewriter markdown rendering.
+
+### 5. Professional NLE Export (FCP XML & EDL)
+- One-click export of Final Cut Pro XML (`.fcpxml`) and Edit Decision List (`.edl`).
+- Import markers and editorial recommendations directly into Adobe Premiere Pro, DaVinci Resolve, or Final Cut Pro.

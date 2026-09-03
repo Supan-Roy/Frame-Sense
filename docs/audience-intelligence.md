@@ -1,333 +1,82 @@
-# Audience Intelligence
+# Audience Intelligence & Core Engine Specification
 
 ## 1. Purpose
 
-Audience Intelligence is Frame Sense''s analytical layer that sits on top of the
-Screening Room telemetry pipeline. Its sole responsibility is:
+Audience Intelligence is Frame Sense's analytical layer sitting on top of the ClickHouse telemetry pipeline. Its core responsibility is:
 
-> **OBSERVE → MEASURE → DETECT**
+> **OBSERVE → MEASURE → DETECT → INVESTIGATE**
 
-It answers the question: *"What unusual audience behavior is occurring, and where?"*
-
-It does NOT answer: *"Why did viewers behave this way?"*
-
-Semantic interpretation is delegated to the future Gemini Investigation Agent.
+It measures audience behavior, detects statistically significant anomalies, and collaborates with the **Gemini Multimodal Vision Engine** to generate scientific editorial findings.
 
 ---
 
-## 2. Real Screening Telemetry
+## 2. Statistical Joint Gating & Sample Awareness
 
-The normal Frame Sense workflow is:
+Viewer sample size is a fundamental constraint in Frame Sense. Event counts alone must never override an insufficient viewer sample size.
 
-```
-Real viewer watches screening
-         ↓
-Screening Room (browser player)
-         ↓
-Viewer interaction events emitted
-         ↓
-FastAPI telemetry ingestion batch API
-         ↓
-ClickHouse viewer_events table
-         ↓
-Audience Intelligence (this layer)
-```
+### Sample Exposure Categories
 
-Audience Intelligence works exclusively against the `viewer_events` table.
-No second telemetry store is created.
+| Sample Size $n$ | Category | Behavior | Confidence Cap | Severity Cap |
+|---|---|---|---|---|
+| $n < 5$ | `INSUFFICIENT_DATA` | Sample too small to infer reliable anomaly | `LOW` ($\le 0.35$) | `LOW` |
+| $5 \le n < 10$ | `PRELIMINARY_SIGNAL` | Preliminary signal; directional hint | `MEDIUM` ($\le 0.65$) | `MEDIUM` |
+| $10 \le n < 30$ | `SUFFICIENT_SIGNAL` | Adequate screening sample | Based on $z$-score & Wilson bound | Based on $z$-score |
+| $n \ge 30$ | `STRONG_SIGNAL` | High-confidence statistical evidence | Full confidence calculation | Full severity calculation |
 
 ---
 
-## 3. Synthetic Simulator Purpose
+## 3. Laplace Smoothing & Wilson Confidence Bounds
 
-**The simulator is a developer/demo tool, not part of the normal screening workflow.**
+To prevent pathological 0% or 100% rate representations on small samples (e.g. 1 exit out of 1 viewer):
 
-It exists for:
-- Development and integration testing without real viewers
-- Stress testing ClickHouse at scale (10,000 viewers, 1M+ events)
-- Reproducible experiments with known behavioral patterns
-- Hackathon demonstration
+### Laplace Smoothed Rate
+$$\hat{p}_{\text{smoothed}} = \frac{k + 1}{n + 2}$$
+where $k$ is the event count and $n$ is active viewers. Raw event count $k$ and raw rate $k/n$ are ALWAYS retained in evidence.
 
-It uses the EXACT same `ViewerEvent` telemetry contract as the real browser client.
-No parallel schema exists. Simulated events enter `viewer_events` directly.
-
----
-
-## 4. Why Synthetic Data Exists
-
-Real screenings may have only a handful of viewers in early-stage testing.
-Audience Intelligence requires statistical volume to produce meaningful signal.
-The simulator makes it possible to:
-
-- Generate ground-truth behavioral anomalies at known positions
-- Validate that the analytics engine correctly detects them
-- Demonstrate the system at scale without waiting for real audience recruitment
+### Wilson Lower Bound
+$$\hat{p}_{\text{lower}} = \frac{\hat{p} + \frac{z^2}{2n} - z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
+where $\hat{p} = \min(1.0, \max(0.0, k/n))$ and $z = 1.96$ ($95\%$ confidence level). Wilson bounds are used as uncertainty/evidence quality metrics.
 
 ---
 
-## 5. Viewer Behavioral Simulation
+## 4. Local Baseline Methodology
 
-The simulator assigns each synthetic viewer a hidden behavioral profile.
-These profiles **exist only inside the simulator** and are **never written to ClickHouse**.
-
-| Profile | Description |
-|---|---|
-| NORMAL | Standard watch behaviour; moderate completion rate |
-| ENGAGED | High retention, frequent pauses and replays |
-| EARLY_ABANDONER | Exits within first 10-30% of video |
-| PACING_SENSITIVE | Seek-forward spikes in pacing anomaly windows |
-| COMPREHENSION_SENSITIVE | Pause and rewind spikes in comprehension windows |
-| AUDIO_SENSITIVE | Volume change and rewind spikes in audio windows |
-
-Default profile distribution:
-- NORMAL: 45%
-- ENGAGED: 20%
-- EARLY_ABANDONER: 10%
-- PACING_SENSITIVE: 10%
-- COMPREHENSION_SENSITIVE: 10%
-- AUDIO_SENSITIVE: 5%
+To compute z-scores without self-pollution from the anomaly window itself:
+- Baseline mean $\mu_{\text{local}}$ and standard deviation $\sigma_{\text{local}}$ are computed across all time buckets **excluding a $\pm 15\text{s}$ window around the evaluated time bucket**.
+- Z-score:
+  $$z = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 
 ---
 
-## 6. Telemetry Signals
+## 5. Scientific Honesty Taxonomy
 
-Observable events recorded per viewer session:
+Every generated editorial finding is structured strictly into 4 parts:
 
-| Event Type | Description |
-|---|---|
-| PLAY | Viewer starts or resumes playback |
-| PAUSE | Viewer pauses playback |
-| PROGRESS | Periodic heartbeat during active playback |
-| COMPLETE | Viewer reaches end of video |
-| EXIT | Viewer closes or navigates away |
-| SEEK_FORWARD | Viewer scrubs forward in timeline |
-| SEEK_BACKWARD | Viewer scrubs backward in timeline |
-| REPLAY | Viewer rewinds to re-watch a section |
-| VOLUME_CHANGE | Viewer adjusts audio volume |
-| TAB_VISIBLE | Browser tab becomes active |
-| TAB_HIDDEN | Browser tab becomes hidden |
+1. **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, Wilson bounds).
+2. **`INTERPRETATION`**: Behavioral meaning of signals (e.g., audience abandonment vs pacing friction).
+3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 2.5 Vision keyframe analysis.
+4. **`VALIDATION`**: Proposed editing action, evidence quality tier, and sample exposure category.
 
 ---
 
-## 7. Retention Methodology
+## 6. Real-Anchored Telemetry Simulator
 
-For each time bucket `t` (configurable, default 10s):
+The synthetic audience simulator supports testing at scale (1,000+ viewers) while preserving real viewer patterns:
 
-1. For each viewer, compute their **maximum watched timecode** across
-   `PLAY`, `PROGRESS`, `PAUSE`, and `COMPLETE` events (proxy for how far they watched).
-2. Count viewers whose max timecode >= `t`.
-3. `retention_rate(t) = viewers_at_t / total_starters`
-
-This gives a monotonically decreasing (generally) retention curve.
-All aggregation runs inside ClickHouse.
-
----
-
-## 8. Baseline Methodology
-
-For each behavioral metric `M` (exit_rate, rewind_rate, pause_rate, skip_rate, replay_rate):
-
-```
-baseline_mean(M) = mean(M across all time buckets)
-baseline_std(M)  = population std(M across all time buckets)
-z_score(M, t)    = (M_at_t - baseline_mean) / (baseline_std + ε)
-```
-
-This is a simple, transparent, population-level z-score baseline.
-
-**No ML model is used.** The methodology is fully explainable and documented here.
-
----
-
-## 9. Anomaly Detection Methodology
-
-After baseline calculation, each time bucket is evaluated:
-
-```
-For each metric M in [exit_rate, rewind_rate, pause_rate, skip_rate]:
-  If z_score(M, t) > threshold AND direction is anomalous (high):
-    Flag bucket t as containing a behavioral anomaly signal for M
-```
-
-Severity thresholds:
-
-| Severity | z-score |
-|---|---|
-| HIGH | ≥ 3.0σ |
-| MEDIUM | ≥ 2.0σ |
-| LOW | ≥ 1.5σ |
-
-A bucket containing multiple signals receives the severity of the strongest signal.
-
-Evidence strings report observed vs baseline measurements only.
-No semantic interpretation is generated.
-
----
-
-## 10. Engagement Detection
-
-Exceptional engagement is detected when:
-
-```
-replay_rate z-score > 2.0
-OR
-replay_rate z-score > 1.5 AND exit_rate z-score < -1.0
-```
-
-This identifies moments where viewers actively re-watch content with unusually
-low abandonment.
-
----
-
-## 11. Sample-Size Handling
-
-| Viewers | Status | Label |
+| Mode | Real Viewer Threshold | Behavior |
 |---|---|---|
-| < 10 | INSUFFICIENT_DATA | "Insufficient audience data for reliable anomaly detection." |
-| 10–99 | PRELIMINARY_SIGNAL | "Preliminary signal (N viewers)." |
-| ≥ 100 | STRONG_SIGNAL | "Strong screening signal (N viewers)." |
-
-When `INSUFFICIENT_DATA`, anomaly detection returns empty results rather than
-potentially misleading signals from tiny samples.
+| `REAL_ANCHORED` | $\ge 10$ real viewers | Time-local probabilities derived directly from actual ClickHouse telemetry. |
+| `HYBRID` | $1–9$ real viewers | Blends observed real behavioral fingerprint with generic priors. |
+| `COLD_START` | $0$ real viewers | Generic probabilistic profile model & ground truth. |
 
 ---
 
-## 12. Hidden Ground Truth
-
-The synthetic simulator supports a hidden ground truth configuration.
-The demo default (300s video) embeds anomalies at:
-
-| Time Range | Simulated Pattern |
-|---|---|
-| 72-84s | Pacing issue: seek-forward + exit spikes |
-| 96-104s | Exceptional engagement: replay + completion spikes |
-| 151-163s | Comprehension issue: pause + rewind spikes |
-| 221-230s | Audio issue: volume-change + rewind spikes |
-
-**Ground truth exists ONLY inside the simulator.**
-It is never written to ClickHouse event data.
-It is never returned by any Audience Intelligence API endpoint.
-The analytics engine must discover anomalies from raw telemetry alone.
-
----
-
-## 13. ClickHouse Role
-
-- Sole telemetry store for all viewer events (real and synthetic)
-- All retention, signal, and anomaly aggregations run as ClickHouse SQL
-- Python never loads raw event rows for computation
-- Supports 1M+ events efficiently through ClickHouse columnar aggregation
-- Deletions use ClickHouse async mutations (`ALTER TABLE DELETE`)
-
----
-
-## 14. API Contracts
-
-### Audience Intelligence (Public)
+## 7. API Endpoints
 
 ```
 GET /api/v1/screenings/{screening_id}/audience/overview
 GET /api/v1/screenings/{screening_id}/audience/retention?bucket_sec=10
 GET /api/v1/screenings/{screening_id}/audience/signals?bucket_sec=10
 GET /api/v1/screenings/{screening_id}/audience/anomalies?bucket_sec=10
+POST /api/v1/screenings/{screening_id}/dev/simulate?num_viewers=1000
 ```
-
-### Developer Simulator (Isolated - NOT public API)
-
-```
-POST /api/v1/screenings/{screening_id}/dev/simulate?num_viewers=1000&seed=42
-```
-
-### Anomaly Response Schema (for future Gemini agent consumption)
-
-```json
-{
-  "anomaly_id": "anm_abc123",
-  "screening_id": "sc_xxx",
-  "start_time_sec": 134,
-  "end_time_sec": 144,
-  "type": "BEHAVIORAL_ANOMALY",
-  "severity": "HIGH",
-  "signals": {
-    "exit_rate": 0.284,
-    "baseline_exit_rate": 0.062,
-    "exit_rate_ratio": 4.6,
-    "rewind_rate": 0.37,
-    "baseline_rewind_rate": 0.10,
-    "rewind_rate_ratio": 3.7
-  },
-  "evidence": [
-    "Exit Rate is 4.6x above baseline (observed 28.4%, baseline 6.2%)",
-    "Rewind Rate is 3.7x above baseline (observed 37.0%, baseline 10.0%)"
-  ]
-}
-```
-
----
-
-## 15. Known Limitations
-
-1. **Retention proxy**: Max timecode is used as a proxy for watch-through. A viewer
-   who pauses at the beginning and resumes later may be undercounted at intermediate
-   times.
-
-2. **Z-score sensitivity**: With very short videos (few buckets), the population
-   baseline has high variance, reducing anomaly detection reliability.
-
-3. **First bucket excluded**: The t=0 bucket is excluded from anomaly scoring to
-   avoid startup-sequence noise (e.g., all viewers emitting TAB_VISIBLE + PLAY).
-
-4. **No adjacent-window smoothing**: Anomalies are detected per-bucket independently.
-   A persistent anomaly across adjacent windows appears as multiple separate anomalies
-   rather than a merged time range.
-
-5. **ClickHouse mutation latency**: Deletion of events uses async ClickHouse mutations.
-   Event counts may remain visible briefly after deletion is requested.
-
----
-
-## 16. Intentionally Deferred to Future Layers
-
-The following are explicitly OUT OF SCOPE for Audience Intelligence:
-
-- **Gemini semantic investigation**: Why did viewers behave this way?
-- **Editorial recommendations**: What should the filmmaker change?
-- **Script analysis / video understanding**: What is happening at this moment?
-- **Audio diagnosis**: What audio issues caused viewer discomfort?
-- **EDL generation**: Automated edit decision lists
-
-These belong to the future Gemini Investigation Agent layer.
-
----
-
-## 17. Real-Anchored Synthetic Audience Generator
-
-Frame Sense is **Real-First**:
-```
-REAL VIEWER TELEMETRY
-         ↓
-Behavioral Fingerprint
-         ↓
-Synthetic Audience Generator
-         ↓
-Controlled Variation
-         ↓
-   ClickHouse
-```
-
-### Architectural Modes
-
-| Mode | Real Viewer Threshold | Behavior & Provenance |
-|---|---|---|
-| `REAL_ANCHORED` | $\ge 10$ real viewers | Time-local probabilities derived directly from actual ClickHouse telemetry. |
-| `HYBRID` | $1–9$ real viewers | Blends observed real behavioral fingerprint ($w_{\text{real}} = N/10$) with generic priors. |
-| `COLD_START` | $0$ real viewers | Generic probabilistic profile model & duration-scaled ground truth. |
-
-### Core Architectural Guarantees
-
-1. **Real-First Principle**: Real viewer telemetry is the source of truth. When real audience evidence exists, synthetic scale reflects that evidence rather than replacing it with random data.
-2. **Aggregate Probability Sampling**: Individual viewers are **never cloned** or duplicated. The simulator extracts an aggregate behavioral fingerprint and samples independent synthetic viewers from time-local probability distributions.
-3. **Temporal Shape Preservation**: Behavioral hotspots (e.g. elevated rewind at 34s) remain at their observed timecodes.
-4. **Controlled Variation**: Configurable variation strength (`LOW` 5% jitter, `MEDIUM` 15% jitter, `HIGH` 25% jitter) introduces natural individual viewer variance around the aggregate fingerprint.
-5. **Schema Integrity**: Synthetic telemetry emits the exact same `ViewerEvent` contract to ClickHouse. No `source`, `profile`, or `synthetic` fields are added to production telemetry.
-

@@ -2,77 +2,64 @@
 
 Frame Sense is an autonomous post-production intelligence system for filmmakers and studios, developed for the **Agentic Cinema: The Blockbuster Hackathon**.
 
+---
+
 ## Overview
-Frame Sense transforms large-scale test-screening viewer behavior into evidence-backed post-production intelligence. By capturing telemetry at scale and performing agentic video, audio, and script analysis, it helps directors and editors identify pacing issues, emotional mismatches, and narrative confusion to suggest precise edit recommendations.
+
+Frame Sense transforms large-scale test-screening viewer behavior into evidence-backed, scientifically defensible post-production intelligence. By capturing second-by-second playback telemetry (pauses, rewinds, exits, replays, skips, tab hides) in ClickHouse and executing agentic multimodal video analysis via Google ADK & Gemini 2.5 Vision, Frame Sense helps directors and editors identify pacing issues, emotional drop-offs, and visual narrative friction to generate precise edit recommendations and industry-standard NLE exports (FCP XML & EDL).
+
+---
 
 ## The Problem
-During test screenings, studios collect viewer feedback via surveys and questionnaires. However, this feedback is retrospective, highly subjective, and lacks frame-by-frame behavioral telemetry (such as facial expressions, attention shifts, and real-time response). Manually correlating physical reactions with script timing and video cues is too labor-intensive to perform at scale.
 
-## The Vision
-Frame Sense aims to automate this pipeline by ingest-analyzing audience reaction telemetry, detecting anomalies (e.g., sudden drops in attention during a climax), and deploying autonomous AI agents to analyze the corresponding film/audio frames and script pages. It provides clear, actionable edit recommendations directly to editors.
+During post-production test screenings, studios traditionally rely on retrospective paper surveys and focus groups. This feedback is highly subjective, vague, and lacks frame-by-frame behavioral telemetry. Manually correlating audience drop-offs or rewinds with visual scene timing, script context, and audio tracks is too labor-intensive to perform manually.
 
 ---
 
-## Planned Workflow
+## The Solution & System Architecture
+
+Frame Sense automates the entire screening intelligence pipeline:
+
 ```
-Test Screening
-    ↓
-Viewer Telemetry
-    ↓
-High-volume Analytics
-    ↓
-Audience Anomaly Detection
-    ↓
-Autonomous Investigation
-    ↓
-Video + Audio + Script Analysis
-    ↓
-Editorial Finding
-    ↓
-Edit Recommendation
-    ↓
-Editor / Director Review
+Viewer Playback Telemetry
+         ↓
+ClickHouse Columnar Storage
+         ↓
+Sample-Aware Statistical Intelligence Engine
+  (Joint Gating, Laplace Smoothing, Wilson Bounds, Baseline Window)
+         ↓
+Multimodal Vision Investigation Agent
+  (FFmpeg Keyframe Extraction + Gemini 2.5 Vision Reasoning)
+         ↓
+Scientific Editorial Findings & Recommendations
+  (OBSERVATION → INTERPRETATION → HYPOTHESIS → VALIDATION)
+         ↓
+Interactive Sense AI Assistant (Real-Time SSE Streaming)
+         ↓
+Professional NLE Export (FCP XML & EDL for Premiere Pro / DaVinci Resolve)
 ```
 
 ---
 
-## Planned Architecture
+## Key Features
 
-### System Flow
-```
-Frontend (React/Vite)
-    ↓
-Backend/API (FastAPI)
-    ↓
-Agent Orchestration
-    ↓
-ClickHouse MCP (Viewer telemetry data store)
-```
-
-### Agentic Pipeline
-```
-Agent
-    ↓
-Media Retrieval (Clip & script extraction)
-    ↓
-Video/Audio/Script Context (Multimodal input)
-    ↓
-Gemini Multimodal Reasoning
-    ↓
-Finding (Pacing/emotion mismatch explanation)
-    ↓
-Edit Recommendation (e.g., "Cut frames 240-300; swap with B-roll")
-```
-
-*Note: The AI agent, Gemini, and ClickHouse components are planned features and are not yet implemented in this initial repository boilerplate.*
+1. **Second-by-Second Telemetry Ingestion & Analytics**: ClickHouse Cloud columnar ingestion of viewer engagement signals (`exits`, `rewinds`, `pauses`, `replays`, `skips`, `tab_hides`).
+2. **Sample-Aware Statistical Joint Gating**: Scientific anomaly gating enforcing viewer sample sufficiency ($n < 5 \rightarrow \text{INSUFFICIENT DATA}$, $5 \le n < 10 \rightarrow \text{PRELIMINARY}$, $n \ge 10 \rightarrow \text{SUFFICIENT}$). Employs Laplace smoothing ($\alpha = 1$) and Wilson confidence lower bounds.
+3. **Multimodal Vision Investigation Engine**: Extracts keyframes at exact peak anomaly timecodes via FFmpeg and runs Gemini 2.5 Vision analysis over scene framing, lighting, cut pacing, and visual distraction causes.
+4. **Scientific Honesty Taxonomy**: Structured editorial findings categorized strictly into **`OBSERVATION` $\rightarrow$ `INTERPRETATION` $\rightarrow$ `HYPOTHESIS` $\rightarrow$ `VALIDATION`**.
+5. **Interactive Sense AI Assistant**: Real-time conversational screening assistant powered by Google ADK (`InMemoryRunner`) + ClickHouse MCP, featuring SSE token streaming and response cancellation controls.
+6. **Professional NLE Export**: One-click generation of Final Cut Pro XML (`.fcpxml`) and Edit Decision List (`.edl`) files compatible with Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: React (Vite), TypeScript, Tailwind CSS, shadcn/ui, Lucide React
-- **Backend**: Python, FastAPI, Pydantic
-- **Package Management**: `pnpm` (Frontend & Monorepo Workspaces), `pip`/`venv` (Python API)
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Lucide React
+- **Backend**: Python 3.10+, FastAPI, Pydantic, Uvicorn
+- **AI Agent Framework**: Google ADK (Agent Development Kit), Gemini 2.5 Flash / Flash-Lite / Vision
+- **Database & MCP**: ClickHouse Cloud / Local, ClickHouse Model Context Protocol (MCP) Server, `clickhouse-connect`
+- **Media Processing**: FFmpeg frame extraction engine
+- **Package Management**: `pnpm` (Frontend & Monorepo Workspaces), Python `venv`
 
 ---
 
@@ -81,15 +68,13 @@ Edit Recommendation (e.g., "Cut frames 240-300; swap with B-roll")
 ```
 frame-sense/
 ├── apps/
-│   ├── web/                     # React + Vite + TS Frontend
-│   └── api/                     # Python + FastAPI Backend
-├── packages/
-│   ├── types/                   # Shared TypeScript type definitions
-│   ├── ui/                      # Shared UI components UI framework
-│   └── config/                  # Shared styling & build configs
-├── docs/                        # Project documentation (product, architecture, dev)
-├── assets/                      # Shared static assets
-├── scripts/                     # Operational scripts
+│   ├── web/                     # React + Vite + TypeScript Frontend
+│   └── api/                     # Python + FastAPI Backend (ADK Agents, Analytics, MCP)
+│       ├── agents/              # Google ADK agent definitions (Sense AI, Investigator)
+│       ├── app/                 # FastAPI routes, repositories, analytics, services
+│       └── main.py              # Backend entry point
+├── docs/                        # Comprehensive documentation (architecture, analytics, dev, MCP)
+├── tests/                       # Pytest integration suite (63+ test cases)
 ├── package.json                 # Monorepo root configuration
 └── pnpm-workspace.yaml          # pnpm workspace definition
 ```
@@ -102,30 +87,42 @@ frame-sense/
 - Node.js (v18+)
 - `pnpm` (v8+)
 - Python (3.10+)
+- FFmpeg (added to System PATH for vision frame extraction)
 
 ### Quick Start
-1. Clone the repository.
-2. Initialize environment and dependencies by running:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Supan-Roy/Frame-Sense.git
+   cd Frame-Sense
+   ```
+
+2. **Initialize Environment**:
    ```bash
    pnpm run setup
    ```
-   *This command runs `pnpm install` and creates/installs Python dependencies in the backend virtual environment.*
-3. Run the applications concurrently in development mode:
+
+3. **Run Development Mode**:
    ```bash
    pnpm run dev
    ```
-   - Frontend will run at: `http://localhost:5173`
-   - Backend API will run at: `http://localhost:8000`
+   - **Frontend**: `http://localhost:5173`
+   - **Backend API**: `http://localhost:8001`
+
+4. **Run Integration Tests**:
+   ```bash
+   apps/api/.venv/Scripts/pytest tests/ -v
+   ```
 
 ---
 
-## Current Project Status & Roadmap
+## Current Project Status
 
 - [x] Initial Monorepo Setup & Workspace Architecture
-- [x] API Healthcheck & Router Boilerplate
-- [x] Web Client Application Shell & Page Placeholders
-- [x] Shared TypeScript Data Contracts
-- [ ] Synthetic Telemetry Generator Script
-- [ ] ClickHouse Integration & Schema Setup
-- [ ] Multimodal Gemini Agent Orchestration
-- [ ] Actionable Edit Recommendation Dashboard
+- [x] ClickHouse Ingestion Schema & Real-Time Telemetry Queries
+- [x] Real-Anchored & Synthetic Telemetry Generator Engine
+- [x] Sample-Aware Statistical Joint Gating Engine (Laplace + Wilson Bounds)
+- [x] Multimodal Vision Investigation Engine (FFmpeg + Gemini 2.5 Vision)
+- [x] Interactive Sense AI Chat Assistant with Google ADK + ClickHouse MCP
+- [x] Real-Time SSE Token Streaming & Response Cancellation Controls
+- [x] Scientific Editorial Findings Dashboard (`OBSERVATION` → `VALIDATION`)
+- [x] FCP XML & EDL Export Engine for Premiere Pro / DaVinci Resolve

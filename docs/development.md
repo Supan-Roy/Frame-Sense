@@ -1,72 +1,50 @@
-# Local Development Guide
+# Local Development & Testing Guide
 
-This guide details the setup and development workflows for the **Frame Sense** monorepo.
+This guide details setup, local execution, and testing procedures for the **Frame Sense** codebase.
 
-## Prerequisites
-Ensure the following tools are installed on your machine:
+---
+
+## 1. Prerequisites
+
+Ensure the following tools are installed:
 - **Node.js** (v18 or higher)
 - **pnpm** (v8 or higher)
 - **Python** (3.10 or higher)
+- **FFmpeg** (installed and added to System PATH for video keyframe extraction)
 
 ---
 
-## Workspace Layout
-```
-frame-sense/
-├── apps/
-│   ├── web/                     # React + Vite + TypeScript (Tailwind & shadcn/ui)
-│   └── api/                     # Python + FastAPI (Pydantic)
-├── packages/
-│   ├── types/                   # Shared TypeScript models
-│   ├── ui/                      # Placeholder for shared UI library components
-│   └── config/                  # Placeholder for workspace configurations
-```
+## 2. Environment Setup & Development Servers
 
----
-
-## Setup Instructions
-
-### 1. Initial Setup
-Run the helper script from the root to install both JavaScript dependencies and set up the Python backend virtual environment:
+### Installation
+Run setup script from the workspace root:
 ```bash
 pnpm run setup
 ```
-This executes:
-- Node packages installation (`pnpm install`)
-- Creation of a Python virtual environment in `apps/api/.venv`
-- Installation of python backend packages from `apps/api/requirements.txt`
 
-### 2. Running the Development Servers
-To run both the frontend and backend servers concurrently, execute:
+### Running Applications Concurrently
+To launch both the web frontend and Python backend API:
 ```bash
 pnpm run dev
 ```
-- **Web Client**: Runs at [http://localhost:5173](http://localhost:5173) (Vite server)
-- **Backend API**: Runs at [http://localhost:8000](http://localhost:8000) (Uvicorn server)
+- **Web App**: [http://localhost:5173](http://localhost:5173) (Vite server)
+- **Backend API**: [http://localhost:8001](http://localhost:8001) (FastAPI / Uvicorn server)
 
-### 3. Individual Commands
-If you want to run applications individually:
+---
 
-#### Web Client Only
-```bash
-pnpm --filter web dev
-```
+## 3. Running Pytest Integration Tests
 
-#### Backend API Only
-Activate the virtual environment first, then run uvicorn:
+The backend includes a comprehensive pytest integration suite testing statistical joint gating, ClickHouse MCP integration, agent orchestration, and vision frame extraction:
+
 ```bash
-cd apps/api
-.venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
-```
-Or use the workspace script wrapper:
-```bash
-pnpm --filter api dev
+apps/api/.venv/Scripts/pytest tests/ -v
 ```
 
 ---
 
-## Development Principles
-- **Separation**: Keep UI styling and rendering isolated in `apps/web/`. All API integrations should route through `apps/web/src/services/`.
-- **Shared Contracts**: Any model or data schema change shared by both systems should update `packages/types/src/index.ts`.
-- **Modularity**: Place FastAPI models under `app/models/` and routers in `app/api/routes/`. Keep agentic logic decoupled from data ingestion.
+## 4. Running Frontend Build Verification
+
+To verify TypeScript contracts and Vite production bundling:
+```bash
+pnpm run build
+```
