@@ -8,7 +8,7 @@ Frame Sense transforms large-scale test-screening viewer behavior into evidence-
 
 During film post-production, directors and studio executives rely on test screenings to evaluate pacing, emotional impact, and audience retention. However, traditional paper surveys are retrospective, subjective, and lack frame-by-frame precision.
 
-Frame Sense captures real-time, second-by-second viewer telemetry, detects behavioral anomalies using sample-aware statistics, investigates underlying video frames with Gemini 2.5 Vision, and outputs actionable edit recommendations directly into professional editing software (Premiere Pro, DaVinci Resolve, Final Cut Pro).
+Frame Sense captures real-time, second-by-second viewer telemetry, detects behavioral anomalies using sample-aware statistics, investigates underlying video frames with Gemini 3.5 Flash / Gemini 3.5 Flash-Lite, and outputs actionable edit recommendations directly into professional editing software (Premiere Pro, DaVinci Resolve, Final Cut Pro).
 
 ---
 
@@ -26,7 +26,7 @@ Frame Sense captures real-time, second-by-second viewer telemetry, detects behav
 
 ### 3. Multimodal Vision Frame Investigation
 - Extract video keyframes at exact peak anomaly timecodes via FFmpeg.
-- Pass keyframes + telemetry context into Gemini 2.5 Vision.
+- Pass keyframes + telemetry context into Gemini 3.5 Flash / Gemini 3.5 Flash-Lite.
 - Formulate scientific editorial findings structured as **`OBSERVATION` $\rightarrow$ `INTERPRETATION` $\rightarrow$ `HYPOTHESIS` $\rightarrow$ `VALIDATION`**.
 
 ### 4. Interactive Sense AI Assistant

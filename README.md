@@ -9,7 +9,7 @@
 
 **Frame Sense** is an autonomous post-production intelligence system that transforms second-by-second test-screening viewer behavior into scientifically defensible, frame-accurate editorial recommendations. 
 
-By combining high-throughput columnar telemetry ingestion (**ClickHouse Cloud**), sample-aware statistical joint gating, viewer sequence trajectory reasoning, and multimodal keyframe reasoning (**Google ADK & Gemini 2.5 Vision**), Frame Sense automatically detects audience retention drops, comprehension barriers, and pacing friction — outputting industry-standard NLE timeline exports (**Final Cut Pro XML** and **CMX3600 EDL**) for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
+By combining high-throughput columnar telemetry ingestion (**ClickHouse Cloud**), sample-aware statistical joint gating, viewer sequence trajectory reasoning, and multimodal keyframe reasoning (**Google ADK & Gemini 3.5 Flash / Gemini 3.5 Flash-Lite**), Frame Sense automatically detects audience retention drops, comprehension barriers, and pacing friction — outputting industry-standard NLE timeline exports (**Final Cut Pro XML** and **CMX3600 EDL**) for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 
 ---
 
@@ -35,7 +35,7 @@ graph TD
         API --> TRAJ["Viewer Sequence Trajectory Engine<br/>(_get_window_trajectories)"]
         CH --> GATE["Statistical Joint Gating Engine<br/>(Laplace & Wilson LCB Engine)"]
         TRAJ --> GATE
-        GATE --> VIS["Multimodal Vision Engine<br/>(FFmpeg Keyframes + Gemini 2.5 Vision)"]
+        GATE --> VIS["Multimodal Vision Engine<br/>(FFmpeg Keyframes + Gemini 3.5 Flash / Gemini 3.5 Flash-Lite)"]
         GATE --> CHAT["Sense AI Interactive Agent<br/>(Google ADK + ClickHouse MCP)"]
     end
 
@@ -105,7 +105,7 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 ### 4-Part Scientific Honesty Taxonomy
 1. **`OBSERVATION`**: Pure empirical telemetry measurement (event counts, unique viewers, $z$-scores, Wilson bounds).
 2. **`INTERPRETATION`**: Behavioral meaning of viewer sequence trajectories (comprehension friction vs. abandonment).
-3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 2.5 Vision keyframe analysis.
+3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 3.5 Flash / Gemini 3.5 Flash-Lite keyframe analysis.
 4. **`VALIDATION`**: Proposed editing action, estimated retention recovery percentage, and sample exposure category.
 
 ---
@@ -114,7 +114,7 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 
 - **Second-by-Second Telemetry Ingestion**: Captures `PLAY`, `PAUSE`, `PROGRESS`, `EXIT`, `SEEK_FORWARD`, `SEEK_BACKWARD`, `REPLAY`, `VOLUME_CHANGE`, `TAB_HIDDEN`, `TAB_VISIBLE`, `COMPLETE`.
 - **Viewer Trajectory Engine**: Evaluates viewer journeys to prevent false retention drop alerts during scene replays.
-- **Multimodal Vision Investigation**: FFmpeg keyframe extraction at peak timecodes + Gemini 2.5 Vision frame analysis.
+- **Multimodal Vision Investigation**: FFmpeg keyframe extraction at peak timecodes + Gemini 3.5 Flash / Gemini 3.5 Flash-Lite frame analysis.
 - **Zero-Latency Sense AI Chatbot**: Google ADK agent with ClickHouse MCP, pre-loaded context headers, and SSE token streaming.
 - **Professional NLE Export**: Export Final Cut Pro XML (`.fcpxml`) and Edit Decision List (`.edl`) files for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 - **Real-Anchored & Synthetic Simulator**: Ground-truth probabilistic viewer generator for load and regression testing.
@@ -127,7 +127,7 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 | :--- | :--- | :--- |
 | **Frontend UI** | React 18, Vite 5, TypeScript 5 | Tailwind CSS, Lucide React, React Router 6 |
 | **Backend API** | Python 3.11+, FastAPI, Uvicorn | Pydantic v2, `asyncio`, `httpx` |
-| **AI / Agent Framework** | Google ADK (Agent Development Kit) | `google-adk`, `google-genai`, Gemini 2.5 Flash & Vision |
+| **AI / Agent Framework** | Google ADK (Agent Development Kit) | `google-adk`, `google-genai`, Gemini 3.5 Flash / Gemini 3.5 Flash-Lite |
 | **Database & Analytics** | ClickHouse Cloud / Local Columnar DB | `clickhouse-connect`, ClickHouse MCP Server |
 | **Media & Vision** | FFmpeg | Video keyframe extraction engine |
 | **Monorepo Workspaces** | `pnpm` workspaces | `@frame-sense/types`, `@frame-sense/config`, `@frame-sense/ui` |

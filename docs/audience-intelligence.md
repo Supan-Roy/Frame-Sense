@@ -73,7 +73,7 @@ Every generated editorial finding is structured strictly into 4 parts:
 
 1. **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, Wilson bounds, viewer trajectory counts).
 2. **`INTERPRETATION`**: Behavioral meaning of signals (e.g., audience abandonment vs dialogue comprehension friction).
-3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 2.5 Vision keyframe analysis.
+3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 3.5 Flash / Gemini 3.5 Flash-Lite keyframe analysis.
 4. **`VALIDATION`**: Proposed editing action, evidence quality tier, and sample exposure category.
 
 ---

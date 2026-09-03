@@ -31,7 +31,7 @@ This document details the production architecture of **Frame Sense**, detailing 
                                    ▼
                          ┌───────────────────┐
                          │  Google ADK &     │
-                         │ Gemini 2.5 Vision │
+                         │ Gemini 3.5 Flash / Gemini 3.5 Flash-Lite │
                          └───────────────────┘
 ```
 
@@ -58,7 +58,7 @@ This document details the production architecture of **Frame Sense**, detailing 
 
 ### C. Multimodal Vision Investigation Engine
 - **Keyframe Extraction**: Extracts keyframes at exact peak anomaly timecodes using FFmpeg.
-- **Gemini 2.5 Vision Reasoning**: Sends extracted image frames to Gemini alongside raw telemetry evidence for visual cut analysis, scene pacing, and framing investigation.
+- **Gemini 3.5 Flash / Gemini 3.5 Flash-Lite Reasoning**: Sends extracted image frames to Gemini alongside raw telemetry evidence for visual cut analysis, scene pacing, and framing investigation.
 - **Scientific Honesty Taxonomy**:
   - **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, trajectory metrics).
   - **`INTERPRETATION`**: Behavioral meaning of signals (e.g. cognitive comprehension vs. audience abandonment).
@@ -83,7 +83,7 @@ This document details the production architecture of **Frame Sense**, detailing 
 1. Browser Player / Simulator -> Emits ViewerEvent batch -> FastAPI /telemetry/batch -> ClickHouse
 2. GET /audience/anomalies -> Runs Joint Gating & Wilson Bounds -> Returns candidate anomalies
 3. User clicks "Investigate Anomaly" -> FFmpeg extracts keyframe at timecode
-4. Gemini 2.5 Vision -> Analyzes keyframe + telemetry -> Constructs 4-part taxonomy report
+4. Gemini 3.5 Flash / Gemini 3.5 Flash-Lite -> Analyzes keyframe + telemetry -> Constructs 4-part taxonomy report
 5. Report saved in SQLite -> Rendered in Editorial Findings Workspace
 6. Click "Export XML/EDL" -> Generates FCP XML/EDL file for NLE timeline
 ```
