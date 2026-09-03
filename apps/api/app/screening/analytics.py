@@ -213,11 +213,124 @@ def _severity(z: float) -> Optional[str]:
     return None
 
 
+def _laplace_smoothed_rate(events: int, viewers: int) -> float:
+    """Laplace smoothing (add-1 smoothing): (k + 1) / (n + 2) to prevent pathological 0% / 100% bounds."""
+    k = max(0, int(events))
+    n = max(0, int(viewers))
+    return round((k + 1.0) / (n + 2.0), 4)
+
+
+def _wilson_lower_bound(events: int, viewers: int, z_val: float = 1.96) -> float:
+    """Calculates Wilson score interval lower bound (95% confidence lower bound) as uncertainty measure."""
+    k = max(0, int(events))
+    n = max(0, int(viewers))
+    if n == 0:
+        return 0.0
+    p_hat = k / n
+    z2 = z_val * z_val
+    denom = 1.0 + z2 / n
+    center = p_hat + z2 / (2.0 * n)
+    spread = z_val * math.sqrt((p_hat * (1.0 - p_hat) + z2 / (4.0 * n)) / n)
+    lower = max(0.0, (center - spread) / denom)
+    return round(lower, 4)
+
+
+def _sample_sufficiency(unique_viewers: int, total_cluster_events: int) -> Dict[str, Any]:
+    """Evaluates evidence sample sufficiency without hiding tiny samples."""
+    v = max(0, int(unique_viewers))
+    e = max(0, int(total_cluster_events))
+
+    if v < 5 or e < 2:
+        return {"status": "INSUFFICIENT", "label": f"Insufficient sample ({v} viewers, {e} event(s)). High uncertainty.", "is_sufficient": False}
+    elif v < 30:
+        return {"status": "PRELIMINARY", "label": f"Preliminary sample ({v} viewers, {e} events). Moderate uncertainty.", "is_sufficient": True}
+    elif v < 100:
+        return {"status": "SUFFICIENT", "label": f"Sufficient sample ({v} viewers, {e} events).", "is_sufficient": True}
+    else:
+        return {"status": "STRONG", "label": f"Strong sample size ({v} viewers, {e} events). High statistical power.", "is_sufficient": True}
+
+
+def _calculate_local_baseline(second_map: Dict[int, Dict[str, Any]], start_t: int, end_t: int, window_sec: int = 15) -> Dict[str, Dict[str, float]]:
+    """
+    Calculates rolling local mean and std for surrounding window (±15s)
+    EXCLUDING the anomaly window itself to prevent baseline contamination.
+    """
+    local_window_start = max(0, start_t - window_sec)
+    local_window_end = end_t + window_sec
+    
+    # Exclude [start_t, end_t] seconds
+    valid_seconds = [
+        t for t in second_map.keys()
+        if (local_window_start <= t <= local_window_end) and not (start_t <= t <= end_t)
+    ]
+    
+    # Fallback to all seconds if surrounding window is empty (e.g. at very start of video)
+    if not valid_seconds:
+        valid_seconds = [t for t in second_map.keys() if not (start_t <= t <= end_t)]
+    if not valid_seconds:
+        valid_seconds = list(second_map.keys())
+
+    metrics = ["pauses", "rewinds", "skips", "exits", "replays", "vol", "tabs"]
+    result = {}
+    for m in metrics:
+        vals = [float(second_map[t].get(m, 0)) for t in valid_seconds]
+        mu, sigma = _mean_std(vals)
+        result[m] = {"mean": round(mu, 4), "std": round(sigma, 4)}
+    return result
+
+
+def _calculate_confidence(
+    unique_viewers: int,
+    total_cluster_events: int,
+    global_z: float,
+    local_z: float,
+    sample_suff: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Evidence-aware anomaly confidence scoring.
+    Combines sample size, event count, global Z-score, and local deviation.
+    """
+    n = max(1, unique_viewers)
+    k = max(0, total_cluster_events)
+    
+    # Sample scale factor: min(1.0, sqrt(n / 50))
+    sample_factor = min(1.0, math.sqrt(n / 50.0))
+    
+    # Event count factor: min(1.0, k / 4.0)
+    event_factor = min(1.0, k / 4.0)
+    
+    # Deviation magnitude factor
+    dev_factor = min(1.0, max(0.1, abs(global_z) / 3.0))
+    
+    # Local corroboration factor
+    local_factor = 1.2 if abs(local_z) >= 1.2 else 0.8
+    
+    raw_score = sample_factor * event_factor * dev_factor * local_factor
+    score = round(max(0.05, min(1.0, raw_score)), 2)
+
+    if sample_suff["status"] == "INSUFFICIENT" or k < 2:
+        score = min(0.35, score)
+        label = "LOW"
+    elif score >= 0.70 and sample_suff["is_sufficient"]:
+        label = "HIGH"
+    elif score >= 0.40:
+        label = "MEDIUM"
+    else:
+        label = "LOW"
+
+    return {
+        "score": score,
+        "label": label,
+        "sample_sufficiency": sample_suff["status"],
+        "is_sufficient": sample_suff["is_sufficient"]
+    }
+
+
 def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """
-    Second-by-Second Micro-Burst & Density Clustering Anomaly Engine.
-    Detects exact second-level anomaly windows (e.g. 2-3s bursts) and peak seconds
-    from actual event telemetry without fixed rigid bucket constraints.
+    Sample-Aware, Multi-Signal, Local-Context Statistical Anomaly Engine.
+    Detects exact second-level anomaly windows, computes Laplace & Wilson intervals,
+    compares local vs global baselines, and builds structured scientific taxonomy.
     """
     b = max(1, int(bucket_sec))
     signals_data = get_behavioral_signals(screening_id, b)
@@ -266,6 +379,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             val = max(sdata[m], sdata.get(rate_map[m], 0.0))
             val_rate = max(sdata.get(rate_map[m], 0.0), sdata[m] / max(1, unique_viewers))
             z = (val - mu) / (sigma + eps)
+            # Require minimum event activity or deviation
             if z >= 0.75 and (val_rate >= 0.04 or val >= 2):
                 active_times.add(t)
 
@@ -274,7 +388,8 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     if sorted_active:
         cur_cluster = [sorted_active[0]]
         for t in sorted_active[1:]:
-            if t - cur_cluster[-1] <= max(2, b):
+            # Merge contiguous or near-contiguous active seconds (<= 3s gap)
+            if t - cur_cluster[-1] <= max(3, b):
                 cur_cluster.append(t)
             else:
                 clusters.append(cur_cluster)
@@ -302,6 +417,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         c_replays = sum(second_map[t]["replays"] for t in cl)
         c_vol = sum(second_map[t]["vol"] for t in cl)
         c_tabs = sum(second_map[t]["tabs"] for t in cl)
+        total_cluster_events = c_pauses + c_rewinds + c_skips + c_exits + c_replays + c_vol + c_tabs
 
         peak_t = start_t
         peak_score = -1
@@ -311,25 +427,67 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                 peak_score = score
                 peak_t = t
 
+        # Calculate local baseline excluding current cluster
+        local_bl = _calculate_local_baseline(second_map, start_t, end_t, window_sec=15)
+
+        # Raw Rates
         pause_rate = max(round(c_pauses / max(1, unique_viewers), 4), max(second_map[t]["pause_rate"] for t in cl))
         rewind_rate = max(round(c_rewinds / max(1, unique_viewers), 4), max(second_map[t]["rewind_rate"] for t in cl))
         skip_rate = max(round(c_skips / max(1, unique_viewers), 4), max(second_map[t]["skip_rate"] for t in cl))
         exit_rate = max(round(c_exits / max(1, unique_viewers), 4), max(second_map[t]["exit_rate"] for t in cl))
         replay_rate = max(round(c_replays / max(1, unique_viewers), 4), max(second_map[t]["replay_rate"] for t in cl))
 
-        c_exits = max(c_exits, int(exit_rate * unique_viewers))
-        c_pauses = max(c_pauses, int(pause_rate * unique_viewers))
-        c_rewinds = max(c_rewinds, int(rewind_rate * unique_viewers))
-        c_skips = max(c_skips, int(skip_rate * unique_viewers))
-        c_replays = max(c_replays, int(replay_rate * unique_viewers))
+        # Sample-Aware Laplace Smoothed Rates & Wilson Lower Bounds
+        exit_smoothed = _laplace_smoothed_rate(c_exits, unique_viewers)
+        exit_wilson_lower = _wilson_lower_bound(c_exits, unique_viewers)
+        pause_smoothed = _laplace_smoothed_rate(c_pauses, unique_viewers)
+        pause_wilson_lower = _wilson_lower_bound(c_pauses, unique_viewers)
+        rewind_smoothed = _laplace_smoothed_rate(c_rewinds, unique_viewers)
+        rewind_wilson_lower = _wilson_lower_bound(c_rewinds, unique_viewers)
+        replay_smoothed = _laplace_smoothed_rate(c_replays, unique_viewers)
+        replay_wilson_lower = _wilson_lower_bound(c_replays, unique_viewers)
+
+        # Sample Sufficiency
+        sample_suff = _sample_sufficiency(unique_viewers, total_cluster_events)
+
+        # Calculate Z-Scores (Global & Local)
+        dominant_metric = "exits"
+        dominant_count = c_exits
+        if c_replays > dominant_count:
+            dominant_metric = "replays"
+            dominant_count = c_replays
+        if c_rewinds + c_pauses > dominant_count and (c_rewinds >= 1 or c_pauses >= 1):
+            dominant_metric = "rewinds" if c_rewinds >= c_pauses else "pauses"
+            dominant_count = max(c_rewinds, c_pauses)
+
+        g_mu, g_sigma = baselines[dominant_metric]
+        global_z = round((dominant_count - g_mu) / (g_sigma + eps), 2)
+        
+        l_mu = local_bl[dominant_metric]["mean"]
+        l_sigma = local_bl[dominant_metric]["std"]
+        local_z = round((dominant_count - l_mu) / (l_sigma + eps), 2)
+        local_ratio = round(dominant_count / (l_mu + eps), 2) if l_mu > 0 else (round(dominant_count, 2) if dominant_count > 0 else 1.0)
+        global_ratio = round(dominant_count / (g_mu + eps), 2) if g_mu > 0 else (round(dominant_count, 2) if dominant_count > 0 else 1.0)
+
+        # Evidence-Aware Confidence Score & Label
+        conf = _calculate_confidence(unique_viewers, total_cluster_events, global_z, local_z, sample_suff)
 
         evidence = []
-        sev_score = 1.0
         cat_title = "Behavioral Spike"
         domain = "COGNITIVE"
 
+        # -------------------------------------------------------------------
+        # EXCEPTIONAL ENGAGEMENT (Positive Anomaly)
+        # -------------------------------------------------------------------
         if c_replays > max(1, c_exits * 2) and c_replays >= 1:
             ratio = replay_rate / (baselines["replays"][0] / max(1, unique_viewers) + eps)
+            eng_conf = _calculate_confidence(unique_viewers, c_replays, ratio, local_ratio, sample_suff)
+            
+            eng_obs = f"Observed {c_replays} replay event(s) across {unique_viewers} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)})."
+            eng_interp = f"Replay rate ({replay_rate*100:.1f}%) is {ratio:.1f}x above global baseline and {local_ratio:.1f}x above surrounding local window ({sample_suff['label']})."
+            eng_hypo = "Plausible high emotional resonance, memorable visual moment, or detail rewatch interest."
+            eng_valid = f"Inspect visual composition at {_fmt_time(peak_t)} to identify high-retention cinematic elements."
+
             exceptional_engagement.append({
                 "anomaly_id": _make_anomaly_id("eng", screening_id, start_t, end_t, peak_t, "Emotional Scene Replay Hotspot"),
                 "screening_id": screening_id,
@@ -340,71 +498,92 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                 "title": "Emotional Scene Replay Hotspot",
                 "domain": "EMOTIONAL",
                 "type": "EXCEPTIONAL_ENGAGEMENT",
-                "severity": "HIGH" if c_replays >= 5 else "MEDIUM",
+                "severity": conf["label"],
+                "confidence_score": eng_conf["score"],
+                "confidence": eng_conf["label"],
+                "sample_sufficiency": sample_suff["status"],
                 "signals": {
                     "replay_rate": replay_rate,
                     "baseline_replay_rate": round(baselines["replays"][0] / max(1, unique_viewers), 4),
                     "replay_ratio": round(ratio, 2),
                     "exit_rate": exit_rate,
                 },
-                "evidence": [f"High emotional impact or memorable scene replay peak at {_fmt_time(peak_t)} ({c_replays} replay events, {ratio:.1f}x above baseline)"],
+                "evidence": [f"Replay hotspot peak at {_fmt_time(peak_t)} ({c_replays} replay event(s), {ratio:.1f}x above baseline)"],
+                "taxonomy": {
+                    "observation": eng_obs,
+                    "interpretation": eng_interp,
+                    "hypothesis": eng_hypo,
+                    "validation": eng_valid,
+                }
             })
 
+        # -------------------------------------------------------------------
+        # MULTI-SIGNAL CORRELATION & BEHAVIORAL CLASSIFICATION
+        # -------------------------------------------------------------------
         if c_replays >= 1 or c_rewinds >= 1:
             if c_pauses > 0:
                 cat_title = "Cognitive Comprehension Barrier"
                 domain = "COGNITIVE"
-                evidence.append(f"Scene rewatch peak at {_fmt_time(peak_t)}: {c_rewinds + c_replays} replay/rewind(s) & {c_pauses} pause(s) in {dur}s window (dense detail inspection)")
-                sev_score = max(sev_score, 2.0)
+                evidence.append(f"Rewind/pause co-occurrence at {_fmt_time(peak_t)}: {c_rewinds + c_replays} rewatch/rewind event(s) & {c_pauses} pause event(s) in {dur}s window")
             else:
                 cat_title = "Emotional Scene Replay Hotspot"
                 domain = "EMOTIONAL"
-                evidence.append(f"Scene replay peak at {_fmt_time(peak_t)}: {c_rewinds + c_replays} replay/rewind event(s) recorded")
-                sev_score = max(sev_score, 2.0)
+                evidence.append(f"Scene replay peak at {_fmt_time(peak_t)}: {c_rewinds + c_replays} replay/rewind event(s)")
         elif c_pauses > 0 and c_exits > 0:
             cat_title = "Critical Scene Exit Drop"
             domain = "RETENTION"
-            evidence.append(f"Audience exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit events, {exit_rate*100:.1f}%)")
-            sev_score = max(sev_score, 2.5)
+            evidence.append(f"Pause/exit co-occurrence at {_fmt_time(peak_t)}: {c_exits} exit event(s) ({exit_rate*100:.1f}% raw exit rate) & {c_pauses} pause event(s)")
         elif c_tabs > 0 and (c_exits > 0 or c_tabs >= 3):
             cat_title = "Psychological Attention Loss"
             domain = "PSYCHOLOGICAL"
-            evidence.append(f"Psychological disengagement peak at {_fmt_time(peak_t)}: {c_tabs} tab switch / hide event(s) recorded (loss of visual immersion)")
-            sev_score = max(sev_score, 2.0)
+            evidence.append(f"Tab hide peak at {_fmt_time(peak_t)}: {c_tabs} tab switch/hide event(s) & {c_exits} exit event(s)")
         elif c_skips > 0 and c_exits > 0:
             cat_title = "Dead Zone Pacing Skip"
             domain = "PACING"
-            evidence.append(f"Pacing friction peak at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s) in {dur}s window (slow narrative pace)")
-            sev_score = max(sev_score, 2.5)
+            evidence.append(f"Skip/exit co-occurrence at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s)")
         elif c_exits > 0:
             cat_title = "Critical Scene Exit Drop"
             domain = "RETENTION"
-            evidence.append(f"Audience exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit events, {exit_rate*100:.1f}%)")
-            sev_score = max(sev_score, 2.5)
+            evidence.append(f"Exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit event(s), {exit_rate*100:.1f}% raw exit rate)")
         elif c_vol > 0:
             cat_title = "Audio Mix Perception Spike"
             domain = "PERCEPTUAL"
-            evidence.append(f"Sound mix perception peak at {_fmt_time(peak_t)} ({c_vol} volume change events, dialogue/music imbalance)")
-            sev_score = max(sev_score, 1.5)
+            evidence.append(f"Audio volume adjustment peak at {_fmt_time(peak_t)} ({c_vol} volume event(s))")
         elif c_pauses > 0:
             cat_title = "Scene Pause Spike"
             domain = "COGNITIVE"
-            evidence.append(f"Pause micro-burst peak at {_fmt_time(peak_t)} ({c_pauses} pause events)")
-            sev_score = max(sev_score, 1.5)
+            evidence.append(f"Pause micro-burst peak at {_fmt_time(peak_t)} ({c_pauses} pause event(s))")
         elif c_rewinds > 0:
             cat_title = "Rewind Hotspot"
             domain = "COGNITIVE"
-            evidence.append(f"Rewind micro-burst peak at {_fmt_time(peak_t)} ({c_rewinds} rewind events)")
-            sev_score = max(sev_score, 1.5)
-        if c_vol > 0 and "Audio" not in cat_title:
-            evidence.append(f"Audio adjustment co-occurred ({c_vol} volume events)")
-        if c_tabs > 0 and "Psychological" not in cat_title:
-            evidence.append(f"Attention shift co-occurred ({c_tabs} tab hides)")
+            evidence.append(f"Rewind micro-burst peak at {_fmt_time(peak_t)} ({c_rewinds} rewind event(s))")
 
-        if unique_viewers < 10:
-            sev_label = "LOW"
+        if c_vol > 0 and "Audio" not in cat_title:
+            evidence.append(f"Secondary volume adjustment co-occurred ({c_vol} volume event(s))")
+        if c_tabs > 0 and "Psychological" not in cat_title:
+            evidence.append(f"Secondary attention shift co-occurred ({c_tabs} tab hide(s))")
+
+        # Build Scientific Honesty Taxonomy
+        taxonomy_obs = (
+            f"Observed {total_cluster_events} total event(s) ({c_exits} exit, {c_pauses} pause, {c_rewinds} rewind, {c_skips} skip, {c_replays} replay) "
+            f"across {unique_viewers} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)})."
+        )
+        taxonomy_interp = (
+            f"Dominant metric '{dominant_metric}' rate is {global_ratio:.1f}x relative to global screening baseline (z={global_z:.1f}) "
+            f"and {local_ratio:.1f}x relative to surrounding 15s local window (z={local_z:.1f}). {sample_suff['label']} Confidence: {conf['label']} ({conf['score']})."
+        )
+        if "Exit" in cat_title:
+            taxonomy_hypo = "Plausible pacing friction, abrupt scene transition, or visual dead space at scene tail."
+            taxonomy_valid = f"Inspect scene cut at {_fmt_time(peak_t)} and test a 1.0–1.5s razor trim to eliminate dead space."
+        elif "Comprehension" in cat_title:
+            taxonomy_hypo = "Plausible dense dialogue, rapid visual cut, or complex narrative detail requiring rewatch."
+            taxonomy_valid = f"Inspect dialogue audio levels and visual shot pacing at {_fmt_time(peak_t)}."
+        elif "Pacing" in cat_title:
+            taxonomy_hypo = "Plausible slow narrative progression prompting viewers to fast-forward."
+            taxonomy_valid = f"Trim scene duration prior to {_fmt_time(peak_t)}."
         else:
-            sev_label = "HIGH" if sev_score >= 2.5 else ("MEDIUM" if sev_score >= 2.0 else "LOW")
+            taxonomy_hypo = "Plausible viewer engagement shift or focal point transition."
+            taxonomy_valid = f"Review video timeline around {_fmt_time(peak_t)}."
 
         anomalies.append({
             "anomaly_id": _make_anomaly_id("anm", screening_id, start_t, end_t, peak_t, cat_title),
@@ -416,7 +595,37 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             "title": cat_title,
             "domain": domain,
             "type": "BEHAVIORAL_ANOMALY",
-            "severity": sev_label,
+            "severity": conf["label"],
+            "confidence_score": conf["score"],
+            "confidence": conf["label"],
+            "sample_sufficiency": sample_suff["status"],
+            "raw_signals": {
+                "exit_count": c_exits,
+                "pause_count": c_pauses,
+                "rewind_count": c_rewinds,
+                "skip_count": c_skips,
+                "replay_count": c_replays,
+                "raw_exit_rate": exit_rate,
+                "raw_pause_rate": pause_rate,
+                "raw_rewind_rate": rewind_rate,
+                "raw_skip_rate": skip_rate,
+            },
+            "smoothed_signals": {
+                "laplace_exit_rate": exit_smoothed,
+                "exit_wilson_lower": exit_wilson_lower,
+                "laplace_pause_rate": pause_smoothed,
+                "pause_wilson_lower": pause_wilson_lower,
+                "laplace_rewind_rate": rewind_smoothed,
+                "rewind_wilson_lower": rewind_wilson_lower,
+            },
+            "local_baseline": {
+                "window_sec": 15,
+                "dominant_metric": dominant_metric,
+                "global_z": global_z,
+                "local_z": local_z,
+                "global_ratio": global_ratio,
+                "local_ratio": local_ratio,
+            },
             "signals": {
                 "exit_rate": exit_rate,
                 "pause_rate": pause_rate,
@@ -424,6 +633,12 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                 "skip_rate": skip_rate,
             },
             "evidence": evidence,
+            "taxonomy": {
+                "observation": taxonomy_obs,
+                "interpretation": taxonomy_interp,
+                "hypothesis": taxonomy_hypo,
+                "validation": taxonomy_valid,
+            }
         })
 
     return {
@@ -433,7 +648,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         "reliability": _reliability(unique_viewers),
         "anomalies": anomalies,
         "exceptional_engagement": exceptional_engagement,
-        "baseline_methodology": "Second-by-second ML Micro-Burst & Density Clustering. Extracts precise timecode windows, peak seconds, and co-occurring event signals.",
+        "baseline_methodology": "Sample-Aware, Local-Context Density Clustering & Multi-Signal Correlation Engine. Integrates Laplace smoothing, Wilson confidence intervals, and local window baselines.",
     }
 
 

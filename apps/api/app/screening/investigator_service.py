@@ -95,18 +95,35 @@ async def run_anomaly_investigation(screening_id: str, anomaly_id: str) -> Dict[
     # 2. Build multimodal parts (Text Context + JPEG Image Part Bytes)
     parts = []
     
+    # Extract structured statistical intelligence & taxonomy from anomaly
+    raw_sig = target_anomaly.get("raw_signals", {})
+    smooth_sig = target_anomaly.get("smoothed_signals", {})
+    local_bl = target_anomaly.get("local_baseline", {})
+    tax = target_anomaly.get("taxonomy", {})
+    conf_score = target_anomaly.get("confidence_score", 0.5)
+    sample_suff = target_anomaly.get("sample_sufficiency", "SUFFICIENT")
+
     prompt_header = (
         f"Investigate the following audience anomaly detected by Frame Sense with BOTH ClickHouse MCP telemetry evidence AND extracted video vision frames:\n\n"
         f"ANOMALY CONTEXT:\n"
         f"- Film Title: {screening.get('title')}\n"
         f"- Anomaly: {target_anomaly.get('title')}\n"
         f"- Domain: {target_anomaly.get('domain')}\n"
-        f"- Severity: {target_anomaly.get('severity')}\n"
+        f"- Severity Label: {target_anomaly.get('severity')}\n"
+        f"- Statistical Confidence: {target_anomaly.get('confidence', 'MEDIUM')} (Score: {conf_score:.2f}, Sample Sufficiency: {sample_suff})\n"
         f"- Time Window: {start_sec}s to {end_sec}s (Peak at {peak_sec}s, Duration {duration_sec}s)\n"
+        f"- Raw Event Counts: {raw_sig.get('exit_count', 0)} exit(s), {raw_sig.get('pause_count', 0)} pause(s), {raw_sig.get('rewind_count', 0)} rewind(s), {raw_sig.get('replay_count', 0)} replay(s)\n"
+        f"- Statistical Baselines: Global Z={local_bl.get('global_z', 0.0)} ({local_bl.get('global_ratio', 1.0)}x global avg), Local Z={local_bl.get('local_z', 0.0)} ({local_bl.get('local_ratio', 1.0)}x surrounding 15s local window)\n"
         f"- Observational Evidence: {target_anomaly.get('evidence')}\n\n"
+        f"SCIENTIFIC HONESTY TAXONOMY:\n"
+        f"- OBSERVATION: {tax.get('observation', 'Telemetry measurement recorded across window.')}\n"
+        f"- INTERPRETATION: {tax.get('interpretation', 'Multi-baseline deviation analysis.')}\n"
+        f"- HYPOTHESIS: {tax.get('hypothesis', 'Plausible narrative friction or audio/visual transition factor.')}\n"
+        f"- VALIDATION: {tax.get('validation', 'Recommended timeline edit verification.')}\n\n"
         f"EXECUTIVE FORMATTING INSTRUCTION:\n"
         f"- DO NOT print raw internal system IDs (such as screening ID sc_..., media ID med_..., or anomaly ID anm_...).\n"
         f"- DO NOT print raw code variables like exit_rate = 1.0. Instead, write human-readable percentages (e.g. 100% Exit Drop Rate, 100% Pause Rate).\n"
+        f"- Maintain scientific honesty: viewer telemetry is evidence of WHERE audience reaction occurred, not direct measurement of emotion.\n"
         f"- Use structured markdown section headers: `### 1. OBSERVED AUDIENCE BEHAVIOR`, `### 2. QUANTITATIVE EVIDENCE`, `### 3. VISUAL EVIDENCE`, `### 4. TELEMETRY ↔ VISUAL CORRELATION`, `### 5. PLAUSIBLE EXPLANATIONS`, `### 6. CONFIDENCE`, `### 7. VALIDATION EVIDENCE`.\n\n"
     )
     
