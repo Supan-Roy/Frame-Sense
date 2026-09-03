@@ -332,7 +332,7 @@ def get_screening_chat_messages(screening_id: str, session_id: str):
 
 @router.post("/{screening_id}/chat/sessions/{session_id}/messages")
 async def send_screening_chat_message(screening_id: str, session_id: str, body: SendChatMessageRequest):
-    """Sends a user prompt to Sense AI agent (ClickHouse MCP + Vision + Search) and returns response."""
+    """Sends a user prompt to Sense AI agent (ClickHouse MCP + Vision + Search) and returns complete response."""
     screening = screening_repo.get_by_id(screening_id)
     if not screening:
         raise HTTPException(status_code=404, detail="Screening not found")
@@ -341,6 +341,22 @@ async def send_screening_chat_message(screening_id: str, session_id: str, body: 
         return await run_sense_ai_chat(screening_id, session_id, body.prompt)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sense AI Chat Error: {e}")
+
+
+@router.post("/{screening_id}/chat/sessions/{session_id}/messages/stream")
+async def send_screening_chat_message_stream(screening_id: str, session_id: str, body: SendChatMessageRequest):
+    """Streams a user prompt to Sense AI agent via SSE real-time token chunks."""
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        raise HTTPException(status_code=404, detail="Screening not found")
+    try:
+        from app.screening.chat_service import stream_sense_ai_chat
+        return StreamingResponse(
+            stream_sense_ai_chat(screening_id, session_id, body.prompt),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sense AI Chat Stream Error: {e}")
 
 
 

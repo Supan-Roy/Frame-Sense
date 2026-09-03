@@ -132,3 +132,116 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
         "screening_id": screening_id,
         "messages": all_messages
     }
+
+
+async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str):
+    """
+    Yields real-time Server-Sent Events (SSE) token chunks for Sense AI chat interaction.
+    """
+    import json
+
+    screening = screening_repo.get_by_id(screening_id)
+    if not screening:
+        yield f"data: {json.dumps({'type': 'error', 'content': 'Screening not found'})}\n\n"
+        return
+
+    # 1. Save user prompt first
+    screening_repo.save_chat_message(
+        session_id=session_id,
+        screening_id=screening_id,
+        role="user",
+        content=user_prompt
+    )
+
+    # 2. Get live telemetry overview summary for context
+    from app.screening.analytics import get_audience_overview
+    overview = {}
+    try:
+        overview = get_audience_overview(screening_id)
+    except Exception:
+        pass
+
+    past_messages = screening_repo.get_chat_messages(session_id)
+    
+    context_header = (
+        f"You are Sense AI, the primary interactive screening intelligence assistant for Frame Sense.\n"
+        f"You are conversing with a studio executive/director regarding screening '{screening['title']}'.\n\n"
+        f"SCREENING METADATA & LIVE TELEMETRY SUMMARY:\n"
+        f"- Title: {screening['title']}\n"
+        f"- Screening Database ID (Use in SQL queries): {screening_id}\n"
+        f"- Video Duration: {screening.get('media_duration')} seconds\n"
+        f"- Total Unique Viewers: {overview.get('unique_viewers', 0)} ({overview.get('real_viewers', 0)} real, {overview.get('synthetic_viewers', 0)} synthetic)\n"
+        f"- Total Telemetry Events: {overview.get('total_events', 0)}\n"
+        f"- Total Viewer Sessions: {overview.get('unique_sessions', 0)}\n"
+        f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n\n"
+        f"DATA QUERYING RULE:\n"
+        f"- Use ClickHouse Cloud MCP (`run_select_query`) to query default.viewer_events.\n"
+        f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` to fetch exact telemetry for this screening.\n\n"
+        f"INSTRUCTIONS:\n"
+        f"- Answer the user's specific question directly, concisely, and naturally.\n"
+        f"- DO NOT output rigid 7-part investigation report headers (e.g. '1. OBSERVED AUDIENCE BEHAVIOR') for simple conversational questions.\n"
+        f"- Format response with rich, clear Markdown (bold terms, bullet points, concise paragraphs).\n"
+        f"- Be concise, direct, professional, and helpful.\n\n"
+        f"CONVERSATION HISTORY:\n"
+    )
+
+    parts = [Part.from_text(text=context_header)]
+    
+    history_subset = past_messages[-8:]
+    for msg in history_subset:
+        role_label = "USER" if msg["role"] == "user" else "SENSE AI"
+        parts.append(Part.from_text(text=f"{role_label}: {msg['content']}\n\n"))
+
+    parts.append(Part.from_text(text=f"USER QUESTION: {user_prompt}\n\nSENSE AI RESPONSE:"))
+
+    runner = InMemoryRunner(agent=sense_ai_chat_agent)
+    runner_session_id = f"chat_stream_{session_id}_{uuid.uuid4().hex[:6]}"
+    user_id = "frame_sense_user"
+
+    try:
+        await runner.session_service.create_session(
+            app_name=runner.app_name,
+            user_id=user_id,
+            session_id=runner_session_id
+        )
+    except Exception as e:
+        logger.warning(f"Stream session creation note: {e}")
+
+    content_payload = Content(parts=parts)
+    full_reply = ""
+    quota_exhausted = False
+
+    try:
+        async for event in runner.run_async(user_id=user_id, session_id=runner_session_id, new_message=content_payload):
+            if hasattr(event, "content") and event.content:
+                for p in event.content.parts:
+                    if hasattr(p, "text") and p.text:
+                        chunk_text = p.text
+                        full_reply += chunk_text
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': chunk_text})}\n\n"
+    except Exception as e:
+        logger.error(f"Sense AI Chat Stream Execution Error: {e}")
+        if is_quota_exhausted_error(e):
+            quota_exhausted = True
+            err_msg = (
+                "⚠️ Gemini API Quota Exhausted (Error 429: RESOURCE_EXHAUSTED)\n\n"
+                "You have exceeded your free tier rate limit or daily quota on your Gemini API key. "
+                "Please wait a minute before sending your next message."
+            )
+            full_reply = err_msg
+            yield f"data: {json.dumps({'type': 'chunk', 'text': err_msg})}\n\n"
+        elif not full_reply:
+            fallback = f"I processed your query regarding **{screening['title']}**."
+            full_reply = fallback
+            yield f"data: {json.dumps({'type': 'chunk', 'text': fallback})}\n\n"
+
+    # Save full assistant response to SQLite
+    screening_repo.save_chat_message(
+        session_id=session_id,
+        screening_id=screening_id,
+        role="assistant",
+        content=full_reply.strip()
+    )
+
+    yield f"data: {json.dumps({'type': 'done', 'session_id': session_id, 'status': 'quota_exhausted' if quota_exhausted else 'success'})}\n\n"
+

@@ -1129,7 +1129,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [animatedMsgId, setAnimatedMsgId] = useState<string | null>(null);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1250,29 +1249,77 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
     setError(null);
 
     const tempUserMsg: ChatMessage = {
-      message_id: `temp_${Date.now()}`,
+      message_id: `temp_user_${Date.now()}`,
       session_id: activeSessionId,
       screening_id: screening.screening_id,
       role: 'user',
       content: prompt,
       created_at: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, tempUserMsg]);
+
+    const tempAssistantMsgId = `temp_ast_${Date.now()}`;
+    const tempAssistantMsg: ChatMessage = {
+      message_id: tempAssistantMsgId,
+      session_id: activeSessionId,
+      screening_id: screening.screening_id,
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages(prev => [...prev, tempUserMsg, tempAssistantMsg]);
 
     try {
-      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`, {
+      const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
+
       if (!res.ok) throw new Error(`Server returned status ${res.status}`);
-      const data = await res.json();
-      if (data.messages && data.messages.length > 0) {
-        const lastMsg = data.messages[data.messages.length - 1];
-        if (lastMsg.role === 'assistant') {
-          setAnimatedMsgId(lastMsg.message_id);
+      if (!res.body) throw new Error('ReadableStream not supported by response');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let accumulatedText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const dataStr = trimmed.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.type === 'chunk' && data.text) {
+                accumulatedText += data.text;
+                const currentText = accumulatedText;
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.message_id === tempAssistantMsgId
+                      ? { ...m, content: currentText }
+                      : m
+                  )
+                );
+              }
+            } catch (e) {
+              console.error('SSE parse error:', e);
+            }
+          }
         }
-        setMessages(data.messages);
+      }
+
+      const fetchMsgRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`);
+      if (fetchMsgRes.ok) {
+        const finalMsgs = await fetchMsgRes.json();
+        setMessages(finalMsgs);
       }
       const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
       if (sessRes.ok) setSessions(await sessRes.json());
@@ -1438,7 +1485,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                         ) : (
                           <TypewriterMarkdown
                             text={m.content}
-                            animate={m.message_id === animatedMsgId}
+                            animate={false}
                             onProgress={() => scrollToBottom('auto')}
                           />
                         )}
