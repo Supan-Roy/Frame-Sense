@@ -15,18 +15,21 @@ from app.screening.investigator_service import run_anomaly_investigation
 from agents.frame_sense_investigator import root_agent
 
 
-def _get_or_create_test_screening():
-    screenings = screening_repo.get_all()
-    if screenings:
-        return screenings[0]
-    return screening_repo.create(
-        screening_id="sc_test_integration",
-        media_id="med_test_123",
-        title="Test Screening",
-        description="Integration test screening",
-        media_filename="test_video.mp4",
-        media_duration=120.0
-    )
+@pytest.fixture
+def integration_test_screening():
+    screening = screening_repo.get_by_id("sc_test_integration")
+    if not screening:
+        screening = screening_repo.create(
+            screening_id="sc_test_integration",
+            media_id="med_test_123",
+            title="Test Screening",
+            description="Integration test screening",
+            media_filename="test_video.mp4",
+            media_duration=120.0
+        )
+    yield screening
+    from app.database.clickhouse import delete_screening_events
+    delete_screening_events("sc_test_integration")
 
 
 def test_investigator_agent_structure_and_instruction():
@@ -38,9 +41,9 @@ def test_investigator_agent_structure_and_instruction():
     assert "VISUAL EVIDENCE" in root_agent.instruction
 
 
-def test_existing_anomaly_detection_unchanged():
+def test_existing_anomaly_detection_unchanged(integration_test_screening):
     """Verify existing anomaly detection get_anomalies output structure remains 100% untouched."""
-    screening = _get_or_create_test_screening()
+    screening = integration_test_screening
     sid = screening["screening_id"]
 
     res = get_anomalies(sid, bucket_sec=2)
@@ -52,9 +55,9 @@ def test_existing_anomaly_detection_unchanged():
 
 
 @pytest.mark.asyncio
-async def test_investigate_anomaly_service_context_passing():
+async def test_investigate_anomaly_service_context_passing(integration_test_screening):
     """Verify anomaly context (screening_id, video_id, timecode window) is correctly extracted and formatted."""
-    screening = _get_or_create_test_screening()
+    screening = integration_test_screening
     sid = screening["screening_id"]
 
     # Mock runner so unit tests execute deterministically without relying on live LLM network quotas
@@ -99,13 +102,13 @@ async def test_investigate_anomaly_service_context_passing():
 
 
 @pytest.mark.asyncio
-async def test_investigate_api_route():
+async def test_investigate_api_route(integration_test_screening):
     """Verify FastApi route POST /api/v1/screenings/{screening_id}/audience/anomalies/{anomaly_id}/investigate."""
     from fastapi.testclient import TestClient
     from app.main import app
 
     client = TestClient(app)
-    screening = _get_or_create_test_screening()
+    screening = integration_test_screening
     sid = screening["screening_id"]
 
     mock_report = {
@@ -127,9 +130,9 @@ async def test_investigate_api_route():
         assert len(data["mcp_queries_executed"]) == 1
 
 
-def test_investigation_persistence_and_deletion():
+def test_investigation_persistence_and_deletion(integration_test_screening):
     """Verify SQLite persistence: save, retrieve all, get specific, and manual delete."""
-    screening = _get_or_create_test_screening()
+    screening = integration_test_screening
     sid = screening["screening_id"]
     anm_id = "anm_persist_test_999"
 
@@ -164,9 +167,9 @@ def test_investigation_persistence_and_deletion():
     assert screening_repo.get_investigation(sid, anm_id) is None
 
 
-def test_delete_all_investigations_on_reset():
+def test_delete_all_investigations_on_reset(integration_test_screening):
     """Verify that delete_all_investigations purges all saved investigations for a screening."""
-    screening = _get_or_create_test_screening()
+    screening = integration_test_screening
     sid = screening["screening_id"]
 
     screening_repo.save_investigation(sid, "anm_reset_1", "Report 1", [], [])

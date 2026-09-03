@@ -14,23 +14,26 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def _get_or_create_test_screening():
-    screenings = screening_repo.get_all()
-    if screenings:
-        return screenings[0]
-    return screening_repo.create(
-        screening_id="sc_test_chat_123",
-        media_id="med_test_chat_123",
-        title="Test Chat Screening",
-        description="Chat test screening",
-        media_filename="non_existent_video.mp4",
-        media_duration=120.0
-    )
+@pytest.fixture
+def chat_test_screening():
+    screening = screening_repo.get_by_id("sc_test_chat_123")
+    if not screening:
+        screening = screening_repo.create(
+            screening_id="sc_test_chat_123",
+            media_id="med_test_chat_123",
+            title="Test Chat Screening",
+            description="Chat test screening",
+            media_filename="non_existent_video.mp4",
+            media_duration=120.0
+        )
+    yield screening
+    from app.database.clickhouse import delete_screening_events
+    delete_screening_events("sc_test_chat_123")
 
 
-def test_chat_session_repository_lifecycle():
-    """Verify chat session creation, listing, message saving, and deletion in SQLite."""
-    screening = _get_or_create_test_screening()
+def test_chat_session_repository_lifecycle(chat_test_screening):
+    """Verify chat session creation, listing, message saving, and deletion in ClickHouse."""
+    screening = chat_test_screening
     sid = screening["screening_id"]
 
     # 1. Create chat session
@@ -63,9 +66,9 @@ def test_chat_session_repository_lifecycle():
 
 
 @pytest.mark.asyncio
-async def test_sense_ai_chat_service_and_api_execution():
+async def test_sense_ai_chat_service_and_api_execution(chat_test_screening):
     """Verify run_sense_ai_chat executes agent and API endpoints respond correctly."""
-    screening = _get_or_create_test_screening()
+    screening = chat_test_screening
     sid = screening["screening_id"]
 
     # Create session

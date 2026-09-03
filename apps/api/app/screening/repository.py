@@ -123,12 +123,38 @@ class ScreeningRepository:
             "updated_at": now_iso
         }
 
-    def get_comments_by_screening(self, screening_id: str) -> List[Dict[str, Any]]:
+    def get_comments(self, screening_id: str, viewer_id: str | None = None) -> List[Dict[str, Any]]:
         client = get_client()
-        res = client.query(
-            "SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at FROM default.comments WHERE screening_id = {sid:String} ORDER BY video_timecode_sec ASC, created_at ASC",
-            parameters={"sid": screening_id}
-        )
+        if viewer_id:
+            res = client.query(
+                """
+                SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at
+                FROM (
+                    SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at,
+                           ROW_NUMBER() OVER (PARTITION BY comment_id ORDER BY updated_at DESC) as rn
+                    FROM default.comments
+                    WHERE screening_id = {sid:String} AND viewer_id = {vid:String}
+                )
+                WHERE rn = 1
+                ORDER BY video_timecode_sec ASC
+                """,
+                parameters={"sid": screening_id, "vid": viewer_id}
+            )
+        else:
+            res = client.query(
+                """
+                SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at
+                FROM (
+                    SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at,
+                           ROW_NUMBER() OVER (PARTITION BY comment_id ORDER BY updated_at DESC) as rn
+                    FROM default.comments
+                    WHERE screening_id = {sid:String}
+                )
+                WHERE rn = 1
+                ORDER BY video_timecode_sec ASC
+                """,
+                parameters={"sid": screening_id}
+            )
         if not res.result_rows:
             return []
         cols = ["comment_id", "screening_id", "viewer_id", "display_name", "video_timecode_sec", "content", "created_at", "updated_at"]
@@ -142,10 +168,13 @@ class ScreeningRepository:
             out.append(item)
         return out
 
+    def get_comments_by_screening(self, screening_id: str) -> List[Dict[str, Any]]:
+        return self.get_comments(screening_id)
+
     def get_comment_by_id(self, comment_id: str) -> Dict[str, Any] | None:
         client = get_client()
         res = client.query(
-            "SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at FROM default.comments WHERE comment_id = {cid:String}",
+            "SELECT comment_id, screening_id, viewer_id, display_name, video_timecode_sec, content, created_at, updated_at FROM default.comments WHERE comment_id = {cid:String} ORDER BY updated_at DESC LIMIT 1",
             parameters={"cid": comment_id}
         )
         if not res.result_rows:

@@ -14,18 +14,21 @@ from app.screening.investigator_service import run_anomaly_investigation
 from app.screening.repository import screening_repo
 
 
-def _get_or_create_test_screening():
-    screenings = screening_repo.get_all()
-    if screenings:
-        return screenings[0]
-    return screening_repo.create(
-        screening_id="sc_test_vision_123",
-        media_id="med_test_vision_123",
-        title="Test Vision Screening",
-        description="Vision test screening",
-        media_filename="non_existent_video.mp4",
-        media_duration=120.0
-    )
+@pytest.fixture
+def vision_test_screening():
+    screening = screening_repo.get_by_id("sc_test_vision_123")
+    if not screening:
+        screening = screening_repo.create(
+            screening_id="sc_test_vision_123",
+            media_id="med_test_vision_123",
+            title="Test Vision Screening",
+            description="Vision test screening",
+            media_filename="non_existent_video.mp4",
+            media_duration=120.0
+        )
+    yield screening
+    from app.database.clickhouse import delete_screening_events
+    delete_screening_events("sc_test_vision_123")
 
 
 def test_missing_video_graceful_fallback():
@@ -71,9 +74,9 @@ def test_ffmpeg_frame_extraction_on_real_video():
 
 
 @pytest.mark.asyncio
-async def test_multimodal_investigation_service_execution():
+async def test_multimodal_investigation_service_execution(vision_test_screening):
     """Verify run_anomaly_investigation attaches visual metadata and returns 7-section report structure."""
-    screening = _get_or_create_test_screening()
+    screening = vision_test_screening
     sid = screening["screening_id"]
 
     mock_event = MagicMock()
@@ -118,13 +121,13 @@ async def test_multimodal_investigation_service_execution():
 
 
 @pytest.mark.asyncio
-async def test_elaborated_investigation_service_and_api():
+async def test_elaborated_investigation_service_and_api(vision_test_screening):
     """Verify run_elaborated_investigation generates recommendations and persists in SQLite."""
     from app.screening.investigator_service import run_elaborated_investigation
     from fastapi.testclient import TestClient
     from app.main import app
 
-    screening = _get_or_create_test_screening()
+    screening = vision_test_screening
     sid = screening["screening_id"]
     anm_id = "anm_elaborate_test"
 
