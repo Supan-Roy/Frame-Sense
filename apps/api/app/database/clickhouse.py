@@ -184,6 +184,8 @@ def get_all_stats() -> Dict[str, Any]:
     except Exception:
         return {"total_sessions": 0, "total_viewers": 0, "total_events": 0}
 
+get_global_stats = get_all_stats
+
 def delete_screening_events(screening_id: str):
     client = get_client()
     params = {"sid": screening_id}
