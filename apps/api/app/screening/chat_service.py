@@ -222,13 +222,13 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
                     for p in event.content.parts:
                         if hasattr(p, "text") and p.text:
                             raw_text = p.text
-                            # Split raw_text into word deltas for smooth real-time SSE streaming
-                            words = raw_text.split(" ")
-                            for i, w in enumerate(words):
-                                word_delta = w + (" " if i < len(words) - 1 else "")
-                                full_reply += word_delta
-                                yield f"data: {json.dumps({'type': 'chunk', 'text': word_delta})}\n\n"
-                                await asyncio.sleep(0.012)
+                            # Yield 4-character chunks every 15ms for true real-time character streaming
+                            chunk_size = 4
+                            for i in range(0, len(raw_text), chunk_size):
+                                sub_chunk = raw_text[i:i+chunk_size]
+                                full_reply += sub_chunk
+                                yield f"data: {json.dumps({'type': 'chunk', 'text': sub_chunk})}\n\n"
+                                await asyncio.sleep(0.015)
         except Exception as e:
             logger.error(f"Sense AI Chat Stream Execution Error: {e}")
             if is_quota_exhausted_error(e):

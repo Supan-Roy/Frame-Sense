@@ -1082,33 +1082,38 @@ message_id: string;
   created_at: string;
 }
 
-function TypewriterMarkdown({ text, animate = false, onProgress }: { text: string; animate?: boolean; onProgress?: () => void }) {
-  const [visibleLength, setVisibleLength] = useState(animate ? 0 : text.length);
-  const isTyping = animate && visibleLength < text.length;
+function TypewriterMarkdown({ text, isStreaming = false, animate = false, onProgress }: { text: string; isStreaming?: boolean; animate?: boolean; onProgress?: () => void }) {
+  const [visibleLength, setVisibleLength] = useState((isStreaming || animate) ? 0 : text.length);
 
   useEffect(() => {
-    if (!animate) {
+    if (!isStreaming && !animate) {
       setVisibleLength(text.length);
       return;
     }
 
-    setVisibleLength(0);
-    const chunkSize = 3;
+    const chunkSize = 2;
     const interval = setInterval(() => {
       setVisibleLength((prev) => {
-        const next = Math.min(prev + chunkSize, text.length);
-        if (next >= text.length) {
-          clearInterval(interval);
+        if (prev < text.length) {
+          const next = Math.min(prev + chunkSize, text.length);
+          if (onProgress) onProgress();
+          return next;
         }
-        return next;
+        return prev;
       });
-      if (onProgress) onProgress();
-    }, 12);
+    }, 15);
 
     return () => clearInterval(interval);
-  }, [text, animate]);
+  }, [text, isStreaming, animate]);
+
+  useEffect(() => {
+    if (!isStreaming && !animate) {
+      setVisibleLength(text.length);
+    }
+  }, [text, isStreaming, animate]);
 
   const displayedText = text.slice(0, visibleLength);
+  const isTyping = (isStreaming || animate) && visibleLength < text.length;
 
   return (
     <div className="relative">
@@ -1456,7 +1461,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                   </div>
                 </div>
               ) : (
-                messages.map(m => {
+                messages.map((m, idx) => {
                   const isUser = m.role === 'user';
                   const isQuota = m.content.includes('Quota Exhausted') || m.content.includes('RESOURCE_EXHAUSTED') || m.content.includes('429');
 
@@ -1493,7 +1498,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                         ) : (
                           <TypewriterMarkdown
                             text={m.content}
-                            animate={false}
+                            isStreaming={sending && idx === messages.length - 1 && m.role === 'assistant'}
                             onProgress={() => scrollToBottom('auto')}
                           />
                         )}
@@ -1503,7 +1508,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                 })
               )}
 
-              {sending && (
+              {sending && !messages.some(m => m.role === 'assistant' && m.message_id.startsWith('temp_ast_')) && (
                 <div className="flex justify-start">
                   <div className="bg-studio-950 border border-cyan-500/30 rounded-2xl rounded-tl-none p-4 text-xs text-cyan-300 font-mono flex items-center gap-3 animate-pulse">
                     <Loader2 className="h-4 w-4 animate-spin text-cyan-400 shrink-0" />
