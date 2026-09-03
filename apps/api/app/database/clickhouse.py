@@ -105,18 +105,6 @@ def init_db():
     ORDER BY (screening_id, session_id, created_at);
     """)
 
-    # Seed default screenings if empty
-    try:
-        count_res = client.command("SELECT count() FROM default.screenings")
-        if count_res == 0:
-            now_dt = datetime.now(timezone.utc)
-            client.insert("screenings", [
-                ["sc_sintel", "med_sintel", "Sintel - Open Movie Cut", "Open-source animated fantasy short film screening.", "sintel.mp4", 888.0, now_dt, "active", "pub_sintel_token"],
-                ["sc_cyberpunk", "med_cyberpunk", "Neon Horizon - Sci-Fi Thriller", "Cyberpunk dystopian thriller test screening.", "cyberpunk.mp4", 1200.0, now_dt, "active", "pub_cyberpunk_token"]
-            ], column_names=["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"])
-    except Exception as e:
-        print(f"Notice: Seed check during ClickHouse init: {e}")
-
     print("ClickHouse database schema initialized successfully.")
 
 def insert_events(events: List[Dict[str, Any]]):

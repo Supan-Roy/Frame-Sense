@@ -6,6 +6,8 @@ from app.screening.repository import ScreeningRepository
 def temp_repo():
     repo = ScreeningRepository()
     yield repo
+    repo.delete("sc_test123")
+    repo.delete("sc_to_delete")
 
 def test_create_and_get_screening(temp_repo):
     record = temp_repo.create(
