@@ -79,7 +79,7 @@ class ScreeningRepository:
             "media_filename", "media_duration", "created_at", "status", "public_token"
         ])
 
-        return {
+        res = {
             "screening_id": screening_id,
             "media_id": media_id,
             "title": title,
@@ -90,6 +90,20 @@ class ScreeningRepository:
             "status": status,
             "public_token": public_token
         }
+        self._sync_screenings_file()
+        return res
+
+    def _sync_screenings_file(self):
+        try:
+            import json, os
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+            json_path = os.path.join(data_dir, "screenings.json")
+            screenings = self.get_all()
+            os.makedirs(data_dir, exist_ok=True)
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(screenings, f, indent=2)
+        except Exception:
+            pass
 
     def add_comment(
         self,
@@ -226,6 +240,7 @@ class ScreeningRepository:
         client.command("DELETE FROM default.investigations WHERE screening_id = {sid:String}", parameters=params)
         client.command("DELETE FROM default.chat_sessions WHERE screening_id = {sid:String}", parameters=params)
         client.command("DELETE FROM default.chat_messages WHERE screening_id = {sid:String}", parameters=params)
+        self._sync_screenings_file()
         return True
 
     # --- AI Investigation Persistence Methods ---

@@ -107,6 +107,28 @@ def init_db():
 
     print("ClickHouse database schema initialized successfully.")
 
+    # Seed persistent screenings from screenings.json backup if default.screenings is empty
+    try:
+        sc_cnt = client.command("SELECT count() FROM default.screenings")
+        if sc_cnt == 0:
+            import json, os
+            json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "screenings.json")
+            if os.path.exists(json_path):
+                with open(json_path, "r", encoding="utf-8") as f:
+                    saved_screenings = json.load(f)
+                for s in saved_screenings:
+                    cr_dt = datetime.fromisoformat(s["created_at"].replace("Z", "+00:00")) if "created_at" in s else datetime.now(timezone.utc)
+                    client.insert("screenings", [[
+                        s["screening_id"], s["media_id"], s["title"], s.get("description", ""),
+                        s["media_filename"], float(s["media_duration"]), cr_dt, s.get("status", "active"), s["public_token"]
+                    ]], column_names=[
+                        "screening_id", "media_id", "title", "description",
+                        "media_filename", "media_duration", "created_at", "status", "public_token"
+                    ])
+                print(f"Restored {len(saved_screenings)} screening(s) from persistent backup file.")
+    except Exception as seed_err:
+        pass
+
 def insert_events(events: List[Dict[str, Any]]):
     client = get_client()
     data = []
