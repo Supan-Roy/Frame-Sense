@@ -19,52 +19,28 @@ In film post-production, **director cuts often suffer 30%–50% audience retenti
 
 ### Structural Limitations of Traditional Methods
 1. **Recall Bias & Subjectivity**: Viewers report feelings minutes or hours after watching, masking exact second-by-second micro-reactions.
-2. **Lack of Frame Correlation**: Paper feedback tells filmmakers *"the middle felt slow"*, but fails to pinpoint whether the friction was caused by dialogue density, audio mix imbalance, or visual dead space at $00:26:14$.
+2. **Lack of Frame Correlation**: Paper feedback tells filmmakers *"the middle felt slow"*, but fails to pinpoint whether the friction was caused by dialogue density, audio mix imbalance, or visual dead space at `00:26:14`.
 3. **High Remediation Cost**: Reshooting or re-editing scenes without frame-accurate telemetry risks removing high-value narrative beats while leaving actual dead space intact.
 
 ---
 
 ## System Architecture & Data Flow
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                         WEB FRONTEND WORKSPACE                                   │
-│            React 18 / Vite / TypeScript / Tailwind CSS / Lucide Icons            │
-│  (Screening Room Telemetry Player ── Editorial Findings Dashboard ── Sense AI)   │
-└────────────────────────────────────────┬─────────────────────────────────────────┘
-                                         │ HTTP / Real-Time SSE Stream
-                                         ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             FASTAPI BACKEND ENGINE                               │
-│                         (Python 3.11 / Uvicorn Server)                           │
-├────────────────────────────────────────┬─────────────────────────────────────────┤
-│                                        │                                         │
-│  ┌──────────────────────────────────┐  │  ┌──────────────────────────────────┐   │
-│  │   ClickHouse Telemetry Storage   │  │  │  Viewer Sequence Trajectory      │   │
-│  │  (Columnar Engine, MCP Protocol) │  │  │        Analytics Engine          │   │
-│  └──────────────────┬───────────────┘  │  └──────────────────┬───────────────┘   │
-│                     │                  │                     │                   │
-│                     └──────────────────┼─────────────────────┘                   │
-│                                        ▼                                         │
-│                        ┌───────────────────────────────┐                         │
-│                        │ Statistical Joint Gating      │                         │
-│                        │ (Laplace & Wilson LCB Engine) │                         │
-│                        └───────────────┬───────────────┘                         │
-│                                        │                                         │
-│                     ┌──────────────────┴──────────────────┐                      │
-│                     ▼                                     ▼                      │
-│     ┌──────────────────────────────┐       ┌─────────────────────────────┐       │
-│     │ Multimodal Vision Engine     │       │ Sense AI Interactive Agent  │       │
-│     │ (FFmpeg Keyframe Extraction  │       │  (Google ADK InMemoryRunner │       │
-│     │   + Gemini 2.5 Vision API)   │       │   + ClickHouse MCP Server)  │       │
-│     └───────────────┬──────────────┘       └──────────────┬──────────────┘       │
-└─────────────────────┼─────────────────────────────────────┼──────────────────────┘
-                      │                                     │
-                      ▼                                     ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                     PROFESSIONAL NLE TIMELINE EXPORT ENGINE                      │
-│            (Final Cut Pro XML .fcpxml & CMX3600 EDL for Premiere/Resolve)         │
-└──────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    UI["React 18 / Vite Web Workspace<br/>(Screening Room & Editorial Dashboard)"] -->|HTTP / SSE Stream| API["FastAPI Backend Engine (Port 8001)"]
+
+    subgraph Core ["Backend Core Subsystems"]
+        API --> CH["ClickHouse Telemetry Storage<br/>(Columnar Engine & MCP Protocol)"]
+        API --> TRAJ["Viewer Sequence Trajectory Engine<br/>(_get_window_trajectories)"]
+        CH --> GATE["Statistical Joint Gating Engine<br/>(Laplace & Wilson LCB Engine)"]
+        TRAJ --> GATE
+        GATE --> VIS["Multimodal Vision Engine<br/>(FFmpeg Keyframes + Gemini 2.5 Vision)"]
+        GATE --> CHAT["Sense AI Interactive Agent<br/>(Google ADK + ClickHouse MCP)"]
+    end
+
+    VIS --> NLE["Professional NLE Timeline Export Engine<br/>(Final Cut Pro XML .fcpxml & CMX3600 EDL)"]
+    CHAT --> NLE
 ```
 
 ---
@@ -82,7 +58,7 @@ $$\text{Session Trajectory} = \langle (e_1, t_1), (e_2, t_2), \dots, (e_m, t_m) 
 #### Trajectory Metrics
 - **Exposed Viewers ($N_{\text{exposed}}$)**: Unique viewers present in $[t_{\text{start}} - 5\text{s}, t_{\text{end}} + 10\text{s}]$.
 - **Permanent Exits ($N_{\text{permanent\_exits}}$)**: Viewers whose session terminated in $W$ and **never returned or emitted events** past $t_{\text{end}} + 3\text{s}$.
-- **Replayed & Continued ($N_{\text{replayed\_and\_continued}}$)**: Viewers who rewound/replayed in $W$ and continued watching past $t_{\text{end}} + 3\text{s}$.
+- **Replayed & Continued ($N_{\text{replayed\_continued}}$)**: Viewers who rewound/replayed in $W$ and continued watching past $t_{\text{end}} + 3\text{s}$.
 - **Permanent Exit Rate**:
   $$R_{\text{permanent\_exit}} = \frac{N_{\text{permanent\_exits}}}{\max(1, N_{\text{exposed}})}$$
 - **Continuation Rate**:
