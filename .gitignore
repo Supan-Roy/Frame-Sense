@@ -46,3 +46,7 @@ apps/api/data/
 # Local root data folder (for temporary tests)
 data/
 
+# Temporary agent scratch files
+scratch/
+
+
