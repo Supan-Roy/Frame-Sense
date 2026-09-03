@@ -33,35 +33,44 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
         content=user_prompt
     )
 
-    # 2. Get live telemetry overview summary for instant context
-    from app.screening.analytics import get_audience_overview
+    # 2. Get live telemetry overview & top anomalies for instant context summary
+    from app.screening.analytics import get_audience_overview, get_anomalies
     overview = {}
+    anomalies_summary = "None detected."
     try:
         overview = get_audience_overview(screening_id)
+        anm_res = get_anomalies(screening_id)
+        top_anm = anm_res.get("anomalies", [])[:3]
+        if top_anm:
+            anomalies_summary = "; ".join([
+                f"{a['title']} at {a.get('start_time_sec', 0)}s (Severity: {a.get('severity', 'UNKNOWN')})"
+                for a in top_anm
+            ])
     except Exception:
         pass
 
-    # 3. Get past messages for conversation context
+    # 3. Get past messages for conversation context (keep recent 6 messages)
     past_messages = screening_repo.get_chat_messages(session_id)
     
-    # Construct context system prompt
+    # Construct optimized context system prompt
     context_header = (
         f"You are Sense AI, the primary interactive screening intelligence assistant for Frame Sense.\n"
         f"You are conversing with a studio executive/director regarding screening '{screening['title']}'.\n\n"
-        f"SCREENING METADATA & LIVE TELEMETRY SUMMARY:\n"
+        f"SCREENING METADATA & PRE-LOADED TELEMETRY SUMMARY:\n"
         f"- Title: {screening['title']}\n"
-        f"- Screening Database ID (Use in SQL queries): {screening_id}\n"
+        f"- Screening Database ID: {screening_id}\n"
         f"- Video Duration: {screening.get('media_duration')} seconds\n"
         f"- Total Unique Viewers: {overview.get('unique_viewers', 0)} ({overview.get('real_viewers', 0)} real, {overview.get('synthetic_viewers', 0)} synthetic)\n"
         f"- Total Telemetry Events: {overview.get('total_events', 0)}\n"
         f"- Total Viewer Sessions: {overview.get('unique_sessions', 0)}\n"
-        f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n\n"
-        f"DATA QUERYING RULE:\n"
-        f"- Use ClickHouse Cloud MCP (`run_select_query`) to query default.viewer_events.\n"
-        f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` to fetch exact telemetry for this screening.\n\n"
+        f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n"
+        f"- Top Anomaly Findings: {anomalies_summary}\n\n"
+        f"FAST RESPONSE & DATA QUERYING RULES:\n"
+        f"- If the user's question can be answered using the PRE-LOADED TELEMETRY SUMMARY above, answer directly and immediately. Do NOT execute redundant SQL queries.\n"
+        f"- Execute ClickHouse Cloud MCP (`run_select_query`) ONLY when the user explicitly requests custom raw data filtering or complex SQL aggregations.\n"
+        f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` if executing a query.\n\n"
         f"INSTRUCTIONS:\n"
         f"- Answer the user's specific question directly, concisely, and naturally.\n"
-        f"- DO NOT output rigid 7-part investigation report headers (e.g. '1. OBSERVED AUDIENCE BEHAVIOR') for simple conversational questions.\n"
         f"- Format response with rich, clear Markdown (bold terms, bullet points, concise paragraphs).\n"
         f"- Be concise, direct, professional, and helpful.\n\n"
         f"CONVERSATION HISTORY:\n"
@@ -69,8 +78,8 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
 
     parts = [Part.from_text(text=context_header)]
     
-    # Include up to last 8 messages for context
-    history_subset = past_messages[-8:]
+    # Include up to last 6 messages for context
+    history_subset = past_messages[-6:]
     for msg in history_subset:
         role_label = "USER" if msg["role"] == "user" else "SENSE AI"
         parts.append(Part.from_text(text=f"{role_label}: {msg['content']}\n\n"))
@@ -159,11 +168,19 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
             content=user_prompt
         )
 
-        # 2. Get live telemetry overview summary for context
-        from app.screening.analytics import get_audience_overview
+        # 2. Get live telemetry overview & top anomalies for instant context summary
+        from app.screening.analytics import get_audience_overview, get_anomalies
         overview = {}
+        anomalies_summary = "None detected."
         try:
             overview = get_audience_overview(screening_id)
+            anm_res = get_anomalies(screening_id)
+            top_anm = anm_res.get("anomalies", [])[:3]
+            if top_anm:
+                anomalies_summary = "; ".join([
+                    f"{a['title']} at {a.get('start_time_sec', 0)}s (Severity: {a.get('severity', 'UNKNOWN')})"
+                    for a in top_anm
+                ])
         except Exception:
             pass
 
@@ -172,20 +189,21 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
         context_header = (
             f"You are Sense AI, the primary interactive screening intelligence assistant for Frame Sense.\n"
             f"You are conversing with a studio executive/director regarding screening '{screening['title']}'.\n\n"
-            f"SCREENING METADATA & LIVE TELEMETRY SUMMARY:\n"
+            f"SCREENING METADATA & PRE-LOADED TELEMETRY SUMMARY:\n"
             f"- Title: {screening['title']}\n"
-            f"- Screening Database ID (Use in SQL queries): {screening_id}\n"
+            f"- Screening Database ID: {screening_id}\n"
             f"- Video Duration: {screening.get('media_duration')} seconds\n"
             f"- Total Unique Viewers: {overview.get('unique_viewers', 0)} ({overview.get('real_viewers', 0)} real, {overview.get('synthetic_viewers', 0)} synthetic)\n"
             f"- Total Telemetry Events: {overview.get('total_events', 0)}\n"
             f"- Total Viewer Sessions: {overview.get('unique_sessions', 0)}\n"
-            f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n\n"
-            f"DATA QUERYING RULE:\n"
-            f"- Use ClickHouse Cloud MCP (`run_select_query`) to query default.viewer_events.\n"
-            f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` to fetch exact telemetry for this screening.\n\n"
+            f"- Completion Rate: {round((overview.get('completion_rate') or 0.0) * 100, 1)}%\n"
+            f"- Top Anomaly Findings: {anomalies_summary}\n\n"
+            f"FAST RESPONSE & DATA QUERYING RULES:\n"
+            f"- If the user's question can be answered using the PRE-LOADED TELEMETRY SUMMARY above, answer directly and immediately. Do NOT execute redundant SQL queries.\n"
+            f"- Execute ClickHouse Cloud MCP (`run_select_query`) ONLY when the user explicitly requests custom raw data filtering or complex SQL aggregations.\n"
+            f"- ALWAYS filter SQL queries using `WHERE screening_id = '{screening_id}'` if executing a query.\n\n"
             f"INSTRUCTIONS:\n"
             f"- Answer the user's specific question directly, concisely, and naturally.\n"
-            f"- DO NOT output rigid 7-part investigation report headers (e.g. '1. OBSERVED AUDIENCE BEHAVIOR') for simple conversational questions.\n"
             f"- Format response with rich, clear Markdown (bold terms, bullet points, concise paragraphs).\n"
             f"- Be concise, direct, professional, and helpful.\n\n"
             f"CONVERSATION HISTORY:\n"
@@ -193,7 +211,7 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
 
         parts = [Part.from_text(text=context_header)]
         
-        history_subset = past_messages[-8:]
+        history_subset = past_messages[-6:]
         for msg in history_subset:
             role_label = "USER" if msg["role"] == "user" else "SENSE AI"
             parts.append(Part.from_text(text=f"{role_label}: {msg['content']}\n\n"))
@@ -216,19 +234,13 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
         content_payload = Content(parts=parts)
 
         try:
-            import asyncio
             async for event in runner.run_async(user_id=user_id, session_id=runner_session_id, new_message=content_payload):
                 if hasattr(event, "content") and event.content:
                     for p in event.content.parts:
                         if hasattr(p, "text") and p.text:
                             raw_text = p.text
-                            # Yield 4-character chunks every 15ms for true real-time character streaming
-                            chunk_size = 4
-                            for i in range(0, len(raw_text), chunk_size):
-                                sub_chunk = raw_text[i:i+chunk_size]
-                                full_reply += sub_chunk
-                                yield f"data: {json.dumps({'type': 'chunk', 'text': sub_chunk})}\n\n"
-                                await asyncio.sleep(0.015)
+                            full_reply += raw_text
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': raw_text})}\n\n"
         except Exception as e:
             logger.error(f"Sense AI Chat Stream Execution Error: {e}")
             if is_quota_exhausted_error(e):
