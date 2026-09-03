@@ -356,3 +356,8 @@ def delete_anomaly_investigation(screening_id: str, anomaly_id: str) -> bool:
         logger.warning(f"Error during deep investigation purge: {e}")
 
     return True
+
+
+def delete_all_screening_investigations(screening_id: str) -> bool:
+    """Deletes all saved AI investigation findings for a screening."""
+    return screening_repo.delete_all_investigations(screening_id)

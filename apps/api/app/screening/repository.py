@@ -400,6 +400,19 @@ class ScreeningRepository:
         finally:
             conn.close()
 
+    def delete_all_investigations(self, screening_id: str) -> bool:
+        """Deletes all saved AI investigations for a screening."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "DELETE FROM investigations WHERE screening_id = ?",
+                (screening_id,)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
     # --- Sense AI Chat Persistence Methods ---
 
     def create_chat_session(self, screening_id: str, title: str = "New Chat Session") -> Dict[str, Any]:

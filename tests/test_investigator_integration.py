@@ -163,3 +163,22 @@ def test_investigation_persistence_and_deletion():
     # 5. Verify deleted
     assert screening_repo.get_investigation(sid, anm_id) is None
 
+
+def test_delete_all_investigations_on_reset():
+    """Verify that delete_all_investigations purges all saved investigations for a screening."""
+    screening = _get_or_create_test_screening()
+    sid = screening["screening_id"]
+
+    screening_repo.save_investigation(sid, "anm_reset_1", "Report 1", [], [])
+    screening_repo.save_investigation(sid, "anm_reset_2", "Report 2", [], [])
+
+    all_inv = screening_repo.get_all_investigations(sid)
+    assert "anm_reset_1" in all_inv
+    assert "anm_reset_2" in all_inv
+
+    deleted = screening_repo.delete_all_investigations(sid)
+    assert deleted is True
+
+    all_inv_after = screening_repo.get_all_investigations(sid)
+    assert len(all_inv_after) == 0
+

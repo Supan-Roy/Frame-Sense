@@ -1766,10 +1766,11 @@ interface ToastNotification {
         throw new Error(e.detail || 'Failed to reset audience telemetry.');
       }
       setSimResult(null);
+      setSavedInvestigations({});
       setShowResetConfirmModal(false);
       setResetConfirmText('');
       await loadAIData(aiScreening.screening_id);
-      triggerToast('All audience telemetry reset successfully.', 'success');
+      triggerToast('All audience telemetry & editorial findings reset successfully.', 'success');
     } catch (err: any) {
       triggerToast(err.message, 'error');
     } finally {

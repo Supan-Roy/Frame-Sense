@@ -369,8 +369,9 @@ async def send_screening_chat_message_stream(screening_id: str, session_id: str,
 @router.delete("/{screening_id}/audience")
 def reset_screening_audience_data(screening_id: str):
     """
-    Clears all audience telemetry events for a screening from ClickHouse.
-    Resets Audience Intelligence metrics back to zero.
+    Clears all audience telemetry events for a screening from ClickHouse and
+    purges all preserved AI investigation findings for that screening.
+    Resets Audience Intelligence metrics and Editorial Findings back to zero.
     """
     screening = screening_repo.get_by_id(screening_id)
     if not screening:
@@ -378,9 +379,11 @@ def reset_screening_audience_data(screening_id: str):
     try:
         from app.database.clickhouse import delete_screening_events
         delete_screening_events(screening_id)
+        from app.screening.investigator_service import delete_all_screening_investigations
+        delete_all_screening_investigations(screening_id)
         return {
             "status": "success",
-            "message": f"All audience telemetry for screening {screening_id} has been reset.",
+            "message": f"All audience telemetry and saved investigation findings for screening {screening_id} have been reset.",
             "screening_id": screening_id,
         }
     except Exception as e:
