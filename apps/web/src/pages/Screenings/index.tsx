@@ -1325,6 +1325,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       if (sessRes.ok) setSessions(await sessRes.json());
     } catch (err: any) {
       setError(err.message || 'Failed to send message');
+      setMessages(prev => prev.filter(m => !(m.message_id === tempAssistantMsgId && !m.content.trim())));
     } finally {
       setSending(false);
     }
