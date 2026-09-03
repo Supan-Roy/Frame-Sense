@@ -201,51 +201,12 @@ export default function Findings() {
   };
 
   const buildEditorialCues = (
-    screening: Screening,
+    _screening: Screening,
     anomalies: Anomaly[],
     investigations: Record<string, SavedInvestigation>
   ): EditCue[] => {
-    // If no telemetry anomalies exist yet, build standard baseline editorial cut cues for the film
     if (anomalies.length === 0) {
-      const dur = screening.media_duration || 32;
-      return [
-        {
-          id: 'cue_base_1',
-          anomaly_id: 'base_1',
-          timecode_start: fmtSMPTE(16),
-          timecode_end: fmtSMPTE(18),
-          time_start_sec: 16,
-          time_end_sec: 18,
-          peak_sec: 16,
-          category: 'TRIM_PACING',
-          category_label: 'Pacing & Trim',
-          editing_action: 'HARD CUT TRIM (-1.8s Visual Dead Space)',
-          editorial_tip: 'Trim 1.8 seconds from the shot tail prior to the scene transition. Visual static duration causes cognitive lag.',
-          rationale: 'Audience telemetry indicates a 24% attention drop co-occurring with static wide shot hold.',
-          retention_recovery_pct: '+14.2%',
-          severity: 'HIGH',
-          evidence: ['Tab hide events co-occurred at peak timecode 0:16', 'Pacing friction detected in second-by-second ML micro-burst'],
-          markedForEdl: true
-        },
-        {
-          id: 'cue_base_2',
-          anomaly_id: 'base_2',
-          timecode_start: fmtSMPTE(Math.min(26, dur - 4)),
-          timecode_end: fmtSMPTE(Math.min(28, dur - 2)),
-          time_start_sec: Math.min(26, dur - 4),
-          time_end_sec: Math.min(28, dur - 2),
-          peak_sec: Math.min(26, dur - 4),
-          category: 'AUDIO_DUCKING',
-          category_label: 'Audio & Ducking',
-          editing_action: 'AUDIO DUCKING & MATCH CUT (-6dB BGM ducking)',
-          editorial_tip: 'Duck background music by -6dB across dialogue transition and execute a J-Cut to lead with dialogue audio 0.8s prior.',
-          rationale: 'High exit spike co-occurred with sudden audio level increase.',
-          retention_recovery_pct: '+9.8%',
-          severity: 'MEDIUM',
-          evidence: ['Volume adjustment co-occurred at 0:26', 'Abrupt exit rate spike detected'],
-          markedForEdl: true
-        }
-      ];
+      return [];
     }
 
     return anomalies.map((a, idx) => {
@@ -253,11 +214,8 @@ export default function Findings() {
       const endS = a.end_time_sec || startS + 2;
       const peakS = a.peak_time_sec ?? startS;
 
-      // Find saved investigation fuzzy match
-      const inv = investigations[a.anomaly_id] || Object.values(investigations).find(i => {
-        const r = i.investigation_report || '';
-        return r.includes(`${startS}-second`) || r.includes(`${peakS}-second`) || (a.title && r.includes(a.title));
-      });
+      // Find saved investigation strict match
+      const inv = investigations[a.anomaly_id];
 
       // Determine editorial category & action based on title & signals
       let category: EditCue['category'] = 'TRIM_PACING';
@@ -664,7 +622,7 @@ export default function Findings() {
                       <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Detected Edit Cues</div>
                       <div className="text-sm font-bold text-amber-400 flex items-center gap-1 mt-0.5">
                         <Scissors className="h-3.5 w-3.5" />
-                        <span>{stats.anomaliesCount > 0 ? `${stats.anomaliesCount} Cut Cues` : '2 Cut Cues'}</span>
+                        <span>{stats.anomaliesCount === 1 ? '1 Cut Cue' : `${stats.anomaliesCount} Cut Cues`}</span>
                       </div>
                     </div>
                     <div className="p-2 rounded bg-studio-950/60 border border-studio-800/40">
