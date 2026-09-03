@@ -226,28 +226,32 @@ def _wilson_lower_bound(events: int, viewers: int, z_val: float = 1.96) -> float
     n = max(0, int(viewers))
     if n == 0:
         return 0.0
-    p_hat = k / n
+    p_hat = min(1.0, max(0.0, k / float(n)))
     z2 = z_val * z_val
     denom = 1.0 + z2 / n
     center = p_hat + z2 / (2.0 * n)
-    spread = z_val * math.sqrt((p_hat * (1.0 - p_hat) + z2 / (4.0 * n)) / n)
+    inside = (p_hat * (1.0 - p_hat) + z2 / (4.0 * n)) / float(n)
+    spread = z_val * math.sqrt(max(0.0, inside))
     lower = max(0.0, (center - spread) / denom)
     return round(lower, 4)
 
 
 def _sample_sufficiency(unique_viewers: int, total_cluster_events: int) -> Dict[str, Any]:
-    """Evaluates evidence sample sufficiency without hiding tiny samples."""
+    """
+    Evaluates evidence sample sufficiency based strictly on viewer exposure (n).
+    Event count (k) is tracked as evidence quality, but NEVER overrides small audience n.
+    """
     v = max(0, int(unique_viewers))
     e = max(0, int(total_cluster_events))
 
-    if v < 5 or e < 2:
-        return {"status": "INSUFFICIENT", "label": f"Insufficient sample ({v} viewers, {e} event(s)). High uncertainty.", "is_sufficient": False}
+    if v < 5:
+        return {"status": "INSUFFICIENT", "label": f"Insufficient audience sample ({v} viewer(s)). High statistical uncertainty.", "is_sufficient": False}
+    elif v < 10:
+        return {"status": "PRELIMINARY", "label": f"Preliminary audience sample ({v} viewers, {e} event(s)). Moderate uncertainty.", "is_sufficient": True}
     elif v < 30:
-        return {"status": "PRELIMINARY", "label": f"Preliminary sample ({v} viewers, {e} events). Moderate uncertainty.", "is_sufficient": True}
-    elif v < 100:
-        return {"status": "SUFFICIENT", "label": f"Sufficient sample ({v} viewers, {e} events).", "is_sufficient": True}
+        return {"status": "SUFFICIENT", "label": f"Sufficient audience sample ({v} viewers, {e} event(s)).", "is_sufficient": True}
     else:
-        return {"status": "STRONG", "label": f"Strong sample size ({v} viewers, {e} events). High statistical power.", "is_sufficient": True}
+        return {"status": "STRONG", "label": f"Strong audience sample size ({v} viewers, {e} event(s)). High statistical power.", "is_sufficient": True}
 
 
 def _calculate_local_baseline(second_map: Dict[int, Dict[str, Any]], start_t: int, end_t: int, window_sec: int = 15) -> Dict[str, Dict[str, float]]:
@@ -287,36 +291,51 @@ def _calculate_confidence(
     sample_suff: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Evidence-aware anomaly confidence scoring.
-    Combines sample size, event count, global Z-score, and local deviation.
+    Conservative Joint-Gating Confidence Scoring.
+    Viewer sample size (n) is a fundamental constraint:
+    - n < 5: ALWAYS INSUFFICIENT -> LOW confidence (max score 0.35)
+    - 5 <= n < 10: PRELIMINARY -> Capped at MEDIUM confidence (max score 0.65)
+    - n >= 10: Eligible for HIGH if strong event evidence (k >= 3) and statistical deviation (z >= 1.5)
     """
-    n = max(1, unique_viewers)
-    k = max(0, total_cluster_events)
+    n = max(1, int(unique_viewers))
+    k = max(0, int(total_cluster_events))
     
-    # Sample scale factor: min(1.0, sqrt(n / 50))
-    sample_factor = min(1.0, math.sqrt(n / 50.0))
+    # Sample scale factor: min(1.0, sqrt(n / 30.0))
+    sample_factor = min(1.0, math.sqrt(n / 30.0))
     
-    # Event count factor: min(1.0, k / 4.0)
-    event_factor = min(1.0, k / 4.0)
+    # Event count factor: min(1.0, k / 3.0)
+    event_factor = min(1.0, k / 3.0)
     
     # Deviation magnitude factor
     dev_factor = min(1.0, max(0.1, abs(global_z) / 3.0))
     
     # Local corroboration factor
-    local_factor = 1.2 if abs(local_z) >= 1.2 else 0.8
+    local_factor = 1.1 if abs(local_z) >= 1.2 else 0.9
     
     raw_score = sample_factor * event_factor * dev_factor * local_factor
     score = round(max(0.05, min(1.0, raw_score)), 2)
 
-    if sample_suff["status"] == "INSUFFICIENT" or k < 2:
+    # STRICT JOINT GATING
+    if n < 5:
         score = min(0.35, score)
         label = "LOW"
-    elif score >= 0.70 and sample_suff["is_sufficient"]:
-        label = "HIGH"
-    elif score >= 0.40:
-        label = "MEDIUM"
+    elif n < 10:
+        score = min(0.65, score)
+        label = "MEDIUM" if (score >= 0.40 and k >= 2 and abs(global_z) >= 1.0) else "LOW"
     else:
-        label = "LOW"
+        if score >= 0.70 and k >= 3 and abs(global_z) >= 1.5:
+            label = "HIGH"
+        elif score >= 0.40 and k >= 2 and abs(global_z) >= 1.0:
+            label = "MEDIUM"
+        else:
+            label = "LOW"
+
+    return {
+        "score": score,
+        "label": label,
+        "sample_sufficiency": sample_suff["status"],
+        "is_sufficient": sample_suff["is_sufficient"]
+    }
 
     return {
         "score": score,
