@@ -17,9 +17,10 @@ def get_client() -> Client:
 
 def init_db():
     client = get_client()
-    # Create the default table for storing raw telemetry events
-    # We use MergeTree and ORDER BY screening_id to group screening events contiguously.
-    create_table_query = """
+    # Create tables for telemetry events and 100% ClickHouse metadata storage
+
+    # Raw telemetry events
+    client.command("""
     CREATE TABLE IF NOT EXISTS default.viewer_events (
         event_id UUID,
         screening_id String,
@@ -32,9 +33,91 @@ def init_db():
         server_timestamp DateTime64(3, 'UTC')
     ) ENGINE = MergeTree()
     ORDER BY (screening_id, video_id, event_type, server_timestamp);
-    """
-    client.command(create_table_query)
-    print("ClickHouse database initialized successfully.")
+    """)
+
+    # Screenings metadata table
+    client.command("""
+    CREATE TABLE IF NOT EXISTS default.screenings (
+        screening_id String,
+        media_id String,
+        title String,
+        description String,
+        media_filename String,
+        media_duration Float32,
+        created_at DateTime64(3, 'UTC'),
+        status String,
+        public_token String
+    ) ENGINE = ReplacingMergeTree(created_at)
+    ORDER BY screening_id;
+    """)
+
+    # Editorial comments table
+    client.command("""
+    CREATE TABLE IF NOT EXISTS default.comments (
+        comment_id String,
+        screening_id String,
+        viewer_id String,
+        display_name String,
+        video_timecode_sec Float32,
+        content String,
+        created_at DateTime64(3, 'UTC'),
+        updated_at DateTime64(3, 'UTC')
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY (screening_id, comment_id);
+    """)
+
+    # Saved AI vision investigations table
+    client.command("""
+    CREATE TABLE IF NOT EXISTS default.investigations (
+        screening_id String,
+        anomaly_id String,
+        investigation_report String,
+        mcp_queries_json String,
+        extracted_frames_json String,
+        elaborated_report String,
+        updated_at DateTime64(3, 'UTC')
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY (screening_id, anomaly_id);
+    """)
+
+    # Chat sessions table
+    client.command("""
+    CREATE TABLE IF NOT EXISTS default.chat_sessions (
+        session_id String,
+        screening_id String,
+        title String,
+        created_at DateTime64(3, 'UTC'),
+        updated_at DateTime64(3, 'UTC')
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY (screening_id, session_id);
+    """)
+
+    # Chat messages table
+    client.command("""
+    CREATE TABLE IF NOT EXISTS default.chat_messages (
+        message_id String,
+        session_id String,
+        screening_id String,
+        role String,
+        content String,
+        created_at DateTime64(3, 'UTC')
+    ) ENGINE = MergeTree()
+    ORDER BY (screening_id, session_id, created_at);
+    """)
+
+    # Seed default screenings if empty
+    try:
+        count_res = client.command("SELECT count() FROM default.screenings")
+        if count_res == 0:
+            now_dt = datetime.now(timezone.utc)
+            client.insert("screenings", [
+                ["sc_sintel", "med_sintel", "Sintel - Open Movie Cut", "Open-source animated fantasy short film screening.", "sintel.mp4", 888.0, now_dt, "active", "pub_sintel_token"],
+                ["sc_cyberpunk", "med_cyberpunk", "Neon Horizon - Sci-Fi Thriller", "Cyberpunk dystopian thriller test screening.", "cyberpunk.mp4", 1200.0, now_dt, "active", "pub_cyberpunk_token"]
+            ], column_names=["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"])
+    except Exception as e:
+        print(f"Notice: Seed check during ClickHouse init: {e}")
+
+    print("ClickHouse database schema initialized successfully.")
 
 def insert_events(events: List[Dict[str, Any]]):
     client = get_client()
@@ -89,7 +172,7 @@ def get_screening_stats(screening_id: str) -> Dict[str, Any]:
 
     # 5. Event breakdown by event_type
     breakdown_res = client.query("SELECT event_type, count() FROM viewer_events WHERE screening_id = {sid:String} GROUP BY event_type", parameters=params)
-    event_breakdown = {row[0]: row[1] for row in breakdown_res.result_rows}
+    event_breakdown = {row[0]: row[1] for row in breakdown_res.result_rows} if breakdown_res.result_rows else {}
     
     return {
         "total_sessions": total_sessions,
@@ -99,31 +182,32 @@ def get_screening_stats(screening_id: str) -> Dict[str, Any]:
         "event_breakdown": event_breakdown
     }
 
-def get_global_stats() -> Dict[str, Any]:
+def get_all_stats() -> Dict[str, Any]:
     client = get_client()
     try:
         total_sessions = client.command("SELECT count(DISTINCT session_id) FROM viewer_events")
         total_viewers = client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events")
         total_events = client.command("SELECT count() FROM viewer_events")
         return {
-            "total_sessions": int(total_sessions),
-            "total_viewers": int(total_viewers),
-            "total_events": int(total_events)
+            "total_sessions": total_sessions,
+            "total_viewers": total_viewers,
+            "total_events": total_events
         }
-    except Exception as e:
-        print(f"Error querying global stats from ClickHouse: {e}")
-        return {
-            "total_sessions": 0,
-            "total_viewers": 0,
-            "total_events": 0
-        }
+    except Exception:
+        return {"total_sessions": 0, "total_viewers": 0, "total_events": 0}
 
 def delete_screening_events(screening_id: str):
     client = get_client()
+    params = {"sid": screening_id}
     try:
-        client.command("DELETE FROM viewer_events WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
+        client.command("DELETE FROM viewer_events WHERE screening_id = {sid:String}", parameters=params)
+        client.command("DELETE FROM screenings WHERE screening_id = {sid:String}", parameters=params)
+        client.command("DELETE FROM comments WHERE screening_id = {sid:String}", parameters=params)
+        client.command("DELETE FROM investigations WHERE screening_id = {sid:String}", parameters=params)
+        client.command("DELETE FROM chat_sessions WHERE screening_id = {sid:String}", parameters=params)
+        client.command("DELETE FROM chat_messages WHERE screening_id = {sid:String}", parameters=params)
     except Exception as e:
-        print(f"Error executing ClickHouse delete events for {screening_id}: {e}")
+        print(f"Error executing ClickHouse delete for {screening_id}: {e}")
 
 
 def rollback_last_batch(screening_id: str) -> Dict[str, Any]:

@@ -12,9 +12,15 @@ The ClickHouse MCP integration exposes ClickHouse database tools (schema introsp
 
 ## 2. Configuration & Driver Details
 
-- **Database Engine**: ClickHouse Cloud / ClickHouse Local
+- **Database Engine**: ClickHouse Cloud / ClickHouse Local (100% Unified Data Engine)
 - **Driver**: `clickhouse-connect` (Python async/sync client)
-- **Primary Telemetry Table**: `default.viewer_events`
+- **Tables Handled**:
+  - `default.viewer_events`: Second-by-second audience telemetry stream
+  - `default.screenings`: Film screening project metadata
+  - `default.comments`: Editorial timeline notes & viewer comments
+  - `default.investigations`: Saved AI vision investigation reports
+  - `default.chat_sessions`: Sense AI interactive chat sessions
+  - `default.chat_messages`: Multi-turn studio assistant message logs
 - **MCP Tool**: `run_select_query`
 
 ---

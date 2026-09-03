@@ -39,9 +39,10 @@ This document details the production architecture of **Frame Sense**, detailing 
 
 ## 2. Core Subsystems
 
-### A. Audience Telemetry & Ingestion (ClickHouse)
-- **High-Volume Telemetry Storage**: ClickHouse columnar database storing second-by-second viewer telemetry events (`PLAY`, `PAUSE`, `PROGRESS`, `EXIT`, `SEEK_FORWARD`, `SEEK_BACKWARD`, `REPLAY`, `VOLUME_CHANGE`, `TAB_HIDDEN`, `TAB_VISIBLE`).
-- **ClickHouse Model Context Protocol (MCP)**: Implements `run_select_query` tool allowing AI agents to directly query `default.viewer_events` via SQL filters (`WHERE screening_id = '...'`).
+### A. 100% ClickHouse Unified Data Architecture
+- **Unified Telemetry & Studio Metadata Storage**: ClickHouse columnar database storing second-by-second viewer telemetry events (`viewer_events`), screening project metadata (`screenings`), editorial timeline comments (`comments`), saved AI vision investigations (`investigations`), and chat assistant history (`chat_sessions`, `chat_messages`).
+- **ClickHouse Model Context Protocol (MCP)**: Implements `run_select_query` tool allowing AI agents to directly query all ClickHouse tables via parameterized SQL filters (`WHERE screening_id = '...'`).
+- **Atomic Single-Engine Lifecycle**: Deletions, batch rollbacks, and project resets execute in a single database engine, eliminating dual-storage consistency risks and SQLite file dependencies.
 
 ### B. Core Intelligence Engine & Sequence Trajectory Reasoning
 - **Viewer Sequence Trajectory Engine (`_get_window_trajectories`)**: Runs ClickHouse SQL trajectory window queries evaluating full viewer session lifecycles ($N_{\text{exposed}}$, $N_{\text{permanent\_exits}}$, $N_{\text{replayed\_and\_continued}}$, $N_{\text{continued}}$).

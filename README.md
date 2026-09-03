@@ -30,8 +30,8 @@ In film post-production, **director cuts often suffer 30%–50% audience retenti
 graph TD
     UI["React 18 / Vite Web Workspace<br/>(Screening Room & Editorial Dashboard)"] -->|HTTP / SSE Stream| API["FastAPI Backend Engine (Port 8001)"]
 
-    subgraph Core ["Backend Core Subsystems"]
-        API --> CH["ClickHouse Telemetry Storage<br/>(Columnar Engine & MCP Protocol)"]
+    subgraph Core ["100% ClickHouse Unified Core Architecture"]
+        API --> CH["ClickHouse Unified Storage Engine<br/>(Telemetry + Studio Metadata + AI Investigations + MCP Protocol)"]
         API --> TRAJ["Viewer Sequence Trajectory Engine<br/>(_get_window_trajectories)"]
         CH --> GATE["Statistical Joint Gating Engine<br/>(Laplace & Wilson LCB Engine)"]
         TRAJ --> GATE
