@@ -353,7 +353,12 @@ async def send_screening_chat_message_stream(screening_id: str, session_id: str,
         from app.screening.chat_service import stream_sense_ai_chat
         return StreamingResponse(
             stream_sense_ai_chat(screening_id, session_id, body.prompt),
-            media_type="text/event-stream"
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sense AI Chat Stream Error: {e}")

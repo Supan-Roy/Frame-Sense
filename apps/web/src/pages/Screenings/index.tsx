@@ -1257,17 +1257,10 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       created_at: new Date().toISOString(),
     };
 
-    const tempAssistantMsgId = `temp_ast_${Date.now()}`;
-    const tempAssistantMsg: ChatMessage = {
-      message_id: tempAssistantMsgId,
-      session_id: activeSessionId,
-      screening_id: screening.screening_id,
-      role: 'assistant',
-      content: '',
-      created_at: new Date().toISOString(),
-    };
+    setMessages(prev => [...prev, tempUserMsg]);
 
-    setMessages(prev => [...prev, tempUserMsg, tempAssistantMsg]);
+    const tempAssistantMsgId = `temp_ast_${Date.now()}`;
+    let assistantAdded = false;
 
     try {
       const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages/stream`, {
@@ -1301,13 +1294,27 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
               if (data.type === 'chunk' && data.text) {
                 accumulatedText += data.text;
                 const currentText = accumulatedText;
-                setMessages(prev =>
-                  prev.map(m =>
-                    m.message_id === tempAssistantMsgId
-                      ? { ...m, content: currentText }
-                      : m
-                  )
-                );
+
+                if (!assistantAdded) {
+                  assistantAdded = true;
+                  const tempAssistantMsg: ChatMessage = {
+                    message_id: tempAssistantMsgId,
+                    session_id: activeSessionId,
+                    screening_id: screening.screening_id,
+                    role: 'assistant',
+                    content: currentText,
+                    created_at: new Date().toISOString(),
+                  };
+                  setMessages(prev => [...prev, tempAssistantMsg]);
+                } else {
+                  setMessages(prev =>
+                    prev.map(m =>
+                      m.message_id === tempAssistantMsgId
+                        ? { ...m, content: currentText }
+                        : m
+                    )
+                  );
+                }
               }
             } catch (e) {
               console.error('SSE parse error:', e);
