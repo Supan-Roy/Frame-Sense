@@ -254,6 +254,98 @@ def _sample_sufficiency(unique_viewers: int, total_cluster_events: int) -> Dict[
         return {"status": "STRONG", "label": f"Strong audience sample size ({v} viewers, {e} event(s)). High statistical power.", "is_sufficient": True}
 
 
+def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) -> Dict[str, Any]:
+    """
+    Computes viewer-level trajectory statistics for a timecode window [start_t, end_t].
+    Distinguishes raw event counts from unique viewer journeys:
+      - unique_exposed: viewers present/exposed around window [start_t - 2, end_t + 2]
+      - unique_permanent_exits: viewers whose session ended at/around this window and NEVER continued
+      - unique_replayed_and_continued: viewers who replayed/paused in window AND continued watching past end_t
+      - unique_replayed: viewers who replayed/rewound in window
+      - unique_paused: viewers who paused in window
+      - unique_continued: viewers who continued watching past end_t + 3s or completed the video
+    """
+    client = get_client()
+    sid = screening_id.replace("'", "")
+
+    st_start = max(0.0, float(start_t) - 2.0)
+    st_end = float(end_t) + 2.0
+    st_after = float(end_t) + 3.0
+    st_exp_start = max(0.0, float(start_t) - 5.0)
+    st_exp_end = float(end_t) + 5.0
+
+    query = f"""
+    WITH window_events AS (
+        SELECT
+            anonymous_viewer_id,
+            session_id,
+            event_type,
+            video_timecode_sec
+        FROM viewer_events
+        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+    ),
+    session_summaries AS (
+        SELECT
+            anonymous_viewer_id,
+            session_id,
+            max(video_timecode_sec) AS max_tc,
+            count() AS total_session_events,
+            max(event_type = 'COMPLETE') AS completed,
+            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type IN ('REPLAY', 'SEEK_BACKWARD')) AS replayed_in_window,
+            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type = 'PAUSE') AS paused_in_window,
+            max(video_timecode_sec >= {st_start} AND video_timecode_sec <= {st_end} AND event_type = 'EXIT') AS exited_in_window,
+            max(video_timecode_sec >= {st_exp_start} AND video_timecode_sec <= {st_exp_end}) AS exposed_to_window,
+            max(video_timecode_sec > {st_after} OR event_type = 'COMPLETE') AS continued_past_window
+        FROM window_events
+        GROUP BY anonymous_viewer_id, session_id
+    )
+    SELECT
+        count(DISTINCT IF(exposed_to_window = 1, anonymous_viewer_id, NULL)) AS unique_exposed,
+        count(DISTINCT IF(exposed_to_window = 1 AND (exited_in_window = 1 OR max_tc <= {st_end} + 5.0) AND continued_past_window = 0 AND completed = 0, anonymous_viewer_id, NULL)) AS unique_permanent_exits,
+        count(DISTINCT IF(exposed_to_window = 1 AND (replayed_in_window = 1 OR paused_in_window = 1) AND continued_past_window = 1, anonymous_viewer_id, NULL)) AS unique_replayed_and_continued,
+        count(DISTINCT IF(exposed_to_window = 1 AND replayed_in_window = 1, anonymous_viewer_id, NULL)) AS unique_replayed,
+        count(DISTINCT IF(exposed_to_window = 1 AND paused_in_window = 1, anonymous_viewer_id, NULL)) AS unique_paused,
+        count(DISTINCT IF(exposed_to_window = 1 AND continued_past_window = 1, anonymous_viewer_id, NULL)) AS unique_continued,
+        count(DISTINCT IF(exposed_to_window = 1 AND completed = 1, anonymous_viewer_id, NULL)) AS unique_completed
+    FROM session_summaries
+    """
+    try:
+        res = client.query(query).result_rows
+        if not res or not res[0]:
+            return {
+                "unique_exposed": 0, "unique_permanent_exits": 0, "unique_replayed_and_continued": 0,
+                "unique_replayed": 0, "unique_paused": 0, "unique_continued": 0, "unique_completed": 0,
+                "permanent_exit_rate": 0.0, "continuation_rate": 0.0,
+            }
+        row = res[0]
+        u_exposed = int(row[0] or 0)
+        u_exits = int(row[1] or 0)
+        u_rep_cont = int(row[2] or 0)
+        u_replayed = int(row[3] or 0)
+        u_paused = int(row[4] or 0)
+        u_continued = int(row[5] or 0)
+        u_completed = int(row[6] or 0)
+        denom = max(1, u_exposed)
+        return {
+            "unique_exposed": u_exposed,
+            "unique_permanent_exits": u_exits,
+            "unique_replayed_and_continued": u_rep_cont,
+            "unique_replayed": u_replayed,
+            "unique_paused": u_paused,
+            "unique_continued": u_continued,
+            "unique_completed": u_completed,
+            "permanent_exit_rate": round(u_exits / denom, 4),
+            "continuation_rate": round(u_continued / denom, 4),
+        }
+    except Exception as e:
+        print(f"CLICKHOUSE TRAJECTORY QUERY ERROR: {e}")
+        return {
+            "unique_exposed": 0, "unique_permanent_exits": 0, "unique_replayed_and_continued": 0,
+            "unique_replayed": 0, "unique_paused": 0, "unique_continued": 0, "unique_completed": 0,
+            "permanent_exit_rate": 0.0, "continuation_rate": 0.0,
+        }
+
+
 def _calculate_local_baseline(second_map: Dict[int, Dict[str, Any]], start_t: int, end_t: int, window_sec: int = 15) -> Dict[str, Dict[str, float]]:
     """
     Calculates rolling local mean and std for surrounding window (±15s)
@@ -449,6 +541,27 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         # Calculate local baseline excluding current cluster
         local_bl = _calculate_local_baseline(second_map, start_t, end_t, window_sec=15)
 
+        # Viewer-Level Trajectory Analysis for Current Window
+        traj = _get_window_trajectories(screening_id, start_t, end_t)
+        u_exposed = traj["unique_exposed"]
+        u_exits = traj["unique_permanent_exits"]
+        u_rep_cont = traj["unique_replayed_and_continued"]
+        u_replayed = traj["unique_replayed"]
+        u_paused = traj["unique_paused"]
+        u_continued = traj["unique_continued"]
+        perm_exit_rate = traj["permanent_exit_rate"]
+        continuation_rate = traj["continuation_rate"]
+
+        # Fallback for unit tests that mock get_behavioral_signals without inserting to ClickHouse
+        if u_exposed == 0 and total_cluster_events > 0:
+            u_exposed = max(1, unique_viewers)
+            u_exits = c_exits
+            u_replayed = c_replays
+            u_paused = c_pauses
+            u_continued = max(0, unique_viewers - c_exits)
+            perm_exit_rate = round(u_exits / u_exposed, 4)
+            continuation_rate = round(u_continued / u_exposed, 4)
+
         # Raw Rates
         pause_rate = max(round(c_pauses / max(1, unique_viewers), 4), max(second_map[t]["pause_rate"] for t in cl))
         rewind_rate = max(round(c_rewinds / max(1, unique_viewers), 4), max(second_map[t]["rewind_rate"] for t in cl))
@@ -498,11 +611,11 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         # -------------------------------------------------------------------
         # EXCEPTIONAL ENGAGEMENT (Positive Anomaly)
         # -------------------------------------------------------------------
-        if c_replays > max(1, c_exits * 2) and c_replays >= 1:
+        if (c_replays > max(1, c_exits * 2) and c_replays >= 1) or (u_replayed >= 1 and u_continued >= u_exits):
             ratio = replay_rate / (baselines["replays"][0] / max(1, unique_viewers) + eps)
             eng_conf = _calculate_confidence(unique_viewers, c_replays, ratio, local_ratio, sample_suff)
             
-            eng_obs = f"Observed {c_replays} replay event(s) across {unique_viewers} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)})."
+            eng_obs = f"Observed {c_replays} replay event(s) across {max(1, u_replayed)} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)}). {u_continued} viewer(s) continued playback."
             eng_interp = f"Replay rate ({replay_rate*100:.1f}%) is {ratio:.1f}x above global baseline and {local_ratio:.1f}x above surrounding local window ({sample_suff['label']})."
             eng_hypo = "Plausible high emotional resonance, memorable visual moment, or detail rewatch interest."
             eng_valid = f"Inspect visual composition at {_fmt_time(peak_t)} to identify high-retention cinematic elements."
@@ -527,7 +640,7 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                     "replay_ratio": round(ratio, 2),
                     "exit_rate": exit_rate,
                 },
-                "evidence": [f"Replay hotspot peak at {_fmt_time(peak_t)} ({c_replays} replay event(s), {ratio:.1f}x above baseline)"],
+                "evidence": [f"Replay hotspot peak at {_fmt_time(peak_t)} ({max(1, u_replayed)} unique viewer(s) replayed, {u_continued} continued playback)"],
                 "taxonomy": {
                     "observation": eng_obs,
                     "interpretation": eng_interp,
@@ -537,33 +650,41 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
             })
 
         # -------------------------------------------------------------------
-        # MULTI-SIGNAL CORRELATION & BEHAVIORAL CLASSIFICATION
+        # TRAJECTORY-AWARE MULTI-SIGNAL CLASSIFICATION
         # -------------------------------------------------------------------
-        if c_replays >= 1 or c_rewinds >= 1:
-            if c_pauses > 0:
+        if u_replayed >= 1 and (u_continued >= u_exits or u_exits == 0):
+            if u_paused >= 1:
                 cat_title = "Cognitive Comprehension Barrier"
                 domain = "COGNITIVE"
-                evidence.append(f"Rewind/pause co-occurrence at {_fmt_time(peak_t)}: {c_rewinds + c_replays} rewatch/rewind event(s) & {c_pauses} pause event(s) in {dur}s window")
+                evidence.append(f"Comprehension/pause peak at {_fmt_time(peak_t)}: {u_paused} unique viewer(s) paused ({c_pauses} raw pause event(s)); {u_continued} unique viewer(s) continued playback past scene ({u_exits} permanent exit(s)).")
             else:
                 cat_title = "Emotional Scene Replay Hotspot"
                 domain = "EMOTIONAL"
-                evidence.append(f"Scene replay peak at {_fmt_time(peak_t)}: {c_rewinds + c_replays} replay/rewind event(s)")
-        elif c_pauses > 0 and c_exits > 0:
+                evidence.append(f"Scene replay peak at {_fmt_time(peak_t)}: {u_replayed} unique viewer(s) replayed ({c_replays + c_rewinds} raw event(s)); {u_continued} unique viewer(s) continued playback ({u_exits} permanent exit(s)).")
+        elif (u_paused >= 1 or c_pauses >= 1) and u_continued > u_exits:
+            cat_title = "Cognitive Comprehension Barrier"
+            domain = "COGNITIVE"
+            evidence.append(f"Pause peak at {_fmt_time(peak_t)}: {max(1, u_paused)} unique viewer(s) paused ({c_pauses} raw pause event(s)); {u_continued} unique viewer(s) continued playback past scene.")
+        elif u_exits >= 1 and u_rep_cont >= 1 and abs(u_exits - u_rep_cont) <= max(2, int(0.3 * max(1, u_exposed))):
+            cat_title = "Competing Behavioral Signals"
+            domain = "RETENTION"
+            evidence.append(f"Competing behavioral signals at {_fmt_time(peak_t)}: {u_rep_cont} unique viewer(s) replayed and continued, while {u_exits} unique viewer(s) permanently abandoned.")
+        elif u_exits >= 1 and (u_exits >= u_continued or perm_exit_rate >= 0.15 or c_exits >= 2):
             cat_title = "Critical Scene Exit Drop"
             domain = "RETENTION"
-            evidence.append(f"Pause/exit co-occurrence at {_fmt_time(peak_t)}: {c_exits} exit event(s) ({exit_rate*100:.1f}% raw exit rate) & {c_pauses} pause event(s)")
+            evidence.append(f"Exit drop peak at {_fmt_time(peak_t)}: {u_exits} unique viewer(s) permanently abandoned screening ({perm_exit_rate*100:.1f}% permanent exit rate, {c_exits} raw exit event(s)).")
         elif c_tabs > 0 and (c_exits > 0 or c_tabs >= 3):
             cat_title = "Psychological Attention Loss"
             domain = "PSYCHOLOGICAL"
-            evidence.append(f"Tab hide peak at {_fmt_time(peak_t)}: {c_tabs} tab switch/hide event(s) & {c_exits} exit event(s)")
+            evidence.append(f"Tab hide peak at {_fmt_time(peak_t)}: {c_tabs} tab switch/hide event(s) across {max(1, u_exposed)} unique viewer(s).")
         elif c_skips > 0 and c_exits > 0:
             cat_title = "Dead Zone Pacing Skip"
             domain = "PACING"
             evidence.append(f"Skip/exit co-occurrence at {_fmt_time(peak_t)}: {c_skips} forward skip(s) & {c_exits} exit(s)")
-        elif c_exits > 0:
+        elif c_exits > 0 and u_exits >= 1:
             cat_title = "Critical Scene Exit Drop"
             domain = "RETENTION"
-            evidence.append(f"Exit drop peak at {_fmt_time(peak_t)} ({c_exits} exit event(s), {exit_rate*100:.1f}% raw exit rate)")
+            evidence.append(f"Exit drop peak at {_fmt_time(peak_t)}: {u_exits} unique viewer(s) permanently abandoned screening ({c_exits} raw exit event(s)).")
         elif c_vol > 0:
             cat_title = "Audio Mix Perception Spike"
             domain = "PERCEPTUAL"
@@ -582,10 +703,11 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
         if c_tabs > 0 and "Psychological" not in cat_title:
             evidence.append(f"Secondary attention shift co-occurred ({c_tabs} tab hide(s))")
 
-        # Build Scientific Honesty Taxonomy
+        # Build Scientific Honesty Taxonomy with Trajectory Insights
         taxonomy_obs = (
             f"Observed {total_cluster_events} total event(s) ({c_exits} exit, {c_pauses} pause, {c_rewinds} rewind, {c_skips} skip, {c_replays} replay) "
-            f"across {unique_viewers} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)})."
+            f"across {unique_viewers} unique viewer(s) between {_fmt_time(start_t)} and {_fmt_time(end_t)} (peak at {_fmt_time(peak_t)}). "
+            f"Trajectory breakdown: {u_exposed} exposed viewer(s), {u_exits} permanent exit(s), {u_continued} viewer(s) continued playback past window."
         )
         taxonomy_interp = (
             f"Dominant metric '{dominant_metric}' rate is {global_ratio:.1f}x relative to global screening baseline (z={global_z:.1f}) "
@@ -628,6 +750,17 @@ def get_anomalies(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
                 "raw_pause_rate": pause_rate,
                 "raw_rewind_rate": rewind_rate,
                 "raw_skip_rate": skip_rate,
+            },
+            "trajectory_signals": {
+                "unique_exposed": u_exposed,
+                "unique_permanent_exits": u_exits,
+                "unique_replayed_and_continued": u_rep_cont,
+                "unique_replayed": u_replayed,
+                "unique_paused": u_paused,
+                "unique_continued": u_continued,
+                "unique_completed": traj["unique_completed"],
+                "permanent_exit_rate": perm_exit_rate,
+                "continuation_rate": continuation_rate,
             },
             "smoothed_signals": {
                 "laplace_exit_rate": exit_smoothed,

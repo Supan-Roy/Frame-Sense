@@ -11,8 +11,7 @@ from unittest.mock import patch, MagicMock
 # ---------------------------------------------------------------------------
 # Import analytics module with ClickHouse client mocked at module load
 # ---------------------------------------------------------------------------
-with patch("app.database.clickhouse.get_client"):
-    from app.screening import analytics
+from app.screening import analytics
 
 
 # ---------------------------------------------------------------------------
