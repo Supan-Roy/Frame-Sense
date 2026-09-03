@@ -57,10 +57,10 @@ $$\text{Session Trajectory} = \langle (e_1, t_1), (e_2, t_2), \dots, (e_m, t_m) 
 
 #### Trajectory Metrics
 - **Exposed Viewers ($N_{\text{exposed}}$)**: Unique viewers present in $[t_{\text{start}} - 5\text{s}, t_{\text{end}} + 10\text{s}]$.
-- **Permanent Exits ($N_{\text{permanent\_exits}}$)**: Viewers whose session terminated in $W$ and **never returned or emitted events** past $t_{\text{end}} + 3\text{s}$.
-- **Replayed & Continued ($N_{\text{replayed\_continued}}$)**: Viewers who rewound/replayed in $W$ and continued watching past $t_{\text{end}} + 3\text{s}$.
+- **Permanent Exits ($N_{\text{exit}}$)**: Viewers whose session terminated in $W$ and **never returned or emitted events** past $t_{\text{end}} + 3\text{s}$.
+- **Replayed & Continued ($N_{\text{replayed-continued}}$)**: Viewers who rewound/replayed in $W$ and continued watching past $t_{\text{end}} + 3\text{s}$.
 - **Permanent Exit Rate**:
-  $$R_{\text{permanent\_exit}} = \frac{N_{\text{permanent\_exits}}}{\max(1, N_{\text{exposed}})}$$
+  $$R_{\text{exit}} = \frac{N_{\text{exit}}}{\max(1, N_{\text{exposed}})}$$
 - **Continuation Rate**:
   $$R_{\text{continuation}} = \frac{N_{\text{continued}}}{\max(1, N_{\text{exposed}})}$$
 
@@ -99,7 +99,7 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 | :--- | :--- | :--- | :--- | :--- |
 | $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | **`Emotional Scene Replay Hotspot`** | `EMOTIONAL` | `B-ROLL REACTION INSERT` | Insert 1.2s B-Roll reaction shot at peak timecode to reward viewer curiosity. |
 | $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | **`Cognitive Comprehension Barrier`** | `COGNITIVE` | `DIALOGUE ENHANCEMENT & RE-PACE` | Boost dialogue audio clarity (+3dB), duck score (-4dB), or hold shot +1.2s — do NOT trim video. |
-| $N_{\text{perm\_exits}} \ge 1 \land N_{\text{perm\_exits}} \ge N_{\text{continued}} \land R_{\text{exit}} \ge 0.15$ | **`Critical Scene Exit Drop`** | `RETENTION` | `MATCH CUT & SHOT RE-ORDERING` | Re-anchor visual perspective. Replace static wide shot with medium close-up. |
+| $N_{\text{exits}} \ge 1 \land N_{\text{exits}} \ge N_{\text{continued}} \land R_{\text{exit}} \ge 0.15$ | **`Critical Scene Exit Drop`** | `RETENTION` | `MATCH CUT & SHOT RE-ORDERING` | Re-anchor visual perspective. Replace static wide shot with medium close-up. |
 | $c_{\text{skips}} > 0 \land R_{\text{exit}} \ge 0.15$ | **`Dead Zone Pacing Skip`** | `PACING` | `HARD CUT TRIM` | Execute razor cut prior to scene transition to eliminate visual dead space. |
 
 ### 4-Part Scientific Honesty Taxonomy
