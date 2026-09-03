@@ -971,10 +971,17 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       created_at: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, tempUserMsg]);
-
     const tempAssistantMsgId = `temp_ast_${Date.now()}`;
-    let assistantAdded = false;
+    const tempAssistantMsg: ChatMessage = {
+      message_id: tempAssistantMsgId,
+      session_id: activeSessionId,
+      screening_id: screening.screening_id,
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages(prev => [...prev, tempUserMsg, tempAssistantMsg]);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -1013,26 +1020,13 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                 accumulatedText += data.text;
                 const currentText = accumulatedText;
 
-                if (!assistantAdded) {
-                  assistantAdded = true;
-                  const tempAssistantMsg: ChatMessage = {
-                    message_id: tempAssistantMsgId,
-                    session_id: activeSessionId,
-                    screening_id: screening.screening_id,
-                    role: 'assistant',
-                    content: currentText,
-                    created_at: new Date().toISOString(),
-                  };
-                  setMessages(prev => [...prev, tempAssistantMsg]);
-                } else {
-                  setMessages(prev =>
-                    prev.map(m =>
-                      m.message_id === tempAssistantMsgId
-                        ? { ...m, content: currentText }
-                        : m
-                    )
-                  );
-                }
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.message_id === tempAssistantMsgId
+                      ? { ...m, content: currentText }
+                      : m
+                  )
+                );
               }
             } catch (e) {
               console.error('SSE parse error:', e);
@@ -1211,7 +1205,12 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                           </span>
                         </div>
 
-                        {isQuota ? (
+                        {!m.content ? (
+                          <div className="flex items-center gap-2.5 text-xs text-cyan-300 font-mono animate-pulse py-1">
+                            <Loader2 className="h-4 w-4 animate-spin text-cyan-400 shrink-0" />
+                            <span>Sense AI is querying ClickHouse Cloud MCP &amp; reasoning...</span>
+                          </div>
+                        ) : isQuota ? (
                           <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 font-mono text-xs space-y-1.5">
                             <div className="flex items-center gap-2 font-bold text-amber-300">
                               <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
@@ -1230,15 +1229,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                     </div>
                   );
                 })
-              )}
-
-              {sending && !messages.some(m => m.role === 'assistant' && m.message_id.startsWith('temp_ast_')) && (
-                <div className="flex justify-start">
-                  <div className="bg-studio-950 border border-cyan-500/30 rounded-2xl rounded-tl-none p-4 text-xs text-cyan-300 font-mono flex items-center gap-3 animate-pulse">
-                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400 shrink-0" />
-                    <span>Sense AI is querying ClickHouse Cloud MCP &amp; reasoning...</span>
-                  </div>
-                </div>
               )}
 
               {error && (

@@ -345,9 +345,14 @@ class ScreeningRepository:
         # Check if there is already an empty session (0 messages) for this screening
         empty_res = client.query("""
         SELECT s.session_id, s.title, s.created_at, s.updated_at
-        FROM default.chat_sessions s
+        FROM (
+            SELECT session_id, screening_id, title, created_at, updated_at,
+                   ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY updated_at DESC) as rn
+            FROM default.chat_sessions
+            WHERE screening_id = {sid:String}
+        ) s
         LEFT JOIN default.chat_messages m ON s.session_id = m.session_id
-        WHERE s.screening_id = {sid:String}
+        WHERE s.rn = 1
         GROUP BY s.session_id, s.title, s.created_at, s.updated_at
         HAVING count(m.message_id) = 0
         ORDER BY s.created_at DESC
@@ -386,7 +391,17 @@ class ScreeningRepository:
     def get_chat_sessions(self, screening_id: str) -> List[Dict[str, Any]]:
         client = get_client()
         res = client.query(
-            "SELECT session_id, screening_id, title, created_at, updated_at FROM default.chat_sessions WHERE screening_id = {sid:String} ORDER BY updated_at DESC",
+            """
+            SELECT session_id, screening_id, title, created_at, updated_at
+            FROM (
+                SELECT session_id, screening_id, title, created_at, updated_at,
+                       ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY updated_at DESC) as rn
+                FROM default.chat_sessions
+                WHERE screening_id = {sid:String}
+            )
+            WHERE rn = 1
+            ORDER BY updated_at DESC
+            """,
             parameters={"sid": screening_id}
         )
         if not res.result_rows:
@@ -405,7 +420,13 @@ class ScreeningRepository:
     def get_chat_session(self, session_id: str) -> Dict[str, Any] | None:
         client = get_client()
         res = client.query(
-            "SELECT session_id, screening_id, title, created_at, updated_at FROM default.chat_sessions WHERE session_id = {sess_id:String}",
+            """
+            SELECT session_id, screening_id, title, created_at, updated_at
+            FROM default.chat_sessions
+            WHERE session_id = {sess_id:String}
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
             parameters={"sess_id": session_id}
         )
         if not res.result_rows:
