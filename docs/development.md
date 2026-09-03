@@ -34,10 +34,14 @@ pnpm run dev
 
 ## 3. Running Pytest Integration Tests
 
-The backend includes a comprehensive pytest integration suite testing statistical joint gating, ClickHouse MCP integration, agent orchestration, and vision frame extraction:
+The backend includes a comprehensive pytest integration suite testing statistical joint gating, viewer sequence trajectory semantics, ClickHouse MCP integration, agent orchestration, and vision frame extraction:
 
 ```bash
+# Run full backend test suite (76 tests)
 apps/api/.venv/Scripts/pytest tests/ -v
+
+# Run viewer behavioral semantics regression suite specifically (12 adversarial scenarios)
+apps/api/.venv/Scripts/pytest tests/test_behavioral_semantics.py -v
 ```
 
 ---

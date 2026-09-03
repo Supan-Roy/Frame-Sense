@@ -43,7 +43,11 @@ This document details the production architecture of **Frame Sense**, detailing 
 - **High-Volume Telemetry Storage**: ClickHouse columnar database storing second-by-second viewer telemetry events (`PLAY`, `PAUSE`, `PROGRESS`, `EXIT`, `SEEK_FORWARD`, `SEEK_BACKWARD`, `REPLAY`, `VOLUME_CHANGE`, `TAB_HIDDEN`, `TAB_VISIBLE`).
 - **ClickHouse Model Context Protocol (MCP)**: Implements `run_select_query` tool allowing AI agents to directly query `default.viewer_events` via SQL filters (`WHERE screening_id = '...'`).
 
-### B. Core Intelligence Engine & Joint Gating
+### B. Core Intelligence Engine & Sequence Trajectory Reasoning
+- **Viewer Sequence Trajectory Engine (`_get_window_trajectories`)**: Runs ClickHouse SQL trajectory window queries evaluating full viewer session lifecycles ($N_{\text{exposed}}$, $N_{\text{permanent\_exits}}$, $N_{\text{replayed\_and\_continued}}$, $N_{\text{continued}}$).
+- **Multi-Signal Classification Tree**:
+  - `Emotional Scene Replay Hotspot` / `Cognitive Comprehension Barrier`: Triggered when viewers rewound/replayed and continued playback past the scene window, protecting rewatch hotspots from false retention drop classification.
+  - `Critical Scene Exit Drop`: Requires genuine viewer abandonment ($N_{\text{permanent\_exits}} \ge 1$, $N_{\text{permanent\_exits}} \ge N_{\text{continued}}$, and permanent exit rate $\ge 15\%$).
 - **Sample Exposure Categorization**:
   - $n < 5$: `INSUFFICIENT_DATA` (Capped at `LOW` confidence $\le 0.35$ and `LOW` severity).
   - $5 \le n < 10$: `PRELIMINARY_SIGNAL` (Capped at `MEDIUM` confidence $\le 0.65$).
@@ -56,15 +60,16 @@ This document details the production architecture of **Frame Sense**, detailing 
 - **Keyframe Extraction**: Extracts keyframes at exact peak anomaly timecodes using FFmpeg.
 - **Gemini 2.5 Vision Reasoning**: Sends extracted image frames to Gemini alongside raw telemetry evidence for visual cut analysis, scene pacing, and framing investigation.
 - **Scientific Honesty Taxonomy**:
-  - **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores).
-  - **`INTERPRETATION`**: Behavioral meaning of signals.
+  - **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, trajectory metrics).
+  - **`INTERPRETATION`**: Behavioral meaning of signals (e.g. cognitive comprehension vs. audience abandonment).
   - **`HYPOTHESIS`**: Multimodal visual/narrative rationale.
-  - **`VALIDATION`**: Proposed action & evidence quality tier.
+  - **`VALIDATION`**: Proposed editing action & evidence quality tier.
 
-### D. Sense AI Interactive Assistant
+### D. Sense AI Interactive Assistant & Low-Latency Stream
 - **Google ADK Orchestration**: Uses `InMemoryRunner` with `sense_ai_chat_agent` and ClickHouse MCP.
-- **Real-Time SSE Token Streaming**: Server-Sent Events endpoint streaming token chunks over HTTP (`media_type="text/event-stream"`).
-- **Stream Controller**: Supports frontend response cancellation via `AbortController`.
+- **Pre-Loaded Summary Context**: Injects screening metadata, live telemetry overview, and top anomaly findings directly into context header to bypass redundant remote MCP SQL roundtrips for general user queries.
+- **Zero-Latency Token SSE Stream**: Server-Sent Events endpoint streaming LLM tokens directly over HTTP (`media_type="text/event-stream"`) without artificial sleep delays.
+- **Stream Controller**: Supports frontend response cancellation via circular `Stop` button / `AbortController`.
 
 ### E. Professional NLE Export (FCP XML & EDL)
 - **Final Cut Pro XML (`.fcpxml`)**: Generates structured XML sequences with markers, duration metadata, and editorial notes compatible with **Adobe Premiere Pro**, **DaVinci Resolve**, and **Final Cut Pro**.

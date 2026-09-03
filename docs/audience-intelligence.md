@@ -48,12 +48,31 @@ To compute z-scores without self-pollution from the anomaly window itself:
 
 ---
 
-## 5. Scientific Honesty Taxonomy
+## 5. Viewer Sequence Trajectory Reasoning
+
+Events are **not** viewers. Frame Sense tracks each viewer's session journey relative to candidate anomaly windows $[t_{\text{start}}, t_{\text{end}}]$:
+
+- **`unique_exposed`**: Count of unique viewers present in the timecode window.
+- **`unique_permanent_exits`**: Viewers whose session ended around the window and **never returned or continued playback**.
+- **`unique_replayed_and_continued`**: Viewers who rewound/replayed in the window and continued watching to completion.
+- **`unique_continued`**: Viewers who continued playback past $t_{\text{end}} + 3\text{s}$.
+
+### Classification & Editorial Mapping Rules
+
+| Trajectory Condition | Anomaly Taxonomy Title | Domain | Editorial Recommendation |
+| :--- | :--- | :--- | :--- |
+| $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | `Emotional Scene Replay Hotspot` | `EMOTIONAL` | **B-Roll Reaction Insert & Sound Design**: Insert 1.2s B-Roll reaction shot to reward viewer curiosity. |
+| $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | `Cognitive Comprehension Barrier` | `COGNITIVE` | **Dialogue Enhancement & B-Roll Re-Pacing**: Boost dialogue clarity (+3dB), duck score (-4dB), or extend shot +1.2s — do NOT trim video. |
+| $N_{\text{perm\_exits}} \ge 1 \land N_{\text{perm\_exits}} \ge N_{\text{continued}} \land \text{rate} \ge 0.15$ | `Critical Scene Exit Drop` | `RETENTION` | **Scene Cut & Match Cut**: Re-anchor visual perspective with an over-the-shoulder medium close-up. |
+
+---
+
+## 6. Scientific Honesty Taxonomy
 
 Every generated editorial finding is structured strictly into 4 parts:
 
-1. **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, Wilson bounds).
-2. **`INTERPRETATION`**: Behavioral meaning of signals (e.g., audience abandonment vs pacing friction).
+1. **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, Wilson bounds, viewer trajectory counts).
+2. **`INTERPRETATION`**: Behavioral meaning of signals (e.g., audience abandonment vs dialogue comprehension friction).
 3. **`HYPOTHESIS`**: Multimodal visual/narrative rationale derived from Gemini 2.5 Vision keyframe analysis.
 4. **`VALIDATION`**: Proposed editing action, evidence quality tier, and sample exposure category.
 
