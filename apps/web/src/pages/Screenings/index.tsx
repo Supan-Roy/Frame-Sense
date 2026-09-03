@@ -1082,38 +1082,33 @@ message_id: string;
   created_at: string;
 }
 
-function TypewriterMarkdown({ text, isStreaming = false, animate = false, onProgress }: { text: string; isStreaming?: boolean; animate?: boolean; onProgress?: () => void }) {
-  const [visibleLength, setVisibleLength] = useState((isStreaming || animate) ? 0 : text.length);
+function TypewriterMarkdown({ text, animate = false, onProgress }: { text: string; animate?: boolean; onProgress?: () => void }) {
+  const [visibleLength, setVisibleLength] = useState(animate ? 0 : text.length);
+  const isTyping = animate && visibleLength < text.length;
 
   useEffect(() => {
-    if (!isStreaming && !animate) {
+    if (!animate) {
       setVisibleLength(text.length);
       return;
     }
 
-    const chunkSize = 2;
+    setVisibleLength(0);
+    const chunkSize = 3;
     const interval = setInterval(() => {
       setVisibleLength((prev) => {
-        if (prev < text.length) {
-          const next = Math.min(prev + chunkSize, text.length);
-          if (onProgress) onProgress();
-          return next;
+        const next = Math.min(prev + chunkSize, text.length);
+        if (next >= text.length) {
+          clearInterval(interval);
         }
-        return prev;
+        if (onProgress) onProgress();
+        return next;
       });
-    }, 15);
+    }, 12);
 
     return () => clearInterval(interval);
-  }, [text, isStreaming, animate]);
-
-  useEffect(() => {
-    if (!isStreaming && !animate) {
-      setVisibleLength(text.length);
-    }
-  }, [text, isStreaming, animate]);
+  }, [text, animate]);
 
   const displayedText = text.slice(0, visibleLength);
-  const isTyping = (isStreaming || animate) && visibleLength < text.length;
 
   return (
     <div className="relative">
@@ -1134,6 +1129,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [animatedMsgId, setAnimatedMsgId] = useState<string | null>(null);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1330,7 +1326,13 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
 
       const fetchMsgRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`);
       if (fetchMsgRes.ok) {
-        const finalMsgs = await fetchMsgRes.json();
+        const finalMsgs: ChatMessage[] = await fetchMsgRes.json();
+        if (finalMsgs.length > 0) {
+          const lastMsg = finalMsgs[finalMsgs.length - 1];
+          if (lastMsg.role === 'assistant') {
+            setAnimatedMsgId(lastMsg.message_id);
+          }
+        }
         setMessages(finalMsgs);
       }
       const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
@@ -1498,7 +1500,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                         ) : (
                           <TypewriterMarkdown
                             text={m.content}
-                            isStreaming={sending && idx === messages.length - 1 && m.role === 'assistant'}
+                            animate={m.message_id === animatedMsgId || (sending && idx === messages.length - 1 && m.role === 'assistant')}
                             onProgress={() => scrollToBottom('auto')}
                           />
                         )}
