@@ -1698,26 +1698,7 @@ interface ToastNotification {
 
   const getSavedFinding = (anomaly: Anomaly) => {
     if (!savedInvestigations) return undefined;
-    if (savedInvestigations[anomaly.anomaly_id]) {
-      return savedInvestigations[anomaly.anomaly_id];
-    }
-    const keys = Object.keys(savedInvestigations);
-    const peak = anomaly.peak_time_sec ?? anomaly.start_time_sec;
-    for (const k of keys) {
-      const inv = savedInvestigations[k];
-      if (inv && (inv.investigation_report || (inv.extracted_frames && inv.extracted_frames.length > 0))) {
-        const rep = inv.investigation_report || '';
-        if (
-          rep.includes(`${anomaly.start_time_sec}-second`) ||
-          rep.includes(`${peak}-second`) ||
-          rep.includes(`0:${peak < 10 ? '0' : ''}${peak}`) ||
-          (anomaly.title && rep.includes(anomaly.title))
-        ) {
-          return inv;
-        }
-      }
-    }
-    return undefined;
+    return savedInvestigations[anomaly.anomaly_id];
   };
 
   const loadAIData = async (sid: string) => {

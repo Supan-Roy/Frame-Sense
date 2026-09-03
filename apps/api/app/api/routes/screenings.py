@@ -402,6 +402,8 @@ def rollback_screening_audience_batch(screening_id: str):
         raise HTTPException(status_code=404, detail="Screening not found")
     try:
         from app.database.clickhouse import rollback_last_batch
+        from app.screening.investigator_service import delete_all_screening_investigations
+        delete_all_screening_investigations(screening_id)
         return rollback_last_batch(screening_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Rollback error: {e}")
@@ -452,6 +454,8 @@ def dev_simulate(
         raise HTTPException(status_code=404, detail="Screening not found")
     try:
         from app.screening.simulator import run_simulation
+        from app.screening.investigator_service import delete_all_screening_investigations
+        delete_all_screening_investigations(screening_id)
         result = run_simulation(
             screening_id=screening_id,
             video_id=screening["media_id"],
