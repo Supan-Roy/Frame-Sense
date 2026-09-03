@@ -4,7 +4,7 @@ import {
   Clock, AlertTriangle, Trash2, TrendingDown, Zap, Eye,
   Activity, ChevronDown, ChevronRight, ChevronLeft, FlaskConical, Users,
   CircleDot, BarChart, RotateCcw, History, CheckCircle2, ExternalLink, MessageSquare,
-  Sparkles, Loader2, Play, Lightbulb, Send
+  Sparkles, Loader2, Play, Lightbulb, Send, Square
 } from 'lucide-react';
 
 interface Screening {
@@ -1133,6 +1133,15 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopResponse = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setSending(false);
+  };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (chatScrollRef.current) {
@@ -1263,11 +1272,15 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
     const tempAssistantMsgId = `temp_ast_${Date.now()}`;
     let assistantAdded = false;
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const res = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error(`Server returned status ${res.status}`);
@@ -1338,9 +1351,14 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
       if (sessRes.ok) setSessions(await sessRes.json());
     } catch (err: any) {
-      setError(err.message || 'Failed to send message');
-      setMessages(prev => prev.filter(m => !(m.message_id === tempAssistantMsgId && !m.content.trim())));
+      if (err.name === 'AbortError') {
+        console.log('Sense AI stream stopped by user');
+      } else {
+        setError(err.message || 'Failed to send message');
+        setMessages(prev => prev.filter(m => !(m.message_id === tempAssistantMsgId && !m.content.trim())));
+      }
     } finally {
+      abortControllerRef.current = null;
       setSending(false);
     }
   };
@@ -1538,14 +1556,25 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                 disabled={sending}
                 className="flex-1 bg-studio-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 font-sans"
               />
-              <button
-                type="submit"
-                disabled={sending || !inputPrompt.trim()}
-                className="p-2.5 rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40 transition-all cursor-pointer font-bold shrink-0"
-                title="Send Prompt to Sense AI"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+              {sending ? (
+                <button
+                  type="button"
+                  onClick={handleStopResponse}
+                  className="p-2.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/30 hover:border-cyan-400 transition-all cursor-pointer shrink-0 shadow-lg shadow-cyan-950/50"
+                  title="Stop Response"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current rounded-sm" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!inputPrompt.trim()}
+                  className="p-2.5 rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40 transition-all cursor-pointer font-bold shrink-0"
+                  title="Send Prompt to Sense AI"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              )}
             </form>
           </div>
         </div>
