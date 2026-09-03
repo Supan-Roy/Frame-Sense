@@ -73,25 +73,22 @@ def insert_events(events: List[Dict[str, Any]]):
 def get_screening_stats(screening_id: str) -> Dict[str, Any]:
     client = get_client()
     
+    params = {"sid": screening_id}
+
     # 1. Total sessions count
-    total_sessions_query = f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{screening_id}'"
-    total_sessions = client.command(total_sessions_query)
-    
+    total_sessions = client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params)
+
     # 2. Unique anonymous viewers count
-    total_viewers_query = f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{screening_id}'"
-    total_viewers = client.command(total_viewers_query)
-    
+    total_viewers = client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params)
+
     # 3. Total events count
-    total_events_query = f"SELECT count() FROM viewer_events WHERE screening_id = '{screening_id}'"
-    total_events = client.command(total_events_query)
-    
+    total_events = client.command("SELECT count() FROM viewer_events WHERE screening_id = {sid:String}", parameters=params)
+
     # 4. Completed sessions (sessions containing a COMPLETE event)
-    completed_sessions_query = f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{screening_id}' AND event_type = 'COMPLETE'"
-    completed_sessions = client.command(completed_sessions_query)
-    
+    completed_sessions = client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String} AND event_type = 'COMPLETE'", parameters=params)
+
     # 5. Event breakdown by event_type
-    breakdown_query = f"SELECT event_type, count() FROM viewer_events WHERE screening_id = '{screening_id}' GROUP BY event_type"
-    breakdown_res = client.query(breakdown_query)
+    breakdown_res = client.query("SELECT event_type, count() FROM viewer_events WHERE screening_id = {sid:String} GROUP BY event_type", parameters=params)
     event_breakdown = {row[0]: row[1] for row in breakdown_res.result_rows}
     
     return {

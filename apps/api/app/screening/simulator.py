@@ -357,15 +357,13 @@ def run_simulation(
 
     # Handle EXACT_REPLAY mode: replicate exact real viewer event streams with zero jitter
     if effective_mode in ("EXACT_REPLAY", "EXACT_CLONE"):
-        client = get_client()
-        sid = screening_id.replace("'", "")
-        vid = video_id.replace("'", "")
+        params = {"sid": screening_id}
 
-        real_count = int(client.command(f"SELECT count() FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
+        real_count = int(client.command("SELECT count() FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'", parameters=params))
         if real_count == 0:
             raise ValueError("No original real viewer telemetry found for this screening. Original real viewer data is required for Exact Replay mode.")
 
-        num_real_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
+        num_real_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'", parameters=params))
 
         # Execute safe chunked vector insert in ClickHouse (50,000 viewers per chunk) to prevent Docker OOM
         chunk_size = 50_000

@@ -43,6 +43,20 @@ graph TD
     CHAT --> NLE
 ```
 
+### 2-Tier Hybrid Intelligence Architecture
+
+Frame Sense uses a **2-tier hybrid intelligence pipeline** to combine deterministic high-throughput telemetry analytics with autonomous LLM agentic reasoning:
+
+1. **Tier 1: Deterministic Signal Processing & Trajectory Engine**
+   - Ingests raw second-by-second viewer telemetry (`PLAY`, `PAUSE`, `EXIT`, `REPLAY`, `SEEK`, `TAB_HIDDEN`).
+   - Evaluates ClickHouse viewer sequence trajectories (`_get_window_trajectories`) to calculate true permanent exit rates ($R_{\text{exit}}$) vs. intentional scene rewatches ($R_{\text{continuation}}$).
+   - Applies Laplace smoothing ($\hat{p}_{\text{smoothed}}$), Wilson score confidence bounds, and sample-aware gating ($n < 5 \rightarrow \text{INSUFFICIENT DATA}$) to eliminate false alarms.
+
+2. **Tier 2: Google ADK Multimodal Vision & MCP Agentic Reasoning**
+   - **Multimodal Vision Engine**: Extracts peak keyframes via FFmpeg and triggers Gemini 3.5 Flash / Flash-Lite multimodal vision analysis over framing, lighting, cut pacing, and visual clutter.
+   - **Google ADK Sense AI Agent**: Executes multi-step Model Context Protocol (MCP) tool queries against ClickHouse, validating viewer trajectories in real time and answering complex studio queries over SSE streams.
+
+
 ---
 
 ## Core Technical Approaches & Algorithms

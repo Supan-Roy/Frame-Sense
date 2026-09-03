@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently -k false --restart-tries 1000 --restart-delay 1000 -n \"web,api\" -c \"blue.bold,green.bold\" \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
     "build": "pnpm --filter web build",
-    "install:api": "py -3.11 -m venv apps\\api\\.venv && apps\\api\\.venv\\Scripts\\pip install -r apps\\api\\requirements.txt",
+    "install:api": "node scripts/setup-api.js",
     "setup": "pnpm install && pnpm install:api"
   },
   "devDependencies": {

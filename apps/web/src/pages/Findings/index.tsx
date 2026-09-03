@@ -9,9 +9,7 @@ import {
   Download,
   ArrowLeft,
   Clock,
-  CheckCircle2,
   Sliders,
-  Eye,
   ChevronRight,
   Shield,
   Search,
@@ -20,6 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import type { Screening, Anomaly, SavedInvestigation, EditCue } from '@frame-sense/types';
+import { EditorialCueCard } from '../../components/findings/EditorialCueCard';
 
 
 
@@ -842,95 +841,23 @@ export default function Findings() {
                     No edit cut cues match the selected filter category.
                   </div>
                 ) : (
-                  filteredCues.map(c => {
-                    const isActive = activeCueId === c.id;
+                  filteredCues.map(c => (
+                    <EditorialCueCard
+                      key={c.id}
+                      cue={c}
+                      isActive={activeCueId === c.id}
+                      onSelectTimecode={(sec) => jumpToTimecode(sec, c.id)}
+                      onInvestigate={(cue) => {
+                        if (cue.extracted_frames && cue.extracted_frames.length > 0) {
+                          openLightbox(cue.extracted_frames, 0);
+                        } else {
+                          jumpToTimecode(cue.time_start_sec, cue.id);
+                        }
+                      }}
+                      onToggleEdl={toggleEdlMark}
+                    />
+                  ))
 
-                    return (
-                      <div
-                        key={c.id}
-                        className={`rounded-xl border transition-all overflow-hidden ${
-                          isActive
-                            ? 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500 shadow-xl'
-                            : 'bg-studio-900/70 border-studio-800 hover:border-studio-700'
-                        }`}
-                      >
-                        {/* Cue Card Header */}
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                                  {c.timecode_start} → {c.timecode_end}
-                                </span>
-                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-studio-800 text-studio-300">
-                                  {c.category_label}
-                                </span>
-                              </div>
-                              <h4 className="font-bold text-sm text-foreground mt-1.5 flex items-center gap-2">
-                                <span>{c.editing_action}</span>
-                              </h4>
-                            </div>
-
-                            {/* EDL Checkbox Toggle */}
-                            <button
-                              onClick={() => toggleEdlMark(c.id)}
-                              className={`p-1.5 rounded-md border text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                                c.markedForEdl
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                  : 'bg-studio-950 text-muted-foreground border-studio-800 hover:text-foreground'
-                              }`}
-                              title="Toggle inclusion in EDL export"
-                            >
-                              <CheckCircle2 className={`h-4 w-4 ${c.markedForEdl ? 'text-emerald-400' : 'text-studio-600'}`} />
-                              <span className="text-[10px] font-mono">{c.markedForEdl ? 'EDL Marked' : 'Include'}</span>
-                            </button>
-                          </div>
-
-                          {/* Professional Editorial Tip Text */}
-                          <div className="p-3 rounded-lg bg-studio-950/70 border border-studio-800/60 space-y-1">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1">
-                              <Scissors className="h-3 w-3" />
-                              <span>Professional Editor Tip</span>
-                            </div>
-                            <p className="text-xs text-foreground/90 leading-relaxed font-sans">
-                              {c.editorial_tip}
-                            </p>
-                          </div>
-
-                          {/* Rationale & Metrics */}
-                          <div className="flex items-center justify-between gap-3 text-xs pt-1">
-                            <div className="text-[11px] text-muted-foreground line-clamp-1 flex-1">
-                              <strong className="text-studio-400">Rationale: </strong>{c.rationale}
-                            </div>
-                            <span className="font-mono text-xs font-bold text-emerald-400 shrink-0 bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/20">
-                              {c.retention_recovery_pct} Recovery
-                            </span>
-                          </div>
-
-                          {/* Action Buttons Footer */}
-                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-studio-800/60">
-                            <button
-                              onClick={() => jumpToTimecode(c.time_start_sec, c.id)}
-                              className="py-1.5 px-3 rounded-md bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black font-semibold text-xs transition-colors flex items-center gap-1.5"
-                            >
-                              <Play className="h-3.5 w-3.5 fill-current" />
-                              <span>Jump to Cut ({c.timecode_start})</span>
-                            </button>
-
-                            {c.extracted_frames && c.extracted_frames.length > 0 && (
-                              <button
-                                onClick={() => openLightbox(c.extracted_frames, 0)}
-                                className="py-1.5 px-3 rounded-md bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-foreground font-semibold text-xs transition-colors flex items-center gap-1.5"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-amber-400" />
-                                <span>Vision Frames ({c.extracted_frames.length})</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
                 )}
               </div>
             </div>

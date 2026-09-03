@@ -40,13 +40,13 @@ def _reliability(unique_viewers: int) -> Dict[str, str]:
 
 def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     client = get_client()
-    sid = screening_id.replace("'", "")
-    unique_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}'"))
-    real_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id NOT LIKE 'synth_v_%'"))
-    synthetic_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}' AND anonymous_viewer_id LIKE 'synth_v_%'"))
-    unique_sessions = int(client.command(f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{sid}'"))
-    total_events = int(client.command(f"SELECT count() FROM viewer_events WHERE screening_id = '{sid}'"))
-    completed_sessions = int(client.command(f"SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = '{sid}' AND event_type = 'COMPLETE'"))
+    params = {"sid": screening_id}
+    unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+    real_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'", parameters=params))
+    synthetic_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id LIKE 'synth_v_%'", parameters=params))
+    unique_sessions = int(client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+    total_events = int(client.command("SELECT count() FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+    completed_sessions = int(client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String} AND event_type = 'COMPLETE'", parameters=params))
     completion_rate = round(completed_sessions / unique_sessions, 4) if unique_sessions > 0 else None
     return {
         "screening_id": screening_id,
@@ -61,16 +61,12 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
     }
 
 
-def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
-    """
-    High-resolution Audience Retention Curve.
-    Calculates active viewer retention across timecode buckets with organic presence tracking.
-    Uses range expansion for continuous play spans.
-    """
+def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
+    """Retention curve calculated in ClickHouse."""
     client = get_client()
-    sid = screening_id.replace("'", "")
+    params = {"sid": screening_id}
 
-    total_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}'"))
+    total_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
     if total_viewers == 0:
         return {"screening_id": screening_id, "bucket_sec": bucket_sec, "total_starters": 0, "curve": []}
 
@@ -78,12 +74,10 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     screening = screening_repo.get_by_id(screening_id)
     video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
 
-    max_dur_res = client.query(f"SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = '{sid}' AND video_timecode_sec >= 0")
+    max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0", parameters=params)
     event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
 
-    # Ensure max_dur spans full video duration (e.g. 32s) or max observed timecode
     max_dur = max(video_dur, event_max) or 60.0
-
     b = max(1, min(5, int(bucket_sec)))
 
     query = f"""
@@ -96,7 +90,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
                 anonymous_viewer_id,
                 arrayJoin(range(toUInt32(floor(video_timecode_sec)), toUInt32(floor(video_timecode_sec)) + if(event_type IN ('PLAY', 'PROGRESS'), 5, 1))) AS tc
             FROM viewer_events
-            WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+            WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
         )
     )
     SELECT
@@ -109,7 +103,7 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
     GROUP BY b.bucket
     ORDER BY b.bucket
     """
-    result = client.query(query)
+    result = client.query(query, parameters=params)
     buckets = []
     for row in result.result_rows:
         bucket_t, active_v = row
@@ -124,10 +118,10 @@ def get_retention_curve(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any
 def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """Per-time-bucket behavioral event rates. All aggregation in ClickHouse."""
     client = get_client()
-    sid = screening_id.replace("'", "")
+    params = {"sid": screening_id}
     b = max(1, int(bucket_sec))
 
-    unique_viewers = int(client.command(f"SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = '{sid}'"))
+    unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
     if unique_viewers == 0:
         return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
 
@@ -135,7 +129,7 @@ def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, 
     screening = screening_repo.get_by_id(screening_id)
     video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
 
-    max_dur_res = client.query(f"SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = '{sid}' AND video_timecode_sec >= 0")
+    max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0", parameters=params)
     event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
     max_dur = max(video_dur, event_max) or 60.0
 
@@ -153,7 +147,7 @@ def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, 
             countIf(event_type = 'COMPLETE')      AS completions,
             count(DISTINCT session_id)             AS sessions_active
         FROM viewer_events
-        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+        WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
         GROUP BY bucket
     )
     SELECT
@@ -173,7 +167,7 @@ def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, 
     LEFT JOIN event_buckets AS e ON e.bucket = b.bucket
     ORDER BY b.bucket
     """
-    result = client.query(query)
+    result = client.query(query, parameters=params)
     denom = max(1, unique_viewers)
     signals = []
     for row in result.result_rows:
@@ -266,7 +260,7 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
       - unique_continued: viewers who continued watching past end_t + 3s or completed the video
     """
     client = get_client()
-    sid = screening_id.replace("'", "")
+    params = {"sid": screening_id}
 
     st_start = max(0.0, float(start_t) - 2.0)
     st_end = float(end_t) + 2.0
@@ -282,7 +276,7 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
             event_type,
             video_timecode_sec
         FROM viewer_events
-        WHERE screening_id = '{sid}' AND video_timecode_sec >= 0
+        WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
     ),
     session_summaries AS (
         SELECT
@@ -310,7 +304,7 @@ def _get_window_trajectories(screening_id: str, start_t: float, end_t: float) ->
     FROM session_summaries
     """
     try:
-        res = client.query(query).result_rows
+        res = client.query(query, parameters=params).result_rows
         if not res or not res[0]:
             return {
                 "unique_exposed": 0, "unique_permanent_exits": 0, "unique_replayed_and_continued": 0,
