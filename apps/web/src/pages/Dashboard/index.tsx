@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Film, Activity, AlertTriangle, Eye, Compass, CheckCircle,
-  Sparkles, Database, Users, Layers, ArrowRight,
+  Sparkles, Database, Layers, ArrowRight,
   Video, MessageSquare, PlayCircle, ChevronRight, ArrowUpRight
 } from 'lucide-react';
 
@@ -32,10 +32,10 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Active feature tab for Platform Capabilities
-  const [activeTab, setActiveTab] = useState<'retention' | 'vision' | 'synthetic' | 'collaboration'>('retention');
+  const [activeTab, setActiveTab] = useState<'retention' | 'anomaly' | 'vision' | 'collaboration'>('retention');
 
   // Interactive visual animation demo player tab
-  const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'vision' | 'synthetic' | 'collaboration'>('ingest');
+  const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'anomaly' | 'vision' | 'collaboration'>('ingest');
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -247,34 +247,34 @@ export default function Dashboard() {
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   Live Feature Preview
                 </span>
-                <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-zinc-800 text-xs font-medium">
+                <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-zinc-800 text-xs font-medium overflow-x-auto">
                   <button
                     onClick={() => setActiveAnimDemo('ingest')}
-                    className={`px-2.5 py-1 rounded-md transition-all ${
+                    className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                       activeAnimDemo === 'ingest' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     Retention Heatmap
                   </button>
                   <button
+                    onClick={() => setActiveAnimDemo('anomaly')}
+                    className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                      activeAnimDemo === 'anomaly' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Anomaly Detection
+                  </button>
+                  <button
                     onClick={() => setActiveAnimDemo('vision')}
-                    className={`px-2.5 py-1 rounded-md transition-all ${
+                    className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                       activeAnimDemo === 'vision' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     AI Cut Suggestions
                   </button>
                   <button
-                    onClick={() => setActiveAnimDemo('synthetic')}
-                    className={`px-2.5 py-1 rounded-md transition-all ${
-                      activeAnimDemo === 'synthetic' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Audience Simulator
-                  </button>
-                  <button
                     onClick={() => setActiveAnimDemo('collaboration')}
-                    className={`px-2.5 py-1 rounded-md transition-all ${
+                    className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                       activeAnimDemo === 'collaboration' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -294,8 +294,8 @@ export default function Dashboard() {
                     <span>Tracking Viewers Live</span>
                   </div>
 
-                  <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 flex flex-col justify-end overflow-hidden">
-                    <svg className="w-full h-28 overflow-visible" viewBox="0 0 500 120">
+                  <div className="relative h-48 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 flex flex-col justify-end overflow-hidden">
+                    <svg className="w-full h-32 overflow-visible" viewBox="0 0 500 130">
                       <defs>
                         <linearGradient id="telemetryGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
@@ -307,47 +307,161 @@ export default function Dashboard() {
                       <line x1="0" y1="90" x2="500" y2="90" stroke="#27272a" strokeDasharray="4" />
 
                       <path
-                        d="M 0,20 Q 80,15 150,45 T 300,30 T 420,80 L 500,75 L 500,120 L 0,120 Z"
+                        d="M 0,20 Q 80,15 130,55 T 210,65 T 300,28 T 410,75 L 500,70 L 500,130 L 0,130 Z"
                         fill="url(#telemetryGrad)"
                       />
                       <path
-                        d="M 0,20 Q 80,15 150,45 T 300,30 T 420,80 L 500,75"
+                        d="M 0,20 Q 80,15 130,55 T 210,65 T 300,28 T 410,75 L 500,70"
                         fill="none"
                         stroke="#10b981"
                         strokeWidth="2.5"
                         className="animate-wave-dash"
                       />
 
-                      <circle cx="150" cy="45" r="4" fill="#f43f5e" />
-                      <text x="160" y="42" fill="#f43f5e" fontSize="10" fontFamily="sans-serif" fontWeight="600">
-                        Pacing Drop-off [01:42]
-                      </text>
+                      {/* 4 Key Milestone Findings Markers */}
+                      <g className="animate-pulse">
+                        <circle cx="130" cy="55" r="4" fill="#f43f5e" />
+                        <text x="135" y="52" fill="#f43f5e" fontSize="9" fontFamily="sans-serif" fontWeight="700">Pacing Drop-off [01:42]</text>
+                      </g>
 
-                      <circle cx="300" cy="30" r="4" fill="#3b82f6" />
-                      <text x="310" y="27" fill="#60a5fa" fontSize="10" fontFamily="sans-serif" fontWeight="600">
-                        Replay Cluster [03:15]
-                      </text>
+                      <g className="animate-pulse">
+                        <circle cx="210" cy="65" r="4" fill="#f59e0b" />
+                        <text x="215" y="62" fill="#fbbf24" fontSize="9" fontFamily="sans-serif" fontWeight="700">AI Cut Suggestion [02:15]</text>
+                      </g>
+
+                      <g className="animate-pulse">
+                        <circle cx="300" cy="28" r="4" fill="#3b82f6" />
+                        <text x="305" y="25" fill="#60a5fa" fontSize="9" fontFamily="sans-serif" fontWeight="700">Replay Hotspot [03:15]</text>
+                      </g>
+
+                      <g className="animate-pulse">
+                        <circle cx="410" cy="75" r="4" fill="#06b6d4" />
+                        <text x="415" y="72" fill="#22d3ee" fontSize="9" fontFamily="sans-serif" fontWeight="700">AI Co-Pilot [04:20]</text>
+                      </g>
                     </svg>
 
                     <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-zinc-800">
                       <span>Cut Duration: 05:30</span>
-                      <span className="text-emerald-400 font-semibold">94.2% Audience Retention</span>
+                      <span className="text-emerald-400 font-semibold">94.2% Net Retention</span>
+                    </div>
+                  </div>
+
+                  {/* 4 Detailed Findings Cards (2-3 lines max each) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono pt-1">
+                    <div className="p-2.5 rounded bg-zinc-900 border border-rose-500/30 space-y-1">
+                      <div className="text-rose-400 font-bold flex items-center justify-between">
+                        <span>Pacing Drop-off [01:42]</span>
+                        <span className="text-[9px] bg-rose-500/20 px-1.5 py-0.2 rounded">Retention Dip</span>
+                      </div>
+                      <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
+                        Viewer attention drops 24% during static wide shot holding without dialogue; triggers pacing alert.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-zinc-900 border border-amber-500/30 space-y-1">
+                      <div className="text-amber-400 font-bold flex items-center justify-between">
+                        <span>AI Cut Suggestion [02:15]</span>
+                        <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.2 rounded">Trim -1.8s</span>
+                      </div>
+                      <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
+                        Vision model recommends cutting 1.8s from Scene 02 transition to accelerate narrative momentum.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-zinc-900 border border-blue-500/30 space-y-1">
+                      <div className="text-blue-400 font-bold flex items-center justify-between">
+                        <span>Replay Hotspot [03:15]</span>
+                        <span className="text-[9px] bg-blue-500/20 px-1.5 py-0.2 rounded">3.2x Peak</span>
+                      </div>
+                      <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
+                        High scene rewatch cluster (3.2x baseline) as viewers replay emotional climax revelation beat.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-zinc-900 border border-cyan-500/30 space-y-1">
+                      <div className="text-cyan-400 font-bold flex items-center justify-between">
+                        <span>AI Co-Pilot [04:20]</span>
+                        <span className="text-[9px] bg-cyan-500/20 px-1.5 py-0.2 rounded">Audio Query</span>
+                      </div>
+                      <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
+                        Timecode query analyzes dialogue clarity &amp; recommends -4dB score ducking during speech track.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* DEMO 2: Anomaly Detection System Animation */}
+              {activeAnimDemo === 'anomaly' && (
+                <div className="space-y-4 py-2 my-auto">
+                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Statistical Anomaly Detection Engine
+                    </span>
+                    <span className="text-emerald-400 font-semibold">ClickHouse Baselines Active</span>
+                  </div>
+
+                  <div className="relative h-48 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 overflow-hidden flex flex-col justify-between space-y-2">
+                    <div className="grid grid-cols-2 gap-2 relative z-10">
+                      <div className="p-2.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-300 space-y-1">
+                        <div className="text-[10px] font-bold uppercase flex justify-between">
+                          <span>Cognitive Friction</span>
+                          <span className="font-mono text-purple-400">[01:42]</span>
+                        </div>
+                        <div className="text-xs font-extrabold text-foreground">3.2x Pause &amp; Rewind Ratio</div>
+                        <div className="text-[9px] opacity-80 font-sans">Statistically significant friction threshold</div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 space-y-1">
+                        <div className="text-[10px] font-bold uppercase flex justify-between">
+                          <span>Emotional Hotspot</span>
+                          <span className="font-mono text-emerald-400">[03:15]</span>
+                        </div>
+                        <div className="text-xs font-extrabold text-foreground">94.2% Replay Retention</div>
+                        <div className="text-[9px] opacity-80 font-sans">Exceptional engagement spike detected</div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 space-y-1">
+                        <div className="text-[10px] font-bold uppercase flex justify-between">
+                          <span>Audio Peak Anomaly</span>
+                          <span className="font-mono text-amber-400">[02:50]</span>
+                        </div>
+                        <div className="text-xs font-extrabold text-foreground">Background Score Masking</div>
+                        <div className="text-[9px] opacity-80 font-sans">Dialogue clarity reduction flagged</div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 space-y-1">
+                        <div className="text-[10px] font-bold uppercase flex justify-between">
+                          <span>Pacing Disruption</span>
+                          <span className="font-mono text-rose-400">[04:20]</span>
+                        </div>
+                        <div className="text-xs font-extrabold text-foreground">Abrupt Exit Drop-Off</div>
+                        <div className="text-[9px] opacity-80 font-sans">Viewer session exit rate anomaly</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 pt-1 border-t border-zinc-800">
+                      <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                        <span>ClickHouse Telemetry Anomaly Baseline</span>
+                        <span className="text-blue-400 font-bold">4 Anomaly Signals Verified</span>
+                      </div>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Watch how audience interest flows across your cut. Identify rewatched moments and drop-off scenes instantly.
+                    Frame Sense compares live viewer interaction metrics against statistical baselines to automatically detect cognitive friction, emotional replay hotspots, and audio/visual anomalies.
                   </p>
                 </div>
               )}
 
-              {/* DEMO 2: AI Cut Suggestions Animation */}
+              {/* DEMO 3: AI Cut Suggestions Animation */}
               {activeAnimDemo === 'vision' && (
                 <div className="space-y-4 py-2 my-auto">
                   <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
                       <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                      AI Keyframe & Scene Inspection
+                      AI Keyframe &amp; Scene Inspection
                     </span>
                     <span>Cut Recommendations</span>
                   </div>
@@ -391,50 +505,6 @@ export default function Dashboard() {
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     AI visual analysis detects slow camera cutaways or dialogue delays, giving editors clear scene recommendations.
-                  </p>
-                </div>
-              )}
-
-              {/* DEMO 3: Audience Simulator Animation */}
-              {activeAnimDemo === 'synthetic' && (
-                <div className="space-y-4 py-2 my-auto">
-                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-                    <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
-                      <Users className="h-3.5 w-3.5" />
-                      Simulated Test Focus Group
-                    </span>
-                    <span>100 Viewers</span>
-                  </div>
-
-                  <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 overflow-hidden flex flex-col justify-between">
-                    <div className="grid grid-cols-4 gap-2 relative z-10">
-                      {[
-                        { title: 'Cinephiles', count: '94%', color: 'border-amber-500/40 bg-amber-500/10 text-amber-300' },
-                        { title: 'Gen-Z Viewers', count: '88%', color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' },
-                        { title: 'Action Fans', count: '96%', color: 'border-rose-500/40 bg-rose-500/10 text-rose-300' },
-                        { title: 'Executives', count: '90%', color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
-                      ].map((persona, i) => (
-                        <div key={i} className={`p-2 rounded-lg border text-center font-mono space-y-1 ${persona.color} animate-float-slow`} style={{ animationDelay: `${i * 0.3}s` }}>
-                          <div className="text-[10px] font-bold truncate">{persona.title}</div>
-                          <div className="text-sm font-extrabold">{persona.count}</div>
-                          <div className="text-[9px] opacity-80">Score</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-1 pt-2">
-                      <div className="flex justify-between text-[11px] font-mono text-muted-foreground">
-                        <span>Pre-Screening Assessment Score</span>
-                        <span className="text-blue-400 font-bold">92% Ready</span>
-                      </div>
-                      <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 w-[92%] animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Test how different audience demographics react to your cut before launching official public screenings.
                   </p>
                 </div>
               )}
@@ -504,13 +574,37 @@ export default function Dashboard() {
                       Audience Engagement Heatmaps
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Track exact seconds where test viewers replay scenes or pause watching.
+                      Track exact seconds where test viewers replay scenes, scrub back, or pause watching.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Feature 2 */}
+              <div 
+                onClick={() => { setActiveTab('anomaly'); setActiveAnimDemo('anomaly'); }}
+                className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                  activeTab === 'anomaly' 
+                    ? 'border-primary/50 bg-primary/5 shadow-sm' 
+                    : 'border-border/60 bg-card hover:bg-secondary/40'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Statistical Anomaly Detection
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Automatically detects cognitive friction, emotional replay peaks, and pacing anomalies against baselines.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 3 */}
               <div 
                 onClick={() => { setActiveTab('vision'); setActiveAnimDemo('vision'); }}
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
@@ -525,34 +619,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                      Automated Editorial & Scene Audit
+                      Automated AI Cut Suggestions
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      AI analyzes video keyframes to flag pacing dips and suggest cut trims.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Feature 3 */}
-              <div 
-                onClick={() => { setActiveTab('synthetic'); setActiveAnimDemo('synthetic'); }}
-                className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                  activeTab === 'synthetic' 
-                    ? 'border-primary/50 bg-primary/5 shadow-sm' 
-                    : 'border-border/60 bg-card hover:bg-secondary/40'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">
-                      Pre-Release Audience Simulator
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Test cuts against simulated focus groups (Critics, Casuals, Action Fans).
+                      AI inspects keyframes around anomalies to suggest precise frame-accurate cut trims.
                     </p>
                   </div>
                 </div>
@@ -614,22 +684,22 @@ export default function Dashboard() {
               <span>Audience Engagement</span>
             </button>
             <button
+              onClick={() => setActiveTab('anomaly')}
+              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'anomaly' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span>Anomaly Detection</span>
+            </button>
+            <button
               onClick={() => setActiveTab('vision')}
               className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'vision' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Video className="h-3.5 w-3.5" />
-              <span>AI Scene Audit</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('synthetic')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'synthetic' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Users className="h-3.5 w-3.5" />
-              <span>Focus Group Simulator</span>
+              <span>AI Cut Suggestions</span>
             </button>
             <button
               onClick={() => setActiveTab('collaboration')}
@@ -654,7 +724,7 @@ export default function Dashboard() {
                   <Database className="h-3.5 w-3.5" />
                   <span>Real-Time Retention Tracking</span>
                 </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Live Audience Engagement & Drop-off Heatmaps</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Live Audience Engagement &amp; Drop-off Heatmaps</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Say goodbye to subjective paper survey forms. Frame Sense captures exact millisecond viewing habits as test audiences watch your film cut in our cinematic player.
                 </p>
@@ -714,7 +784,74 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* TAB 2: AI SCENE AUDIT */}
+          {/* TAB 2: ANOMALY DETECTION SYSTEM */}
+          {activeTab === 'anomaly' && (
+            <div className="grid gap-8 md:grid-cols-2 items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>Statistical Baseline Engine</span>
+                </div>
+                <h3 className="text-2xl font-extrabold text-foreground">Statistical &amp; ML Anomaly Detection System</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Frame Sense processes sub-second viewer telemetry against statistical baselines to pinpoint cognitive friction, emotional replay peaks, and audio/pacing anomalies.
+                </p>
+                <ul className="space-y-3 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Cognitive Friction Detection:</strong> Flags timestamps where viewers pause, rewind, or exit at higher rates than normal baseline thresholds.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Emotional Replay Hotspots:</strong> Identifies high-engagement beats where audiences rewatch scenes multiple times.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Audio &amp; Pacing Audits:</strong> Detects background score masking dialogue and sudden exit rate spikes.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Animated Interactive Visual Box */}
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                  <span className="text-blue-400 font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Anomaly Telemetry Dashboard
+                  </span>
+                  <span className="text-emerald-400 font-semibold">4 Signals Verified</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-purple-500/30 space-y-1">
+                    <div className="text-xs font-bold text-purple-300">Cognitive Friction</div>
+                    <div className="text-lg font-extrabold text-foreground">3.2x <span className="text-xs font-normal text-muted-foreground">Baseline</span></div>
+                    <div className="text-[11px] text-purple-300/80">Pause &amp; Rewind spike [01:42]</div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-emerald-500/30 space-y-1">
+                    <div className="text-xs font-bold text-emerald-300">Emotional Hotspot</div>
+                    <div className="text-lg font-extrabold text-foreground">94.2% <span className="text-xs font-normal text-muted-foreground">Retention</span></div>
+                    <div className="text-[11px] text-emerald-300/80">Replay peak cluster [03:15]</div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-amber-500/30 space-y-1">
+                    <div className="text-xs font-bold text-amber-300">Audio Peak Anomaly</div>
+                    <div className="text-lg font-extrabold text-foreground">-4dB <span className="text-xs font-normal text-muted-foreground">Speech Mask</span></div>
+                    <div className="text-[11px] text-amber-300/80">Score ducking needed [02:50]</div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-rose-500/30 space-y-1">
+                    <div className="text-xs font-bold text-rose-300">Pacing Disruption</div>
+                    <div className="text-lg font-extrabold text-foreground">18.2% <span className="text-xs font-normal text-muted-foreground">Exit Rate</span></div>
+                    <div className="text-[11px] text-rose-300/80">Transition exit spike [04:20]</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: AI CUT SUGGESTIONS */}
           {activeTab === 'vision' && (
             <div className="grid gap-8 md:grid-cols-2 items-center">
               <div className="space-y-4">
@@ -722,7 +859,7 @@ export default function Dashboard() {
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>Multimodal AI Vision Inspection</span>
                 </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Automated Scene & Cut Analysis</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Automated AI Cut Suggestions</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Frame Sense AI combines deep computer vision with audience drop-off metrics to evaluate camera composition, lighting, dialogue pacing, and transition cuts.
                 </p>
@@ -792,73 +929,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* TAB 3: FOCUS GROUP SIMULATOR */}
-          {activeTab === 'synthetic' && (
-            <div className="grid gap-8 md:grid-cols-2 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Pre-Release Audience Testing</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Simulated Focus Group Testing</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Test early rough cuts, scene assemblies, or sensitive trailers against simulated audience profiles before hosting official test screenings.
-                </p>
-                <ul className="space-y-3 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Diverse Persona Modeling:</strong> Simulate reactions across Cinephile Critics, Gen-Z Viewers, Action Fans, and Studio Executives.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Zero Plot-Leak Risk:</strong> Evaluate retention curves and drop-off risks privately in seconds.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Instant Multi-Viewer Load:</strong> Generate 100+ simulated test sessions for immediate feedback.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Animated Interactive Visual Box */}
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
-                  <span className="text-blue-400 font-bold flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" />
-                    Audience Demographics Breakdown
-                  </span>
-                  <span className="text-emerald-400 font-semibold">100 Viewers Simulated</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="text-xs font-bold text-amber-300">Cinephile Critics</div>
-                    <div className="text-lg font-extrabold text-foreground">94% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
-                    <div className="text-[11px] text-zinc-400">Pacing & Dialogue focus</div>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="text-xs font-bold text-cyan-300">Gen-Z Viewers</div>
-                    <div className="text-lg font-extrabold text-foreground">88% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
-                    <div className="text-[11px] text-zinc-400">Fast visual edit focus</div>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="text-xs font-bold text-rose-300">Action Thrillseekers</div>
-                    <div className="text-lg font-extrabold text-foreground">96% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
-                    <div className="text-[11px] text-zinc-400">High climax momentum</div>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="text-xs font-bold text-emerald-300">Studio Executives</div>
-                    <div className="text-lg font-extrabold text-foreground">90% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
-                    <div className="text-[11px] text-zinc-400">Runtime & structure focus</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* TAB 4: EDITORIAL CO-PILOT */}
           {activeTab === 'collaboration' && (
             <div className="grid gap-8 md:grid-cols-2 items-center">
@@ -882,7 +952,7 @@ export default function Dashboard() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Full Scene & Telemetry Context:</strong> AI understands both raw audience metrics and visual video keyframes simultaneously.</span>
+                    <span><strong className="text-foreground font-semibold">Full Scene &amp; Telemetry Context:</strong> AI understands both raw audience metrics and visual video keyframes simultaneously.</span>
                   </li>
                 </ul>
               </div>
