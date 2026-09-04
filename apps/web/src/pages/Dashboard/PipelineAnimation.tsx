@@ -32,14 +32,12 @@ export default function PipelineAnimation() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    // Stage 4 has typing animation so we extend its display time to 8.5 seconds
-    const duration = activeStage === 4 ? 8500 : 4500;
-    const timer = setTimeout(() => {
+    const interval = setInterval(() => {
       setActiveStage((prev) => (prev % 4) + 1);
-    }, duration);
+    }, 4200);
 
-    return () => clearTimeout(timer);
-  }, [isPlaying, activeStage]);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   // Playhead scrubber simulation
   useEffect(() => {
@@ -52,64 +50,59 @@ export default function PipelineAnimation() {
     return () => clearInterval(scrubberInterval);
   }, [isPlaying]);
 
-  // Character-by-character typing animation controller for Stage 4
+  // Synchronized continuous chat typing effect starting from Stage 1
   useEffect(() => {
-    if (activeStage !== 4) {
-      // Default filled state for previewing when outside Stage 4
+    let qInterval: any = null;
+    let aInterval: any = null;
+
+    if (activeStage === 1) {
+      // STAGE 1: Director starts typing question character-by-character into input box
+      setIsQuestionSent(false);
+      setIsAiThinking(false);
+      setTypedAiResponse("");
+      setTypedQuestion("");
+
+      let qIndex = 0;
+      qInterval = setInterval(() => {
+        qIndex++;
+        if (qIndex <= directorQuestionText.length) {
+          setTypedQuestion(directorQuestionText.slice(0, qIndex));
+        } else {
+          clearInterval(qInterval);
+        }
+      }, 35);
+    } else if (activeStage === 2) {
+      // STAGE 2: Director question sends to chat thread; AI Co-Pilot starts analyzing
+      setTypedQuestion(directorQuestionText);
+      setIsQuestionSent(true);
+      setIsAiThinking(true);
+      setTypedAiResponse("");
+    } else if (activeStage === 3) {
+      // STAGE 3: AI Co-Pilot streams response letter-by-letter as keyframe is inspected
+      setTypedQuestion(directorQuestionText);
+      setIsQuestionSent(true);
+      setIsAiThinking(false);
+
+      let aIndex = 0;
+      aInterval = setInterval(() => {
+        aIndex++;
+        if (aIndex <= aiResponseText.length) {
+          setTypedAiResponse(aiResponseText.slice(0, aIndex));
+        } else {
+          clearInterval(aInterval);
+        }
+      }, 20);
+    } else if (activeStage === 4) {
+      // STAGE 4: Full completed conversation with suggested cut badge illuminated
       setTypedQuestion(directorQuestionText);
       setIsQuestionSent(true);
       setIsAiThinking(false);
       setTypedAiResponse(aiResponseText);
-      return;
     }
-
-    // Reset state for clean animated typing sequence
-    setTypedQuestion("");
-    setIsQuestionSent(false);
-    setIsAiThinking(false);
-    setTypedAiResponse("");
-
-    let qIndex = 0;
-    let qInterval: any = null;
-    let aInterval: any = null;
-    let thinkTimer: any = null;
-    let sendTimer: any = null;
-
-    // 1. Type Director question in input box character by character
-    qInterval = setInterval(() => {
-      qIndex++;
-      if (qIndex <= directorQuestionText.length) {
-        setTypedQuestion(directorQuestionText.slice(0, qIndex));
-      } else {
-        clearInterval(qInterval);
-
-        // 2. Send question to chat thread after a brief pause
-        sendTimer = setTimeout(() => {
-          setIsQuestionSent(true);
-          setIsAiThinking(true);
-
-          // 3. AI thinks for 900ms, then starts typing AI reply
-          thinkTimer = setTimeout(() => {
-            setIsAiThinking(false);
-            let aIndex = 0;
-            aInterval = setInterval(() => {
-              aIndex++;
-              if (aIndex <= aiResponseText.length) {
-                setTypedAiResponse(aiResponseText.slice(0, aIndex));
-              } else {
-                clearInterval(aInterval);
-              }
-            }, 22);
-          }, 900);
-        }, 400);
-      }
-    }, 28);
 
     return () => {
       if (qInterval) clearInterval(qInterval);
       if (aInterval) clearInterval(aInterval);
-      if (sendTimer) clearTimeout(sendTimer);
-      if (thinkTimer) clearTimeout(thinkTimer);
     };
   }, [activeStage]);
 
