@@ -1,16 +1,5 @@
 [
   {
-    "screening_id": "sc_test_vision_123",
-    "media_id": "med_test_vision_123",
-    "title": "Test Vision Screening",
-    "description": "Vision test screening",
-    "media_filename": "non_existent_video.mp4",
-    "media_duration": 120.0,
-    "created_at": "2026-09-03T20:19:44.946000",
-    "status": "active",
-    "public_token": "npb4wWDRuftlnsGTFDLy-IO46EwaZniG"
-  },
-  {
     "screening_id": "sc_13c510b37cc8",
     "media_id": "med_9e56af862101",
     "title": "The Counter Clockmaker",
