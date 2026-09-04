@@ -48,6 +48,7 @@ export default function Findings() {
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'TRIM_PACING' | 'AUDIO_DUCKING' | 'SCENE_CUT' | 'NARRATIVE_BROLL'>('ALL');
   const [searchCueQuery, setSearchCueQuery] = useState('');
+  const [workspaceMobileTab, setWorkspaceMobileTab] = useState<'CUES' | 'VIDEO'>('CUES');
 
   // Video player controls state
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -657,10 +658,38 @@ export default function Findings() {
             </div>
           </div>
 
+          {/* Mobile View Mode Switcher */}
+          <div className="md:hidden flex items-center bg-studio-900 border-b border-studio-800 p-1.5 shrink-0 gap-1.5">
+            <button
+              onClick={() => setWorkspaceMobileTab('CUES')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                workspaceMobileTab === 'CUES'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-muted-foreground hover:text-foreground bg-studio-950/80 border border-studio-800'
+              }`}
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              <span>Edit Cut Findings ({filteredCues.length})</span>
+            </button>
+            <button
+              onClick={() => setWorkspaceMobileTab('VIDEO')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                workspaceMobileTab === 'VIDEO'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-muted-foreground hover:text-foreground bg-studio-950/80 border border-studio-800'
+              }`}
+            >
+              <Play className="h-3.5 w-3.5 fill-current" />
+              <span>Video Studio Player</span>
+            </button>
+          </div>
+
           {/* Workspace Main Split Body */}
-          <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
             {/* LEFT COLUMN: CUSTOM SECURE VIDEO STUDIO PLAYER */}
-            <div className="w-full md:w-1/2 bg-black border-b md:border-b-0 md:border-r border-studio-800 flex flex-col justify-between relative shrink-0 md:shrink">
+            <div className={`w-full md:w-1/2 bg-black border-b md:border-b-0 md:border-r border-studio-800 flex-col justify-between relative shrink-0 md:shrink flex-1 ${
+              workspaceMobileTab === 'VIDEO' ? 'flex' : 'hidden md:flex'
+            }`}>
               {/* Active Edit Cue Overlay Banner */}
               {activeCueId && (() => {
                 const cue = editCues.find(c => c.id === activeCueId);
@@ -786,7 +815,9 @@ export default function Findings() {
             </div>
 
             {/* RIGHT COLUMN: EDITORIAL INTELLIGENCE & CUT DECISION WORKSPACE */}
-            <div className="w-full md:w-1/2 bg-studio-950 p-6 flex flex-col overflow-hidden">
+            <div className={`w-full md:w-1/2 bg-studio-950 p-4 sm:p-6 flex-col overflow-hidden min-h-0 flex-1 ${
+              workspaceMobileTab === 'CUES' ? 'flex' : 'hidden md:flex'
+            }`}>
               {/* Category Filter Tabs */}
               <div className="shrink-0 space-y-4 pb-4 border-b border-studio-800">
                 <div className="flex items-center justify-between gap-3">
@@ -846,18 +877,21 @@ export default function Findings() {
                       key={c.id}
                       cue={c}
                       isActive={activeCueId === c.id}
-                      onSelectTimecode={(sec) => jumpToTimecode(sec, c.id)}
+                      onSelectTimecode={(sec) => {
+                        jumpToTimecode(sec, c.id);
+                        setWorkspaceMobileTab('VIDEO');
+                      }}
                       onInvestigate={(cue) => {
                         if (cue.extracted_frames && cue.extracted_frames.length > 0) {
                           openLightbox(cue.extracted_frames, 0);
                         } else {
                           jumpToTimecode(cue.time_start_sec, cue.id);
+                          setWorkspaceMobileTab('VIDEO');
                         }
                       }}
                       onToggleEdl={toggleEdlMark}
                     />
                   ))
-
                 )}
               </div>
             </div>
