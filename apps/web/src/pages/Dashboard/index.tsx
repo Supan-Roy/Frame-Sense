@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'retention' | 'vision' | 'synthetic' | 'collaboration'>('retention');
 
   // Interactive visual animation demo player tab
-  const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'vision' | 'synthetic'>('ingest');
+  const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'vision' | 'synthetic' | 'collaboration'>('ingest');
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -272,6 +272,14 @@ export default function Dashboard() {
                   >
                     Audience Simulator
                   </button>
+                  <button
+                    onClick={() => setActiveAnimDemo('collaboration')}
+                    className={`px-2.5 py-1 rounded-md transition-all ${
+                      activeAnimDemo === 'collaboration' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    AI Co-Pilot
+                  </button>
                 </div>
               </div>
 
@@ -430,6 +438,49 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
+
+              {/* DEMO 4: Editorial Co-Pilot Animation */}
+              {activeAnimDemo === 'collaboration' && (
+                <div className="space-y-4 py-2 my-auto">
+                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Timecode-Anchored AI Co-Pilot
+                    </span>
+                    <span>Live Studio Chat</span>
+                  </div>
+
+                  <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-3 overflow-hidden flex flex-col justify-between space-y-2">
+                    <div className="space-y-2 text-xs">
+                      <div className="p-2 rounded bg-zinc-950 border border-zinc-800 text-zinc-200">
+                        <div className="text-[10px] font-bold text-primary flex justify-between mb-0.5">
+                          <span>Film Editor</span>
+                          <span className="text-zinc-500 font-mono">10:42 AM</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 font-sans">
+                          "Why did viewers scrub past <span className="text-cyan-300 font-mono font-bold">[01:42]</span>?"
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded bg-cyan-950/40 border border-cyan-500/30 text-cyan-100">
+                        <div className="text-[10px] font-bold text-cyan-400 flex justify-between mb-0.5">
+                          <span className="flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 animate-spin" /> Gemini AI Co-Pilot
+                          </span>
+                          <span className="text-cyan-400/60 font-mono">Live</span>
+                        </div>
+                        <p className="text-[11px] text-cyan-100 leading-relaxed font-sans">
+                          "Retention dropped 24% at [01:42]. Keyframe analysis shows a wide camera angle holding with zero dialogue."
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Converse directly with Gemini AI inside the studio workspace anchored to exact timestamps.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN: 4 Product Feature Pillars */}
@@ -509,7 +560,7 @@ export default function Dashboard() {
 
               {/* Feature 4 */}
               <div 
-                onClick={() => { setActiveTab('collaboration'); setActiveAnimDemo('vision'); }}
+                onClick={() => { setActiveTab('collaboration'); setActiveAnimDemo('collaboration'); }}
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
                   activeTab === 'collaboration' 
                     ? 'border-primary/50 bg-primary/5 shadow-sm' 
