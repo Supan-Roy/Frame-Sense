@@ -118,8 +118,9 @@ def delete_screening(screening_id: str):
 
     # 3. Delete telemetry events from ClickHouse
     try:
-        from app.database.clickhouse import delete_screening_events
+        from app.database.clickhouse import delete_screening_events, delete_screening_record
         delete_screening_events(screening_id)
+        delete_screening_record(screening_id)
     except Exception as e:
         print(f"Warning: Failed to delete ClickHouse events: {e}")
 
