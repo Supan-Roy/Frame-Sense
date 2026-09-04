@@ -3,6 +3,8 @@
 **Autonomous Post-Production Telemetry, Broadcast Quality & Multimodal Vision Intelligence System**  
 *Built for the **Agentic Cinema: The Blockbuster Hackathon***
 
+![Frame Sense End-to-End Workflow Simulator](apps/web/public/workflow_simulator.gif)
+
 ---
 
 ## Executive Overview
