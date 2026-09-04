@@ -31,10 +31,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Active feature tab for "What Frame Sense Does"
-  const [activeTab, setActiveTab] = useState<'telemetry' | 'vision' | 'synthetic' | 'collaboration'>('telemetry');
+  // Active feature tab for Platform Capabilities
+  const [activeTab, setActiveTab] = useState<'retention' | 'vision' | 'synthetic' | 'collaboration'>('retention');
 
-  // Interactive visual animation player tab
+  // Interactive visual animation demo player tab
   const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'vision' | 'synthetic'>('ingest');
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function Dashboard() {
           {/* Telemetry Signals */}
           <div className="rounded-xl glass-panel p-5 space-y-3 glass-panel-hover group relative overflow-hidden">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Telemetry Signals</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Audience Event Signals</span>
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Activity className="h-4 w-4" />
               </div>
@@ -128,11 +128,11 @@ export default function Dashboard() {
             <div>
               <div className="text-3xl font-extrabold text-foreground">{stats.total_events.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Sub-second audience event signals
+                Sub-second audience interaction signals
               </p>
             </div>
             <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Columnar Store</span>
+              <span className="text-muted-foreground font-medium">Real-Time Ingestion</span>
               <span className="text-emerald-400 font-medium">Pipeline Active</span>
             </div>
           </div>
@@ -153,14 +153,14 @@ export default function Dashboard() {
             </div>
             <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Viewing Sessions</span>
-              <span className="text-blue-400 font-medium">Telemetry Tracked</span>
+              <span className="text-blue-400 font-medium">Retention Tracked</span>
             </div>
           </div>
 
           {/* Gemini AI Core */}
           <div className="rounded-xl glass-panel p-5 space-y-3 glass-panel-hover group relative overflow-hidden">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Gemini AI Core</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Gemini AI Assistant</span>
               <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
                 <Sparkles className="h-4 w-4" />
               </div>
@@ -199,7 +199,7 @@ export default function Dashboard() {
             </h2>
 
             <p className="text-base text-muted-foreground leading-relaxed max-w-3xl">
-              Frame Sense is an advanced audience telemetry and editorial intelligence platform engineered for film directors, editors, and post-production studios. By tracking sub-second playbacks, pauses, timeline seeking, and reaction flags directly into column-oriented storage, Frame Sense pinpoints pacing dips and retention friction with millisecond precision.
+              Frame Sense is an advanced audience telemetry and editorial intelligence platform engineered for film directors, editors, and post-production studios. By tracking sub-second playbacks, pauses, timeline seeking, and reaction flags, Frame Sense pinpoints pacing dips and retention friction with millisecond precision.
             </p>
 
             {/* CTAs */}
@@ -239,11 +239,14 @@ export default function Dashboard() {
           {/* PRODUCT CAPABILITY SHOWCASE */}
           <div className="grid gap-6 lg:grid-cols-12 items-stretch pt-2">
             
-            {/* LEFT COLUMN: Demonstration Viewport */}
+            {/* LEFT COLUMN: Interactive Animated Product Viewport */}
             <div className="lg:col-span-7 rounded-xl border border-border bg-zinc-950 p-6 flex flex-col justify-between relative overflow-hidden">
               {/* Controls Header */}
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-                <span className="text-xs text-muted-foreground font-medium">Interactive Engine Preview</span>
+                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Live Feature Preview
+                </span>
                 <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-zinc-800 text-xs font-medium">
                   <button
                     onClick={() => setActiveAnimDemo('ingest')}
@@ -251,7 +254,7 @@ export default function Dashboard() {
                       activeAnimDemo === 'ingest' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    Telemetry Stream
+                    Retention Heatmap
                   </button>
                   <button
                     onClick={() => setActiveAnimDemo('vision')}
@@ -259,7 +262,7 @@ export default function Dashboard() {
                       activeAnimDemo === 'vision' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    AI Vision Audit
+                    AI Cut Suggestions
                   </button>
                   <button
                     onClick={() => setActiveAnimDemo('synthetic')}
@@ -267,27 +270,27 @@ export default function Dashboard() {
                       activeAnimDemo === 'synthetic' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    Synthetic Load
+                    Audience Simulator
                   </button>
                 </div>
               </div>
 
-              {/* DEMO 1: Telemetry Stream Animation */}
+              {/* DEMO 1: Retention Heatmap Animation */}
               {activeAnimDemo === 'ingest' && (
                 <div className="space-y-4 py-2 my-auto">
                   <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                      Real-Time Audience Telemetry Curve
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                      Real-Time Audience Retention Wave
                     </span>
-                    <span>Ingesting Events</span>
+                    <span>Tracking Viewers Live</span>
                   </div>
 
                   <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 flex flex-col justify-end overflow-hidden">
                     <svg className="w-full h-28 overflow-visible" viewBox="0 0 500 120">
                       <defs>
                         <linearGradient id="telemetryGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
                           <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                         </linearGradient>
                       </defs>
@@ -309,36 +312,36 @@ export default function Dashboard() {
 
                       <circle cx="150" cy="45" r="4" fill="#f43f5e" />
                       <text x="160" y="42" fill="#f43f5e" fontSize="10" fontFamily="sans-serif" fontWeight="600">
-                        Drop-Off Point (01:42)
+                        Pacing Drop-off [01:42]
                       </text>
 
                       <circle cx="300" cy="30" r="4" fill="#3b82f6" />
                       <text x="310" y="27" fill="#60a5fa" fontSize="10" fontFamily="sans-serif" fontWeight="600">
-                        Rewind Cluster (03:15)
+                        Replay Cluster [03:15]
                       </text>
                     </svg>
 
                     <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-zinc-800">
-                      <span>Timeline: 00:00 - 05:30</span>
-                      <span className="text-emerald-400 font-semibold">Retention: 94.2%</span>
+                      <span>Cut Duration: 05:30</span>
+                      <span className="text-emerald-400 font-semibold">94.2% Audience Retention</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Sub-second event tracking records audience timeline scrubs, frame pauses, and reaction flags into column-oriented storage.
+                    Watch how audience interest flows across your cut. Identify rewatched moments and drop-off scenes instantly.
                   </p>
                 </div>
               )}
 
-              {/* DEMO 2: Gemini AI Vision Scan Animation */}
+              {/* DEMO 2: AI Cut Suggestions Animation */}
               {activeAnimDemo === 'vision' && (
                 <div className="space-y-4 py-2 my-auto">
                   <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Multimodal AI Vision Inspection
+                      <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                      AI Keyframe & Scene Inspection
                     </span>
-                    <span>Active Audit</span>
+                    <span>Cut Recommendations</span>
                   </div>
 
                   <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-indigo-500/30 p-3 overflow-hidden flex flex-col justify-between">
@@ -347,41 +350,41 @@ export default function Dashboard() {
                     <div className="relative z-20 flex justify-between items-start">
                       <div className="px-2.5 py-1 rounded bg-black/80 border border-indigo-500/40 text-[10px] font-mono text-indigo-300 flex items-center gap-1.5">
                         <Video className="h-3 w-3 text-cyan-400" />
-                        <span>Frame Extract: 01:42.10</span>
+                        <span>Scene Frame: [01:42]</span>
                       </div>
-                      <div className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/40 text-[10px] font-mono text-rose-300">
-                        Pacing Dip Flagged
+                      <div className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/40 text-[10px] font-mono text-rose-300 font-semibold">
+                        Pacing Delay Flagged
                       </div>
                     </div>
 
                     <div className="relative z-20 self-center text-center space-y-1 my-auto">
-                      <div className="inline-flex items-center justify-center p-2.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-300">
+                      <div className="inline-flex items-center justify-center p-2.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-300 animate-pulse-glow">
                         <Eye className="h-5 w-5" />
                       </div>
                       <div className="text-xs text-cyan-200 font-medium bg-black/60 px-3 py-1 rounded-full border border-cyan-500/20">
-                        Analyzing Scene Lighting & Dialogue Pacing
+                        Analyzing Scene Lighting & Dialogue Momentum
                       </div>
                     </div>
 
                     <div className="relative z-20 bg-indigo-950/80 border border-indigo-500/30 p-2 rounded text-[11px] font-mono text-indigo-200 flex items-center justify-between">
-                      <span className="truncate">"Cut 2.4s from wide shot to tighten visual tension."</span>
-                      <span className="text-cyan-400 font-bold ml-2">98% Match</span>
+                      <span className="truncate">"Trim 2.4s from wide shot to tighten visual tension."</span>
+                      <span className="text-cyan-400 font-bold ml-2">98% Priority</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Gemini 3.5 extracts video keyframes around drop-off points to provide explicit editorial recommendations.
+                    AI visual analysis detects slow camera cutaways or dialogue delays, giving editors clear scene recommendations.
                   </p>
                 </div>
               )}
 
-              {/* DEMO 3: Synthetic Audience Load Animation */}
+              {/* DEMO 3: Audience Simulator Animation */}
               {activeAnimDemo === 'synthetic' && (
                 <div className="space-y-4 py-2 my-auto">
                   <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                     <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
                       <Users className="h-3.5 w-3.5" />
-                      Synthetic Audience Load Simulation
+                      Simulated Test Focus Group
                     </span>
                     <span>100 Viewers</span>
                   </div>
@@ -389,32 +392,32 @@ export default function Dashboard() {
                   <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-zinc-800 p-4 overflow-hidden flex flex-col justify-between">
                     <div className="grid grid-cols-4 gap-2 relative z-10">
                       {[
-                        { title: 'Cinephile Critics', count: 25, color: 'border-amber-500/40 bg-amber-500/10 text-amber-300' },
-                        { title: 'Gen-Z Viewers', count: 35, color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' },
-                        { title: 'Action Fans', count: 25, color: 'border-rose-500/40 bg-rose-500/10 text-rose-300' },
-                        { title: 'Executives', count: 15, color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
+                        { title: 'Cinephiles', count: '94%', color: 'border-amber-500/40 bg-amber-500/10 text-amber-300' },
+                        { title: 'Gen-Z Viewers', count: '88%', color: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' },
+                        { title: 'Action Fans', count: '96%', color: 'border-rose-500/40 bg-rose-500/10 text-rose-300' },
+                        { title: 'Executives', count: '90%', color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
                       ].map((persona, i) => (
-                        <div key={i} className={`p-2 rounded-lg border text-center font-mono space-y-1 ${persona.color}`}>
+                        <div key={i} className={`p-2 rounded-lg border text-center font-mono space-y-1 ${persona.color} animate-float-slow`} style={{ animationDelay: `${i * 0.3}s` }}>
                           <div className="text-[10px] font-bold truncate">{persona.title}</div>
                           <div className="text-sm font-extrabold">{persona.count}</div>
-                          <div className="text-[9px] opacity-80">Simulating...</div>
+                          <div className="text-[9px] opacity-80">Score</div>
                         </div>
                       ))}
                     </div>
 
                     <div className="space-y-1 pt-2">
                       <div className="flex justify-between text-[11px] font-mono text-muted-foreground">
-                        <span>Simulation Progress</span>
-                        <span className="text-blue-400 font-bold">Completed</span>
+                        <span>Pre-Screening Assessment Score</span>
+                        <span className="text-blue-400 font-bold">92% Ready</span>
                       </div>
                       <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                        <div className="h-full bg-blue-500 w-full"></div>
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 w-[92%] animate-pulse"></div>
                       </div>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Test your film before public distribution. Synthetic load models realistic telemetry curves across diverse viewer profiles.
+                    Test how different audience demographics react to your cut before launching official public screenings.
                   </p>
                 </div>
               )}
@@ -425,9 +428,9 @@ export default function Dashboard() {
               
               {/* Feature 1 */}
               <div 
-                onClick={() => { setActiveTab('telemetry'); setActiveAnimDemo('ingest'); }}
+                onClick={() => { setActiveTab('retention'); setActiveAnimDemo('ingest'); }}
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                  activeTab === 'telemetry' 
+                  activeTab === 'retention' 
                     ? 'border-primary/50 bg-primary/5 shadow-sm' 
                     : 'border-border/60 bg-card hover:bg-secondary/40'
                 }`}
@@ -438,10 +441,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                      Sub-Second Telemetry Ingestion
+                      Audience Engagement Heatmaps
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Columnar event storage captures every pause, seek, and drop-off with zero data loss.
+                      Track exact seconds where test viewers replay scenes or pause watching.
                     </p>
                   </div>
                 </div>
@@ -462,10 +465,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                      Multimodal AI Vision Audit
+                      Automated Editorial & Scene Audit
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Automated video keyframe inspection pinpoints pacing lulls and narrative friction.
+                      AI analyzes video keyframes to flag pacing dips and suggest cut trims.
                     </p>
                   </div>
                 </div>
@@ -486,10 +489,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                      Synthetic Audience Load Simulator
+                      Pre-Release Audience Simulator
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Simulate diverse viewer personas (Critics, Casuals, Action Fans) before public screening.
+                      Test cuts against simulated focus groups (Critics, Casuals, Action Fans).
                     </p>
                   </div>
                 </div>
@@ -510,10 +513,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">
-                      Timecode-Anchored AI Assistant
+                      Timecode-Anchored AI Co-Pilot
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Converse directly with Gemini AI anchored to exact video timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code>.
+                      Ask questions directly about any timestamp <code className="text-cyan-300 font-mono">[MM:SS]</code> in your film.
                     </p>
                   </div>
                 </div>
@@ -526,7 +529,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* DETAILED TECHNICAL BREAKDOWN */}
+      {/* USER FRIENDLY PLATFORM CAPABILITIES SECTION */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
           <div>
@@ -535,19 +538,19 @@ export default function Dashboard() {
               Platform Capabilities
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              How Frame Sense operates from public viewer telemetry to studio editorial recommendations.
+              Explore how Frame Sense helps film directors and post-production teams perfect every cut.
             </p>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Interactive User-Friendly Tabs */}
           <div className="flex items-center gap-1.5 bg-secondary/60 p-1 rounded-xl border border-border/60 text-xs font-medium overflow-x-auto">
             <button
-              onClick={() => setActiveTab('telemetry')}
+              onClick={() => setActiveTab('retention')}
               className={`px-3 py-1.5 rounded-lg transition-all shrink-0 ${
-                activeTab === 'telemetry' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                activeTab === 'retention' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Telemetry Ingestion
+              📊 Audience Engagement
             </button>
             <button
               onClick={() => setActiveTab('vision')}
@@ -555,7 +558,7 @@ export default function Dashboard() {
                 activeTab === 'vision' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Vision Audit Engine
+              🎬 AI Scene Audit
             </button>
             <button
               onClick={() => setActiveTab('synthetic')}
@@ -563,7 +566,7 @@ export default function Dashboard() {
                 activeTab === 'synthetic' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Synthetic Load
+              🎭 Focus Group Simulator
             </button>
             <button
               onClick={() => setActiveTab('collaboration')}
@@ -571,187 +574,270 @@ export default function Dashboard() {
                 activeTab === 'collaboration' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Editorial Chat
+              💬 Editorial Co-Pilot
             </button>
           </div>
         </div>
 
         {/* Tab Content Display */}
         <div className="rounded-2xl border border-border bg-card p-6 md:p-8 space-y-6 shadow-sm">
-          {activeTab === 'telemetry' && (
-            <div className="grid gap-6 md:grid-cols-2 items-center">
+          
+          {/* TAB 1: AUDIENCE ENGAGEMENT */}
+          {activeTab === 'retention' && (
+            <div className="grid gap-8 md:grid-cols-2 items-center">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
                   <Database className="h-3.5 w-3.5" />
-                  <span>Column-Oriented Storage</span>
+                  <span>Real-Time Retention Tracking</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">Sub-Second Telemetry Ingestion</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Live Audience Engagement & Drop-off Heatmaps</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Traditional audience testing relies on subjective post-screening surveys. Frame Sense captures 
-                  <strong className="text-foreground font-medium"> millisecond-accurate viewing telemetry</strong> directly from custom HTML5 video player instances.
+                  Say goodbye to subjective paper survey forms. Frame Sense captures exact millisecond viewing habits as test audiences watch your film cut in our cinematic player.
                 </p>
-                <ul className="space-y-2 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Timeline scrubbing & rewind clusters:</strong> Detect scenes audiences replay to understand key moments.</span>
+                <ul className="space-y-3 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Drop-off Point Detection:</strong> See the exact second viewers lose interest or stop watching so you can tighten pacing.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Instant drop-off curves:</strong> Aggregates retention curves across thousands of concurrent sessions in &lt;10ms.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Scene Rewind Hotspots:</strong> Discover key narrative beats audiences rewatch or scrub back to experience again.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Reaction & sentiment markers:</strong> Viewers drop timecoded flags directly onto the video timeline.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Timecoded Sentiment Flags:</strong> Viewers drop instant emotional flags and comments anchored to specific frames.</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 font-mono text-xs text-zinc-300 space-y-2 shadow-inner">
-                <div className="text-emerald-400 font-bold">// Columnar Event Ingestion Schema</div>
-                <pre className="text-[11px] text-zinc-400 leading-relaxed overflow-x-auto">
-{`CREATE TABLE screening_events (
-  screening_id String,
-  session_id String,
-  event_type Enum8('play'=1, 'pause'=2, 'seek'=3, 'comment'=4),
-  video_time Float32,
-  user_agent String,
-  created_at DateTime DEFAULT now()
-) ENGINE = MergeTree()
-ORDER BY (screening_id, created_at);`}
-                </pre>
+              {/* Animated Interactive Visual Box */}
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    Live Audience Signal Monitor
+                  </span>
+                  <span className="text-zinc-500">100% Signal Fidelity</span>
+                </div>
+
+                <div className="space-y-3 py-1">
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-zinc-200">Opening Sequence (00:00 - 02:00)</span>
+                      <span className="text-emerald-400 font-bold">98% High Retention</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="h-full bg-emerald-500 w-[98%] animate-pulse"></div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-zinc-200">Mid-Act Transition (02:00 - 03:30)</span>
+                      <span className="text-rose-400 font-bold">Pacing Dip (74%)</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="h-full bg-rose-500 w-[74%]"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-emerald-200 text-xs flex items-center justify-between">
+                  <span>Overall Cut Health Rating</span>
+                  <span className="font-bold text-emerald-400 text-sm">A+ (Strong Engagement)</span>
+                </div>
               </div>
             </div>
           )}
 
+          {/* TAB 2: AI SCENE AUDIT */}
           {activeTab === 'vision' && (
-            <div className="grid gap-6 md:grid-cols-2 items-center">
+            <div className="grid gap-8 md:grid-cols-2 items-center">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>Multimodal Reasoning Engine</span>
+                  <span>Multimodal AI Vision Inspection</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">Multimodal AI Vision Investigation</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Automated Scene & Cut Analysis</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  When telemetry identifies a sudden drop-off steepening or audience rewind spike, the 
-                  <strong className="text-foreground font-medium"> Gemini Vision Investigator</strong> extracts precise video keyframes around that timestamp.
+                  Frame Sense AI combines deep computer vision with audience drop-off metrics to evaluate camera composition, lighting, dialogue pacing, and transition cuts.
                 </p>
-                <ul className="space-y-2 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Frame-Accurate Spatial Reasoning:</strong> Analyzes visual composition, character lighting, and motion blur.</span>
+                <ul className="space-y-3 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Visual Pacing Audits:</strong> Flags lingering static shots, slow cutaways, or awkward dialogue silences.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Automated Editorial Notes:</strong> Generates actionable recommendations (e.g. "Trim 3 seconds of dialogue lag at 02:14").</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Actionable Trim Suggestions:</strong> Gives precise edit recommendations (e.g., *"Trim 2.4 seconds before character reaction"*).</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Confidence & Severity Scoring:</strong> Classifies findings into Critical, High, and Medium priorities.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Prioritized Severity Scores:</strong> Recommendations are categorized into Critical, High, and Medium priorities.</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 font-mono text-xs text-zinc-300 space-y-2 shadow-inner">
-                <div className="text-indigo-400 font-bold">// AI Vision Recommendation</div>
-                <div className="p-3 rounded bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-[11px] leading-relaxed">
-                  <strong>Timestamp: [01:42.50] - High Drop-off Severity</strong><br />
-                  "Visual analysis reveals a static wide shot lasting 8.4 seconds with minimal character dialogue. Recommendation: Cut directly to close-up reaction framing at 01:44 to maintain narrative velocity."
+              {/* Animated Interactive Visual Box */}
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                  <span className="text-indigo-400 font-bold flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                    AI Keyframe Inspector
+                  </span>
+                  <span className="text-indigo-300 font-semibold bg-indigo-500/20 px-2 py-0.5 rounded">Frame [01:42]</span>
+                </div>
+
+                <div className="p-4 rounded-lg bg-indigo-950/30 border border-indigo-500/30 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-indigo-300 font-semibold">
+                    <span>Recommendation #04</span>
+                    <span className="text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">High Priority</span>
+                  </div>
+                  <p className="text-xs text-indigo-200 leading-relaxed font-sans">
+                    "Static wide camera shot lingers 8.4s after main explosion with minimal dialogue. Recommend trimming 2.4s to tighten cut transition to character close-up."
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-zinc-400 font-sans pt-1">
+                  <span>Detected Confidence: <strong className="text-emerald-400">98% Match</strong></span>
+                  <span className="text-indigo-400 hover:underline cursor-pointer">Preview Cut Frame ➔</span>
                 </div>
               </div>
             </div>
           )}
 
+          {/* TAB 3: FOCUS GROUP SIMULATOR */}
           {activeTab === 'synthetic' && (
-            <div className="grid gap-6 md:grid-cols-2 items-center">
+            <div className="grid gap-8 md:grid-cols-2 items-center">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
                   <Users className="h-3.5 w-3.5" />
-                  <span>Audience Simulation</span>
+                  <span>Pre-Release Audience Testing</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">Synthetic Audience Load Generation</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Simulated Focus Group Testing</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Before exposing a rough cut or confidential trailer to human audiences, post-production teams can trigger 
-                  <strong className="text-foreground font-medium"> Synthetic Crowd Simulations</strong>.
+                  Test early rough cuts, scene assemblies, or sensitive trailers against simulated audience profiles before hosting official test screenings.
                 </p>
-                <ul className="space-y-2 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Multi-Persona Modeling:</strong> Simulates Film Critics, Casual Mobile Viewers, and Genre Fans.</span>
+                <ul className="space-y-3 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Diverse Persona Modeling:</strong> Simulate reactions across Cinephile Critics, Gen-Z Viewers, Action Fans, and Studio Executives.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Predictive Retention Curves:</strong> Evaluates likely drop-off points prior to public test screenings.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Zero Plot-Leak Risk:</strong> Evaluate retention curves and drop-off risks privately in seconds.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Instant Stress Testing:</strong> Generate 100+ concurrent telemetry sessions in under 5 seconds.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Instant Multi-Viewer Load:</strong> Generate 100+ simulated test sessions for immediate feedback.</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 font-mono text-xs text-zinc-300 space-y-3 shadow-inner">
-                <div className="flex justify-between items-center text-blue-400 font-bold">
-                  <span>// Audience Persona Profiles</span>
+              {/* Animated Interactive Visual Box */}
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                  <span className="text-blue-400 font-bold flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" />
+                    Audience Demographics Breakdown
+                  </span>
+                  <span className="text-emerald-400 font-semibold">100 Viewers Simulated</span>
                 </div>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800 flex justify-between">
-                    <span className="text-amber-300 font-semibold">Cinephile Critic Persona</span>
-                    <span className="text-zinc-400">High sensitivity to pacing & dialogue</span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                    <div className="text-xs font-bold text-amber-300">Cinephile Critics</div>
+                    <div className="text-lg font-extrabold text-foreground">94% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
+                    <div className="text-[11px] text-zinc-400">Pacing & Dialogue focus</div>
                   </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800 flex justify-between">
-                    <span className="text-cyan-300 font-semibold">Gen-Z Short Attention Persona</span>
-                    <span className="text-zinc-400">Seeks fast visual transitions</span>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                    <div className="text-xs font-bold text-cyan-300">Gen-Z Viewers</div>
+                    <div className="text-lg font-extrabold text-foreground">88% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
+                    <div className="text-[11px] text-zinc-400">Fast visual edit focus</div>
                   </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800 flex justify-between">
-                    <span className="text-rose-300 font-semibold">Executive Producer Persona</span>
-                    <span className="text-zinc-400">Monitors climax impact & run-time</span>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                    <div className="text-xs font-bold text-rose-300">Action Thrillseekers</div>
+                    <div className="text-lg font-extrabold text-foreground">96% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
+                    <div className="text-[11px] text-zinc-400">High climax momentum</div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                    <div className="text-xs font-bold text-emerald-300">Studio Executives</div>
+                    <div className="text-lg font-extrabold text-foreground">90% <span className="text-xs font-normal text-muted-foreground">Engagement</span></div>
+                    <div className="text-[11px] text-zinc-400">Runtime & structure focus</div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* TAB 4: EDITORIAL CO-PILOT */}
           {activeTab === 'collaboration' && (
-            <div className="grid gap-6 md:grid-cols-2 items-center">
+            <div className="grid gap-8 md:grid-cols-2 items-center">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  <span>Real-Time Streaming Chat</span>
+                  <span>Real-Time Editorial Assistant</span>
                 </div>
-                <h3 className="text-2xl font-bold text-foreground">Timecode-Anchored AI Collaboration</h3>
+                <h3 className="text-2xl font-extrabold text-foreground">Timecode-Anchored AI Co-Pilot</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Editors and directors can converse with the Gemini AI Assistant directly inside the screening studio.
-                  Every message can be anchored to an exact frame timestamp <code className="text-cyan-300 font-mono">[MM:SS]</code>.
+                  Converse directly with Gemini AI inside the studio workspace. Every message can be anchored to an exact film timestamp <code className="text-cyan-300 font-mono">[MM:SS]</code>.
                 </p>
-                <ul className="space-y-2 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Server-Sent Events (SSE):</strong> Smooth token-by-token streaming responses without UI freezing.</span>
+                <ul className="space-y-3 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Frame-Accurate Questions:</strong> Ask questions like *"Why did viewers scrub past [01:42]?"* or *"How can we trim the climax?"*</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Context Awareness:</strong> Gemini reviews the full retention telemetry and video scene context automatically.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Real-Time Streaming Responses:</strong> Get token-by-token instant suggestions as you work on edits.</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0" />
-                    <span><strong className="text-foreground font-medium">Deduplicated Session History:</strong> Conversation history persisted reliably.</span>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+                    <span><strong className="text-foreground font-semibold">Full Scene & Telemetry Context:</strong> AI understands both raw audience metrics and visual video keyframes simultaneously.</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 font-mono text-xs text-zinc-300 space-y-3 shadow-inner">
-                <div className="text-cyan-400 font-bold">// Timecode AI Chat Sample</div>
-                <div className="space-y-2 text-[11px]">
-                  <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
-                    <strong className="text-primary">Editor:</strong> "Why did viewers drop off at [01:42]?"
+              {/* Animated Interactive Visual Box */}
+              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-3 shadow-inner relative overflow-hidden">
+                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                  <span className="text-cyan-400 font-bold flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Editorial Chat Session
+                  </span>
+                  <span className="text-cyan-300 font-semibold bg-cyan-500/20 px-2 py-0.5 rounded">Active</span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 space-y-1">
+                    <div className="text-[11px] font-bold text-primary flex items-center justify-between">
+                      <span>Film Editor</span>
+                      <span className="text-zinc-500 font-mono">10:42 AM</span>
+                    </div>
+                    <p className="text-zinc-300 font-sans">
+                      "Why did retention drop at timestamp <span className="text-cyan-300 font-mono font-bold hover:underline cursor-pointer">[01:42]</span>?"
+                    </p>
                   </div>
-                  <div className="p-2.5 rounded bg-cyan-950/40 border border-cyan-500/30 text-cyan-200">
-                    <strong className="text-cyan-400">Gemini AI:</strong> "At [01:42], telemetry shows a 24% retention drop. Visual keyframes confirm an unedited static wide shot after the explosion sequence."
+
+                  <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-cyan-100 space-y-1">
+                    <div className="text-[11px] font-bold text-cyan-400 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Gemini AI Co-Pilot
+                      </span>
+                      <span className="text-cyan-400/60 font-mono">Just Now</span>
+                    </div>
+                    <p className="text-cyan-100 leading-relaxed font-sans">
+                      "At [01:42], audience retention dropped 24%. Keyframe analysis shows a wide camera angle holding with zero character dialogue. Trimming 2s will maintain narrative pace."
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           )}
+
         </div>
       </div>
 
@@ -760,19 +846,19 @@ ORDER BY (screening_id, created_at);`}
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Layers className="h-5 w-5 text-primary" />
-            End-to-End Workflow
+            End-to-End Post-Production Workflow
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            How Frame Sense processes telemetry signals into studio decisions in 4 steps.
+            How Frame Sense processes test audience reactions into actionable film cut recommendations in 4 simple steps.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4 relative">
           {[
-            { step: '01', title: 'Audience Screening', desc: 'Viewers stream the film cut in cinematic player. Sub-second telemetry tracks pauses & seeks.', icon: Film, color: 'text-primary' },
-            { step: '02', title: 'Columnar Ingestion', desc: 'Event engine writes telemetry streams into column storage for instant retention aggregation.', icon: Database, color: 'text-emerald-400' },
-            { step: '03', title: 'AI Vision Audit', desc: 'Keyframes extracted at retention dip points. Gemini inspects visual composition & pacing.', icon: Sparkles, color: 'text-indigo-400' },
-            { step: '04', title: 'Editorial Insights', desc: 'Directors receive timecoded suggestions [MM:SS] and converse with Gemini AI in real-time.', icon: MessageSquare, color: 'text-cyan-400' },
+            { step: '01', title: 'Audience Screening', desc: 'Test viewers stream your film cut in our custom player. Interaction signals are tracked automatically.', icon: Film, color: 'text-primary' },
+            { step: '02', title: 'Real-Time Signal Ingestion', desc: 'Viewing events are processed instantly to generate live drop-off curves and retention heatmaps.', icon: Database, color: 'text-emerald-400' },
+            { step: '03', title: 'AI Visual Scene Audit', desc: 'Video keyframes are extracted around drop-off points. AI inspects scene lighting, framing, and pacing.', icon: Sparkles, color: 'text-indigo-400' },
+            { step: '04', title: 'Editorial Cue Recommendations', desc: 'Directors receive timecoded suggestions [MM:SS] and converse directly with the AI Co-pilot.', icon: MessageSquare, color: 'text-cyan-400' },
           ].map((item, i) => (
             <div key={i} className="rounded-xl border border-border/80 bg-secondary/30 p-5 space-y-3 relative group hover:border-primary/40 transition-all">
               <div className="flex items-center justify-between">
