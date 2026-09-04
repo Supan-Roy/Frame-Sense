@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Film, LayoutDashboard, Settings, AlertOctagon, Github, Linkedin, ExternalLink, Menu, X } from 'lucide-react';
 
 interface AppShellProps {
@@ -27,7 +27,7 @@ function Logo({ className = "h-6 w-6" }: { className?: string }) {
   );
 }
 
-function LogoWordmark({ className = "h-8 w-auto select-none pointer-events-none" }: { className?: string }) {
+function LogoWordmark({ className = "h-8 w-auto select-none" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 170 30" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -52,7 +52,7 @@ function LogoWordmark({ className = "h-8 w-auto select-none pointer-events-none"
   );
 }
 
-function LogoText({ className = "h-5 w-auto select-none pointer-events-none" }: { className?: string }) {
+function LogoText({ className = "h-5 w-auto select-none" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 130 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <text x="0" y="15" fill="#ffffff" fontFamily="'Sofia Sans', sans-serif" fontSize="12" fontWeight="800" letterSpacing="0.08em">FRAME</text>
@@ -76,7 +76,9 @@ export default function AppShell({ children }: AppShellProps) {
       <aside className="hidden md:flex h-full w-64 flex-col border-r bg-studio-950/70 backdrop-blur-sm px-4 py-6 shrink-0">
         {/* Logo */}
         <div className="px-2 mb-8 flex items-center">
-          <LogoWordmark className="h-9 w-auto select-none pointer-events-none" />
+          <Link to="/" className="group inline-flex items-center cursor-pointer" title="Return to Dashboard">
+            <LogoWordmark className="h-9 w-auto select-none group-hover:opacity-90 transition-opacity" />
+          </Link>
         </div>
 
         {/* Navigation */}
@@ -150,7 +152,9 @@ export default function AppShell({ children }: AppShellProps) {
         }`}
       >
         <div className="flex items-center justify-between mb-8">
-          <LogoWordmark className="h-8 w-auto select-none pointer-events-none" />
+          <Link to="/" onClick={() => setMobileMenuOpen(false)} className="group inline-flex items-center cursor-pointer" title="Return to Dashboard">
+            <LogoWordmark className="h-8 w-auto select-none group-hover:opacity-90 transition-opacity" />
+          </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="p-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
@@ -232,7 +236,9 @@ export default function AppShell({ children }: AppShellProps) {
             {mobileMenuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
 
-          <LogoWordmark className="h-6 w-auto opacity-40 select-none pointer-events-none" />
+          <Link to="/" className="group inline-flex items-center cursor-pointer" title="Return to Dashboard">
+            <LogoWordmark className="h-6 w-auto opacity-50 group-hover:opacity-100 transition-opacity select-none" />
+          </Link>
         </header>
 
         {/* View container */}
@@ -243,47 +249,43 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
 
             {/* Footer */}
-            <footer className="mt-16 md:mt-20 border-t border-border/60 pt-8 pb-6 text-xs text-muted-foreground">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+            <footer className="mt-12 md:mt-20 border-t border-border/60 pt-8 pb-6 text-xs text-muted-foreground">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 mb-8">
                 {/* Column 1: Brand & Developer Info */}
-                <div className="space-y-4 col-span-1 sm:col-span-2 md:col-span-1">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-studio-900 border border-border/80 rounded-lg shadow-sm select-none pointer-events-none">
-                      <Logo className="h-5 w-5 select-none pointer-events-none" />
+                <div className="space-y-3 col-span-2 md:col-span-1">
+                  <Link to="/" className="inline-flex items-center gap-2.5 group cursor-pointer" title="Return to Dashboard">
+                    <div className="p-1.5 bg-studio-900 border border-border/80 rounded-lg shadow-sm group-hover:border-primary/50 transition-colors">
+                      <Logo className="h-4.5 w-4.5" />
                     </div>
                     <div>
-                      <LogoText className="h-[18px] w-auto block select-none pointer-events-none" />
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5 select-none pointer-events-none">Post-Production Intelligence</div>
+                      <LogoText className="h-[16px] w-auto block" />
+                      <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Post-Production Intelligence</div>
                     </div>
-                  </div>
+                  </Link>
 
-                  <div className="text-[11px] text-muted-foreground/75">
+                  <div className="text-[10px] text-muted-foreground/75 font-mono">
                     &copy; {new Date().getFullYear()} Frame Sense. All rights reserved.
                   </div>
                   
-                  <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-                    Next-generation autonomous post-production intelligence workspace. Analyze viewer telemetry, inspect media, and orchestrate editorial workflows with agents.
+                  <p className="text-[11px] text-muted-foreground leading-relaxed max-w-sm">
+                    Autonomous post-production intelligence workspace. Analyze viewer telemetry &amp; orchestrate agentic workflows.
                   </p>
 
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Developed by</div>
-                    <div className="text-xs font-semibold text-foreground">Supan Roy</div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 pt-1">
-                    <a href="https://github.com/Supan-Roy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-2 text-xs">
-                      <Github className="h-4 w-4 text-foreground/80" /> GitHub <ExternalLink className="h-3 w-3 opacity-60" />
+                  <div className="flex items-center gap-4 pt-1 flex-wrap text-[11px]">
+                    <span className="text-muted-foreground/80 font-mono text-[10px]">BY <strong className="text-foreground">Supan Roy</strong></span>
+                    <a href="https://github.com/Supan-Roy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1 font-mono">
+                      <Github className="h-3.5 w-3.5 text-foreground/80" /> GitHub <ExternalLink className="h-2.5 w-2.5 opacity-60" />
                     </a>
-                    <a href="https://linkedin.com/in/supanroy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-2 text-xs">
-                      <Linkedin className="h-4 w-4 text-foreground/80" /> LinkedIn <ExternalLink className="h-3 w-3 opacity-60" />
+                    <a href="https://linkedin.com/in/supanroy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1 font-mono">
+                      <Linkedin className="h-3.5 w-3.5 text-foreground/80" /> LinkedIn <ExternalLink className="h-2.5 w-2.5 opacity-60" />
                     </a>
                   </div>
                 </div>
 
                 {/* Column 2: Platform */}
-                <div className="space-y-3">
-                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px]">Platform</div>
-                  <div className="flex flex-col gap-2">
+                <div className="space-y-2.5 col-span-1">
+                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px] font-mono">Platform</div>
+                  <div className="flex flex-col gap-1.5 text-xs">
                     <NavLink to="/" className="hover:text-primary transition-colors">Dashboard</NavLink>
                     <NavLink to="/screenings" className="hover:text-primary transition-colors">Screenings</NavLink>
                     <NavLink to="/findings" className="hover:text-primary transition-colors">Findings</NavLink>
@@ -292,22 +294,21 @@ export default function AppShell({ children }: AppShellProps) {
                 </div>
 
                 {/* Column 3: Resources */}
-                <div className="space-y-3">
-                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px]">Resources</div>
-                  <div className="flex flex-col gap-2">
-                    <a href="#" className="hover:text-primary transition-colors">Documentation</a>
+                <div className="space-y-2.5 col-span-1">
+                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px] font-mono">Resources</div>
+                  <div className="flex flex-col gap-1.5 text-xs">
+                    <a href="#" className="hover:text-primary transition-colors">Docs</a>
                     <a href="#" className="hover:text-primary transition-colors">Help Center</a>
                     <a href="#" className="hover:text-primary transition-colors">API Reference</a>
                   </div>
                 </div>
 
                 {/* Column 4: Legal */}
-                <div className="space-y-3">
-                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px]">Legal</div>
-                  <div className="flex flex-col gap-2">
+                <div className="space-y-2.5 col-span-2 sm:col-span-1">
+                  <div className="font-semibold text-foreground uppercase tracking-wider text-[10px] font-mono">Legal</div>
+                  <div className="flex flex-col sm:flex-col flex-row gap-x-4 gap-y-1.5 text-xs">
                     <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
                     <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-                    <a href="#" className="hover:text-primary transition-colors">License Agreement</a>
                   </div>
                 </div>
               </div>
