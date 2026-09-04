@@ -183,7 +183,7 @@ export default function PipelineAnimation() {
             <div className="p-3 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-xs font-mono text-zinc-300 relative z-20">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
-                <span className="font-bold text-white">Project: The Last Horizon (Director's Cut)</span>
+                <span className="font-bold text-white">Project: The Last Horizon - The Counter Clockmaker (Director's Cut)</span>
               </div>
               <div className="flex items-center gap-3 text-[11px]">
                 <span className="text-emerald-400 flex items-center gap-1">
