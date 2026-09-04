@@ -344,31 +344,40 @@ export default function Dashboard() {
                     <span>Cut Recommendations</span>
                   </div>
 
-                  <div className="relative h-44 w-full rounded-lg bg-zinc-900 border border-indigo-500/30 p-3 overflow-hidden flex flex-col justify-between">
+                  <div className="relative h-48 w-full rounded-lg bg-zinc-950 border border-indigo-500/30 p-3 overflow-hidden flex flex-col justify-between">
+                    {/* Scene 01.png Keyframe Image Background */}
+                    <img
+                      src="/scene_01.png"
+                      alt="Scene 01 Keyframe"
+                      className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity hover:opacity-60 transition-opacity"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent"></div>
+
+                    {/* Animated Optical Scanline */}
                     <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_#22d3ee] animate-laser-scan z-10"></div>
 
                     <div className="relative z-20 flex justify-between items-start">
-                      <div className="px-2.5 py-1 rounded bg-black/80 border border-indigo-500/40 text-[10px] font-mono text-indigo-300 flex items-center gap-1.5">
+                      <div className="px-2.5 py-1 rounded bg-black/80 border border-indigo-500/40 text-[10px] font-mono text-indigo-300 flex items-center gap-1.5 backdrop-blur-sm">
                         <Video className="h-3 w-3 text-cyan-400" />
-                        <span>Scene Frame: [01:42]</span>
+                        <span>Scene 01 • Frame [01:42]</span>
                       </div>
-                      <div className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/40 text-[10px] font-mono text-rose-300 font-semibold">
+                      <div className="px-2.5 py-1 rounded bg-rose-950/90 border border-rose-500/40 text-[10px] font-mono text-rose-300 font-semibold backdrop-blur-sm">
                         Pacing Delay Flagged
                       </div>
                     </div>
 
                     <div className="relative z-20 self-center text-center space-y-1 my-auto">
-                      <div className="inline-flex items-center justify-center p-2.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-300 animate-pulse-glow">
+                      <div className="inline-flex items-center justify-center p-2.5 rounded-full border border-cyan-400/40 bg-black/70 text-cyan-300 backdrop-blur-md animate-pulse-glow">
                         <Eye className="h-5 w-5" />
                       </div>
-                      <div className="text-xs text-cyan-200 font-medium bg-black/60 px-3 py-1 rounded-full border border-cyan-500/20">
-                        Analyzing Scene Lighting & Dialogue Momentum
+                      <div className="text-xs text-cyan-200 font-medium bg-black/70 px-3 py-1 rounded-full border border-cyan-500/30 backdrop-blur-md">
+                        Analyzing Scene 01 Visual Pacing
                       </div>
                     </div>
 
-                    <div className="relative z-20 bg-indigo-950/80 border border-indigo-500/30 p-2 rounded text-[11px] font-mono text-indigo-200 flex items-center justify-between">
-                      <span className="truncate">"Trim 2.4s from wide shot to tighten visual tension."</span>
-                      <span className="text-cyan-400 font-bold ml-2">98% Priority</span>
+                    <div className="relative z-20 bg-black/80 backdrop-blur-md border border-indigo-500/30 p-2 rounded text-[11px] font-mono text-indigo-200 flex items-center justify-between">
+                      <span className="truncate">"Trim 2.4s from wide shot in Scene 01 to tighten tension."</span>
+                      <span className="text-cyan-400 font-bold ml-2">98% Match</span>
                     </div>
                   </div>
 
@@ -682,29 +691,47 @@ export default function Dashboard() {
                 </ul>
               </div>
 
-              {/* Animated Interactive Visual Box */}
+              {/* Animated Interactive Visual Box with Scene 01.png keyframe */}
               <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
                 <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                   <span className="text-indigo-400 font-bold flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 animate-spin" />
                     AI Keyframe Inspector
                   </span>
-                  <span className="text-indigo-300 font-semibold bg-indigo-500/20 px-2 py-0.5 rounded">Frame [01:42]</span>
+                  <span className="text-indigo-300 font-semibold bg-indigo-500/20 px-2 py-0.5 rounded">Scene 01 • Frame [01:42]</span>
                 </div>
 
-                <div className="p-4 rounded-lg bg-indigo-950/30 border border-indigo-500/30 space-y-2">
+                {/* Keyframe Card with Scene 01 Image */}
+                <div className="relative h-36 w-full rounded-lg overflow-hidden border border-zinc-800 group">
+                  <img
+                    src="/scene_01.png"
+                    alt="Scene 01 Keyframe"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                  
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-indigo-300 border border-indigo-500/30 backdrop-blur-sm">
+                    Scene 01.png
+                  </div>
+                  
+                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                    <div className="text-[11px] font-medium text-white bg-black/80 px-2.5 py-1 rounded backdrop-blur-sm border border-white/10">
+                      Static Wide Shot Detected
+                    </div>
+                    <span className="text-rose-300 bg-rose-950/90 text-[10px] font-mono px-2 py-0.5 rounded border border-rose-500/40 font-semibold backdrop-blur-sm">
+                      High Priority Cut
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-indigo-950/30 border border-indigo-500/30 space-y-1.5">
                   <div className="flex items-center justify-between text-xs text-indigo-300 font-semibold">
-                    <span>Recommendation #04</span>
-                    <span className="text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">High Priority</span>
+                    <span>Scene 01 Recommendation #04</span>
+                    <span className="text-emerald-400 font-mono text-[11px]">98% Confidence Match</span>
                   </div>
                   <p className="text-xs text-indigo-200 leading-relaxed font-sans">
-                    "Static wide camera shot lingers 8.4s after main explosion with minimal dialogue. Recommend trimming 2.4s to tighten cut transition to character close-up."
+                    "Static wide camera shot lingers 8.4s after main explosion in Scene 01. Recommend trimming 2.4s to tighten cut transition to character close-up."
                   </p>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-zinc-400 font-sans pt-1">
-                  <span>Detected Confidence: <strong className="text-emerald-400">98% Match</strong></span>
-                  <span className="text-indigo-400 hover:underline cursor-pointer flex items-center gap-1 font-medium">Preview Cut Frame <ChevronRight className="h-3 w-3" /></span>
                 </div>
               </div>
             </div>
