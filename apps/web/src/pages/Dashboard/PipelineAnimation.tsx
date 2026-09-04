@@ -10,7 +10,6 @@ export default function PipelineAnimation() {
   const [activeStage, setActiveStage] = useState<number>(1);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [playbackTime, setPlaybackTime] = useState<number>(0);
-  const [chatMessageStep, setChatMessageStep] = useState<number>(0);
 
   // Simulated user click stream markers over the video canvas
   const [clicks, setClicks] = useState<Array<{ id: number; x: number; y: number; user: string; timecode: string; color: string }>>([
@@ -20,16 +19,27 @@ export default function PipelineAnimation() {
     { id: 4, x: 78, y: 25, user: "Viewer #301 (PAR)", timecode: "01:42", color: "#3b82f6" },
   ]);
 
+  // Sequential typing state for Editorial Co-Pilot Chat
+  const directorQuestionText = "Why did audience retention drop suddenly around timestamp [01:42] in Scene 01?";
+  const aiResponseText = "At [01:42], telemetry recorded a 42% retention drop and 3.2x pause spike across 24 viewers. Multimodal vision analysis detected an 8.4s static wide shot with dialogue silence.";
+
+  const [typedQuestion, setTypedQuestion] = useState<string>("");
+  const [isQuestionSent, setIsQuestionSent] = useState<boolean>(false);
+  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
+  const [typedAiResponse, setTypedAiResponse] = useState<string>("");
+
   // Auto-progress through pipeline stages 1 -> 2 -> 3 -> 4
   useEffect(() => {
     if (!isPlaying) return;
 
-    const interval = setInterval(() => {
+    // Stage 4 has typing animation so we extend its display time to 8.5 seconds
+    const duration = activeStage === 4 ? 8500 : 4500;
+    const timer = setTimeout(() => {
       setActiveStage((prev) => (prev % 4) + 1);
-    }, 4500);
+    }, duration);
 
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+    return () => clearTimeout(timer);
+  }, [isPlaying, activeStage]);
 
   // Playhead scrubber simulation
   useEffect(() => {
@@ -42,19 +52,65 @@ export default function PipelineAnimation() {
     return () => clearInterval(scrubberInterval);
   }, [isPlaying]);
 
-  // Trigger chat typing sequence when stage 4 is reached
+  // Character-by-character typing animation controller for Stage 4
   useEffect(() => {
-    if (activeStage === 4) {
-      setChatMessageStep(1);
-      const timer1 = setTimeout(() => setChatMessageStep(2), 1200);
-      const timer2 = setTimeout(() => setChatMessageStep(3), 2400);
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    } else {
-      setChatMessageStep(0);
+    if (activeStage !== 4) {
+      // Default filled state for previewing when outside Stage 4
+      setTypedQuestion(directorQuestionText);
+      setIsQuestionSent(true);
+      setIsAiThinking(false);
+      setTypedAiResponse(aiResponseText);
+      return;
     }
+
+    // Reset state for clean animated typing sequence
+    setTypedQuestion("");
+    setIsQuestionSent(false);
+    setIsAiThinking(false);
+    setTypedAiResponse("");
+
+    let qIndex = 0;
+    let qInterval: any = null;
+    let aInterval: any = null;
+    let thinkTimer: any = null;
+    let sendTimer: any = null;
+
+    // 1. Type Director question in input box character by character
+    qInterval = setInterval(() => {
+      qIndex++;
+      if (qIndex <= directorQuestionText.length) {
+        setTypedQuestion(directorQuestionText.slice(0, qIndex));
+      } else {
+        clearInterval(qInterval);
+
+        // 2. Send question to chat thread after a brief pause
+        sendTimer = setTimeout(() => {
+          setIsQuestionSent(true);
+          setIsAiThinking(true);
+
+          // 3. AI thinks for 900ms, then starts typing AI reply
+          thinkTimer = setTimeout(() => {
+            setIsAiThinking(false);
+            let aIndex = 0;
+            aInterval = setInterval(() => {
+              aIndex++;
+              if (aIndex <= aiResponseText.length) {
+                setTypedAiResponse(aiResponseText.slice(0, aIndex));
+              } else {
+                clearInterval(aInterval);
+              }
+            }, 22);
+          }, 900);
+        }, 400);
+      }
+    }, 28);
+
+    return () => {
+      if (qInterval) clearInterval(qInterval);
+      if (aInterval) clearInterval(aInterval);
+      if (sendTimer) clearTimeout(sendTimer);
+      if (thinkTimer) clearTimeout(thinkTimer);
+    };
   }, [activeStage]);
 
   // Dynamic user click burst generator in Stage 1
@@ -384,8 +440,8 @@ export default function PipelineAnimation() {
             </div>
           </div>
 
-          {/* TIME-ANCHORED CO-PILOT CHAT SESSION */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/90 p-4 flex flex-col justify-between space-y-3 flex-1 shadow-inner relative overflow-hidden min-h-[280px]">
+          {/* TIME-ANCHORED CO-PILOT CHAT SESSION WITH CHARACTER TYPING ANIMATION */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/90 p-4 flex flex-col justify-between space-y-3 flex-1 shadow-inner relative overflow-hidden min-h-[295px]">
             {/* Chat Room Header */}
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
               <div className="flex items-center gap-2">
@@ -397,71 +453,104 @@ export default function PipelineAnimation() {
                   <div className="text-[10px] text-zinc-400 font-mono">Screening Session #104</div>
                 </div>
               </div>
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  {isAiThinking ? "AI Thinking..." : isQuestionSent ? "Live Stream" : "Director Typing..."}
+                </span>
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+              </div>
             </div>
 
             {/* Chat Message Thread */}
             <div className="space-y-3 py-1 flex-1 overflow-y-auto max-h-[220px] text-xs font-sans">
               
-              {/* Director Question */}
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-full bg-zinc-800 text-zinc-300 shrink-0 border border-zinc-700">
-                  <User className="h-3.5 w-3.5" />
-                </div>
-                <div className="bg-zinc-800/90 border border-zinc-700/80 p-3 rounded-2xl rounded-tl-none text-zinc-200 space-y-1 max-w-[88%] shadow-sm">
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
-                    <span className="font-bold text-primary">Director</span>
-                    <span>10:42 AM</span>
+              {/* Director Question Bubble (Appears after Director finishes typing in input box) */}
+              {isQuestionSent ? (
+                <div className="flex items-start gap-2.5 animate-fade-in">
+                  <div className="p-1.5 rounded-full bg-zinc-800 text-zinc-300 shrink-0 border border-zinc-700">
+                    <User className="h-3.5 w-3.5" />
                   </div>
-                  <p>
-                    Why did audience retention drop suddenly around timestamp <span className="text-cyan-300 font-mono font-bold hover:underline cursor-pointer">[01:42]</span> in Scene 01?
-                  </p>
-                </div>
-              </div>
-
-              {/* AI Co-Pilot Streaming Answer */}
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-full bg-cyan-500/20 text-cyan-400 shrink-0 border border-cyan-500/30">
-                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                </div>
-                <div className="bg-cyan-950/40 border border-cyan-500/30 p-3 rounded-2xl rounded-tl-none text-cyan-100 space-y-1.5 max-w-[88%] shadow-sm">
-                  <div className="flex items-center justify-between text-[10px] text-cyan-400 font-mono">
-                    <span className="font-bold flex items-center gap-1">
-                      <Bot className="h-3 w-3" /> Frame Sense AI
-                    </span>
-                    <span>Just Now</span>
-                  </div>
-
-                  {activeStage === 4 && chatMessageStep === 1 ? (
-                    <div className="flex items-center gap-1 py-1 text-cyan-400 text-xs font-mono">
-                      <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-                      <span>Analyzing audience telemetry &amp; keyframes...</span>
+                  <div className="bg-zinc-800/90 border border-zinc-700/80 p-3 rounded-2xl rounded-tl-none text-zinc-200 space-y-1 max-w-[88%] shadow-sm">
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                      <span className="font-bold text-primary">Director</span>
+                      <span>10:42 AM</span>
                     </div>
-                  ) : (
-                    <>
-                      <p className="leading-relaxed">
-                        At <strong className="text-cyan-300 font-mono">[01:42]</strong>, telemetry recorded a 42% retention drop and 3.2x pause spike across 24 viewers. Multimodal vision analysis detected an 8.4s static wide shot with dialogue silence.
-                      </p>
-                      <div className="pt-1 flex items-center gap-2">
-                        <span className="text-[10px] font-mono bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 font-semibold">
-                          Suggested Cut: Trim 4.2s
-                        </span>
-                      </div>
-                    </>
-                  )}
+                    <p>
+                      Why did audience retention drop suddenly around timestamp <span className="text-cyan-300 font-mono font-bold hover:underline cursor-pointer">[01:42]</span> in Scene 01?
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-zinc-400 font-mono flex items-center justify-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping"></span>
+                  <span>Director typing question into input below...</span>
+                </div>
+              )}
+
+              {/* AI Co-Pilot Response Bubble (Appears when question is sent) */}
+              {isQuestionSent && (
+                <div className="flex items-start gap-2.5 animate-fade-in">
+                  <div className="p-1.5 rounded-full bg-cyan-500/20 text-cyan-400 shrink-0 border border-cyan-500/30">
+                    <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                  </div>
+                  <div className="bg-cyan-950/40 border border-cyan-500/30 p-3 rounded-2xl rounded-tl-none text-cyan-100 space-y-1.5 max-w-[88%] shadow-sm">
+                    <div className="flex items-center justify-between text-[10px] text-cyan-400 font-mono">
+                      <span className="font-bold flex items-center gap-1">
+                        <Bot className="h-3 w-3" /> Frame Sense AI
+                      </span>
+                      <span>Just Now</span>
+                    </div>
+
+                    {isAiThinking ? (
+                      <div className="flex items-center gap-1 py-1 text-cyan-400 text-xs font-mono">
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                        <span>Analyzing audience telemetry &amp; keyframes...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="leading-relaxed">
+                          {typedAiResponse}
+                          {typedAiResponse.length < aiResponseText.length && (
+                            <span className="inline-block w-1.5 h-3 bg-cyan-400 ml-0.5 animate-pulse"></span>
+                          )}
+                        </p>
+                        {typedAiResponse.length >= aiResponseText.length && (
+                          <div className="pt-1 flex items-center gap-2 animate-fade-in">
+                            <span className="text-[10px] font-mono bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 font-semibold">
+                              Suggested Cut: Trim 4.2s
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Simulated Chat Input Box */}
+            {/* Simulated Chat Input Box showing live typing */}
             <div className="pt-2 border-t border-zinc-800 flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={activeStage === 4 ? "Asking AI Co-Pilot about Scene 01..." : "Ask AI Co-Pilot about screening..."}
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-sans focus:outline-none"
-              />
-              <button className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-semibold">
+              <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-sans relative flex items-center overflow-hidden">
+                {!isQuestionSent ? (
+                  <span className="text-cyan-200 font-mono text-xs truncate">
+                    {typedQuestion}
+                    <span className="inline-block w-1.5 h-3 bg-cyan-400 ml-0.5 animate-pulse"></span>
+                  </span>
+                ) : (
+                  <span className="text-zinc-500 font-sans text-xs truncate">
+                    {activeStage === 4 ? "Asking AI Co-Pilot about Scene 01..." : "Ask AI Co-Pilot about screening..."}
+                  </span>
+                )}
+              </div>
+
+              <button
+                className={`p-1.5 rounded-lg font-semibold transition-all ${
+                  !isQuestionSent && typedQuestion.length > 0
+                    ? 'bg-cyan-400 text-black scale-105 shadow-md shadow-cyan-400/30'
+                    : 'bg-primary text-primary-foreground'
+                }`}
+                title="Send Question"
+              >
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
