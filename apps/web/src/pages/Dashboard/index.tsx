@@ -691,7 +691,7 @@ export default function Dashboard() {
                 </ul>
               </div>
 
-              {/* Animated Interactive Visual Box with Scene 01.png keyframe */}
+              {/* Animated Interactive Visual Box with Scene 01.png keyframe & side scanning laser */}
               <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
                 <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                   <span className="text-indigo-400 font-bold flex items-center gap-1.5">
@@ -701,20 +701,24 @@ export default function Dashboard() {
                   <span className="text-indigo-300 font-semibold bg-indigo-500/20 px-2 py-0.5 rounded">Scene 01 • Frame [01:42]</span>
                 </div>
 
-                {/* Keyframe Card with Scene 01 Image */}
-                <div className="relative h-36 w-full rounded-lg overflow-hidden border border-zinc-800 group">
+                {/* Keyframe Card with Scene 01 Image & Side Scanning Laser */}
+                <div className="relative h-36 w-full rounded-lg overflow-hidden border border-indigo-500/30 group">
+                  {/* Side Scanning Laser Beam */}
+                  <div className="absolute top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-400 via-sky-300 to-indigo-400 shadow-[0_0_15px_#22d3ee] animate-laser-scan-side z-30 pointer-events-none"></div>
+
                   <img
                     src="/scene_01.png"
                     alt="Scene 01 Keyframe"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent z-10"></div>
                   
-                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-indigo-300 border border-indigo-500/30 backdrop-blur-sm">
-                    Scene 01.png
+                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[10px] font-mono text-indigo-300 border border-indigo-500/30 backdrop-blur-sm z-20 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span>Scene 01.png • AI Side Scan</span>
                   </div>
                   
-                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end z-20">
                     <div className="text-[11px] font-medium text-white bg-black/80 px-2.5 py-1 rounded backdrop-blur-sm border border-white/10">
                       Static Wide Shot Detected
                     </div>

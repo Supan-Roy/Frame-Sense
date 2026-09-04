@@ -213,6 +213,25 @@
   animation: signal-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+@keyframes laser-scan-side {
+  0% {
+    left: 0%;
+    opacity: 0.2;
+  }
+  50% {
+    left: 96%;
+    opacity: 1;
+  }
+  100% {
+    left: 0%;
+    opacity: 0.2;
+  }
+}
+
+.animate-laser-scan-side {
+  animation: laser-scan-side 3.8s ease-in-out infinite;
+}
+
 /* Glassmorphism Panel */
 .glass-panel {
   background: rgba(18, 18, 20, 0.75);
