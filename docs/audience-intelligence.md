@@ -6,11 +6,50 @@ Audience Intelligence is Frame Sense's analytical layer sitting on top of the Cl
 
 > **OBSERVE → MEASURE → DETECT → INVESTIGATE**
 
-It measures audience behavior, detects statistically significant anomalies, and collaborates with the **Gemini Multimodal Vision Engine** to generate scientific editorial findings.
+It measures audience behavior and broadcast technical compliance, detects statistically significant anomalies using ClickHouse OLAP windowing, and collaborates with the **Gemini Multimodal Vision Engine** to generate scientific editorial findings.
 
 ---
 
-## 2. Statistical Joint Gating & Sample Awareness
+## 2. Dual-Engine Intelligence Framework
+
+Frame Sense divides telemetry analysis into two specialized engines:
+
+### Engine 1: Viewer Retention & Cognitive Telemetry Analytics
+- Measures second-by-second audience attention, session continuation, and rewind friction.
+- Differentiates intentional scene rewatching from true permanent audience exits.
+
+### Engine 2: Broadcast Quality & Technical Safety Audit Engine
+- **Dialogue Audio Masking Risk**: Monitors background score loudness collisions and frequency notch overlap (1-3 kHz) to prevent unintelligible dialogue.
+- **Pacing Lulls & Narrative Dead Space**: Pinpoints visual dead space prior to major retention drop-offs.
+
+---
+
+## 3. ClickHouse Window SQL Query Mechanics
+
+Real-time telemetry analysis is executed via high-throughput ClickHouse OLAP window queries.
+
+### Unpolluted Baseline Z-Score Query
+```sql
+WITH baseline AS (
+    SELECT 
+        avg(pause_count) AS mu_local,
+        stddevPop(pause_count) AS sigma_local
+    FROM default.viewer_events
+    WHERE screening_id = 'scr_demo_01'
+      AND timecode_sec NOT BETWEEN (124 - 15) AND (124 + 15)
+)
+SELECT 
+    124 AS target_timecode,
+    (countIf(event_type = 'PAUSE') - mu_local) / (sigma_local + 0.001) AS z_score
+FROM default.viewer_events, baseline
+WHERE screening_id = 'scr_demo_01' 
+  AND timecode_sec BETWEEN 119 AND 129
+GROUP BY mu_local, sigma_local;
+```
+
+---
+
+## 4. Statistical Joint Gating & Sample Awareness
 
 Viewer sample size is a fundamental constraint in Frame Sense. Event counts alone must never override an insufficient viewer sample size.
 
@@ -25,7 +64,7 @@ Viewer sample size is a fundamental constraint in Frame Sense. Event counts alon
 
 ---
 
-## 3. Laplace Smoothing & Wilson Confidence Bounds
+## 5. Laplace Smoothing & Wilson Confidence Bounds
 
 To prevent pathological 0% or 100% rate representations on small samples (e.g. 1 exit out of 1 viewer):
 
@@ -39,16 +78,7 @@ where $\hat{p} = \min(1.0, \max(0.0, k/n))$ and $z = 1.96$ ($95\%$ confidence le
 
 ---
 
-## 4. Local Baseline Methodology
-
-To compute z-scores without self-pollution from the anomaly window itself:
-- Baseline mean $\mu_{\text{local}}$ and standard deviation $\sigma_{\text{local}}$ are computed across all time buckets **excluding a $\pm 15\text{s}$ window around the evaluated time bucket**.
-- Z-score:
-  $$z = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
-
----
-
-## 5. Viewer Sequence Trajectory Reasoning
+## 6. Viewer Sequence Trajectory Reasoning
 
 Events are **not** viewers. Frame Sense tracks each viewer's session journey relative to candidate anomaly windows $[t_{\text{start}}, t_{\text{end}}]$:
 
@@ -59,15 +89,15 @@ Events are **not** viewers. Frame Sense tracks each viewer's session journey rel
 
 ### Classification & Editorial Mapping Rules
 
-| Trajectory Condition | Anomaly Taxonomy Title | Domain | Editorial Recommendation |
-| :--- | :--- | :--- | :--- |
-| $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | `Emotional Scene Replay Hotspot` | `EMOTIONAL` | **B-Roll Reaction Insert & Sound Design**: Insert 1.2s B-Roll reaction shot to reward viewer curiosity. |
-| $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | `Cognitive Comprehension Barrier` | `COGNITIVE` | **Dialogue Enhancement & B-Roll Re-Pacing**: Boost dialogue clarity (+3dB), duck score (-4dB), or extend shot +1.2s — do NOT trim video. |
-| $N_{\text{perm\_exits}} \ge 1 \land N_{\text{perm\_exits}} \ge N_{\text{continued}} \land \text{rate} \ge 0.15$ | `Critical Scene Exit Drop` | `RETENTION` | **Scene Cut & Match Cut**: Re-anchor visual perspective with an over-the-shoulder medium close-up. |
+| Engine | Trajectory / Signal | Anomaly Taxonomy Title | Domain | Editorial Recommendation |
+| :--- | :--- | :--- | :--- | :--- |
+| **Behavioral** | $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | `Emotional Scene Replay Hotspot` | `EMOTIONAL` | **B-Roll Reaction Insert & Sound Design**: Insert 1.2s B-Roll reaction shot to reward viewer curiosity. |
+| **Behavioral** | $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | `Cognitive Comprehension Barrier` | `COGNITIVE` | **Dialogue Enhancement & B-Roll Re-Pacing**: Boost dialogue clarity (+3dB), duck score (-4dB), or extend shot +1.2s — do NOT trim video. |
+| **Behavioral** | $N_{\text{perm\_exits}} \ge 1 \land N_{\text{perm\_exits}} \ge N_{\text{continued}} \land \text{rate} \ge 0.15$ | `Critical Scene Exit Drop` | `RETENTION` | **Scene Cut & Match Cut**: Re-anchor visual perspective with an over-the-shoulder medium close-up. |
 
 ---
 
-## 6. Scientific Honesty Taxonomy
+## 7. Scientific Honesty Taxonomy
 
 Every generated editorial finding is structured strictly into 4 parts:
 
@@ -78,7 +108,7 @@ Every generated editorial finding is structured strictly into 4 parts:
 
 ---
 
-## 6. Real-Anchored Telemetry Simulator
+## 8. Real-Anchored Telemetry Simulator
 
 The synthetic audience simulator supports testing at scale (1,000+ viewers) while preserving real viewer patterns:
 
@@ -90,7 +120,7 @@ The synthetic audience simulator supports testing at scale (1,000+ viewers) whil
 
 ---
 
-## 7. API Endpoints
+## 9. API Endpoints
 
 ```
 GET /api/v1/screenings/{screening_id}/audience/overview
@@ -99,3 +129,4 @@ GET /api/v1/screenings/{screening_id}/audience/signals?bucket_sec=10
 GET /api/v1/screenings/{screening_id}/audience/anomalies?bucket_sec=10
 POST /api/v1/screenings/{screening_id}/dev/simulate?num_viewers=1000
 ```
+

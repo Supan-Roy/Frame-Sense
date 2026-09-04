@@ -64,11 +64,16 @@ function LogoText({ className = "h-5 w-auto select-none" }: { className?: string
 export default function AppShell({ children }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const mainRef = React.useRef<HTMLDivElement>(null);
 
-  // Close mobile sidebar on route change
+  // Close mobile menu & reset main viewport scroll position to top on route change
   React.useEffect(() => {
     setMobileMenuOpen(false);
-  }, [location]);
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground">
@@ -242,7 +247,7 @@ export default function AppShell({ children }: AppShellProps) {
         </header>
 
         {/* View container */}
-        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
           <div className="max-w-7xl mx-auto flex flex-col min-h-full">
             <div className="flex-1 min-h-[85vh]">
               {children}

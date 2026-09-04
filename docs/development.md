@@ -22,6 +22,17 @@ Run setup script from the workspace root:
 pnpm run setup
 ```
 
+### Environment Configuration
+Ensure `apps/api/.env` contains your ClickHouse and Google Gemini API credentials:
+```env
+CLICKHOUSE_HOST=your-clickhouse-host
+CLICKHOUSE_PORT=8443
+CLICKHOUSE_USER=default
+CLICKHOUSE_PASSWORD=your-password
+CLICKHOUSE_SECURE=true
+GEMINI_API_KEY=your-gemini-key
+```
+
 ### Running Applications Concurrently
 To launch both the web frontend and Python backend API:
 ```bash
@@ -48,7 +59,12 @@ apps/api/.venv/Scripts/pytest tests/test_behavioral_semantics.py -v
 
 ## 4. Running Frontend Build Verification
 
-To verify TypeScript contracts and Vite production bundling:
+To verify TypeScript contracts, React component builds, and Vite production bundling:
 ```bash
 pnpm run build
 ```
+Or for the web workspace specifically:
+```bash
+pnpm --filter web build
+```
+

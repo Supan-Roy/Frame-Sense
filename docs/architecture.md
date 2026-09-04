@@ -1,6 +1,6 @@
 # Frame Sense System Architecture
 
-This document details the production architecture of **Frame Sense**, detailing data flow, statistical gating, agent orchestration, multimodal vision investigation, and professional NLE export.
+This document details the production architecture of **Frame Sense**, detailing data flow, statistical gating, agent orchestration, multimodal vision investigation, ClickHouse OLAP windowing, and professional NLE export.
 
 ---
 
@@ -22,9 +22,15 @@ This document details the production architecture of **Frame Sense**, detailing 
            │                       │        │                     │
            ▼                       ▼        ▼                     ▼
 ┌────────────────────┐   ┌───────────────────┐  ┌──────────────────┐  ┌───────────────────┐
-│ ClickHouse Cloud   │   │ Statistical Engine│  │  FFmpeg Engine   │  │ NLE Export Engine │
-│ Telemetry Storage  │   │  (Joint Gating)   │  │ (Frame Extract)  │  │ (FCP XML & EDL)   │
+│ ClickHouse Cloud   │   │ Dual-Engine       │  │  FFmpeg Engine   │  │ NLE Export Engine │
+│ Telemetry & State  │   │ Statistical Audit │  │ (Frame Extract)  │  │ (FCP XML & EDL)   │
 └──────────┬─────────┘   └─────────┬─────────┘  └────────┬─────────┘  └───────────────────┘
+           │                       │                     │
+           │                       ▼                     │
+           │             ┌───────────────────┐           │
+           │             │ ClickHouse Window │           │
+           │             │ SQL Inspector     │           │
+           │             └───────────────────┘           │
            │                       │                     │
            └───────────────────────┼─────────────────────┘
                                    │
@@ -42,22 +48,23 @@ This document details the production architecture of **Frame Sense**, detailing 
 ### A. 100% ClickHouse Unified Data Architecture
 - **Unified Telemetry & Studio Metadata Storage**: ClickHouse columnar database storing second-by-second viewer telemetry events (`viewer_events`), screening project metadata (`screenings`), editorial timeline comments (`comments`), saved AI vision investigations (`investigations`), and chat assistant history (`chat_sessions`, `chat_messages`).
 - **ClickHouse Model Context Protocol (MCP)**: Implements `run_select_query` tool allowing AI agents to directly query all ClickHouse tables via parameterized SQL filters (`WHERE screening_id = '...'`).
-- **Atomic Single-Engine Lifecycle**: Deletions, batch rollbacks, and project resets execute in a single database engine, eliminating dual-storage consistency risks and SQLite file dependencies.
+- **Zero-SQLite Architecture**: Deletions, batch rollbacks, and project resets execute atomically in a single database engine, eliminating dual-storage consistency risks.
 
-### B. Core Intelligence Engine & Sequence Trajectory Reasoning
-- **Viewer Sequence Trajectory Engine (`_get_window_trajectories`)**: Runs ClickHouse SQL trajectory window queries evaluating full viewer session lifecycles ($N_{\text{exposed}}$, $N_{\text{permanent\_exits}}$, $N_{\text{replayed\_and\_continued}}$, $N_{\text{continued}}$).
-- **Multi-Signal Classification Tree**:
-  - `Emotional Scene Replay Hotspot` / `Cognitive Comprehension Barrier`: Triggered when viewers rewound/replayed and continued playback past the scene window, protecting rewatch hotspots from false retention drop classification.
-  - `Critical Scene Exit Drop`: Requires genuine viewer abandonment ($N_{\text{permanent\_exits}} \ge 1$, $N_{\text{permanent\_exits}} \ge N_{\text{continued}}$, and permanent exit rate $\ge 15\%$).
-- **Sample Exposure Categorization**:
-  - $n < 5$: `INSUFFICIENT_DATA` (Capped at `LOW` confidence $\le 0.35$ and `LOW` severity).
-  - $5 \le n < 10$: `PRELIMINARY_SIGNAL` (Capped at `MEDIUM` confidence $\le 0.65$).
-  - $10 \le n < 30$: `SUFFICIENT_SIGNAL`
-  - $n \ge 30$: `STRONG_SIGNAL`
-- **Laplace Smoothing & Wilson Lower Bounds**: Prevents pathological 0%/100% rate anomalies on small samples while retaining raw counts.
-- **Local Baseline Exclusion Window**: Baseline calculations exclude a $\pm 15\text{s}$ local window around the anomaly candidate to prevent anomaly self-pollution.
+### B. Dual-Engine Intelligence Audit System
+- **Engine 1: Viewer Retention & Cognitive Analytics (`_get_window_trajectories`)**: Runs ClickHouse SQL trajectory window queries evaluating full viewer session lifecycles ($N_{\text{exposed}}$, $N_{\text{permanent\_exits}}$, $N_{\text{replayed\_and\_continued}}$, $N_{\text{continued}}$).
+- **Engine 2: Broadcast Quality & Technical Safety Audit**:
+  - **Dialogue Audio Masking Risk**: Monitors background score loudness collisions and speech frequency notch overlap.
+  - **Pacing Lulls**: Pinpoints low-engagement dead-space windows prior to audience exit drops.
 
-### C. Multimodal Vision Investigation Engine
+### C. ClickHouse Analytical Window SQL Inspector
+- **React Portal Modal**: Non-blocking window overlay mounted on `document.body` rendering live OLAP query mechanics.
+- **SQL Mechanics**: Inspects window functions, Z-score formulas, and execution latency ($< 9\text{ms}$).
+- **Whitespace & Formatting**: Preserves exact multi-line SQL spacing and keyword color highlighting with click-outside backdrop dismissal.
+
+### D. End-to-End Intelligence Pipeline Simulator
+- **4-Stage Interactive Animation**: Visualizes raw telemetry emission, statistical joint gating, keyframe laser scanning, and timecode-anchored AI Co-Pilot chat responses.
+
+### E. Multimodal Vision Investigation Engine
 - **Keyframe Extraction**: Extracts keyframes at exact peak anomaly timecodes using FFmpeg.
 - **Gemini 3.5 Flash / Gemini 3.5 Flash-Lite Reasoning**: Sends extracted image frames to Gemini alongside raw telemetry evidence for visual cut analysis, scene pacing, and framing investigation.
 - **Scientific Honesty Taxonomy**:
@@ -66,13 +73,13 @@ This document details the production architecture of **Frame Sense**, detailing 
   - **`HYPOTHESIS`**: Multimodal visual/narrative rationale.
   - **`VALIDATION`**: Proposed editing action & evidence quality tier.
 
-### D. Sense AI Interactive Assistant & Low-Latency Stream
+### F. Sense AI Interactive Assistant & Low-Latency Stream
 - **Google ADK Orchestration**: Uses `InMemoryRunner` with `sense_ai_chat_agent` and ClickHouse MCP.
 - **Pre-Loaded Summary Context**: Injects screening metadata, live telemetry overview, and top anomaly findings directly into context header to bypass redundant remote MCP SQL roundtrips for general user queries.
 - **Zero-Latency Token SSE Stream**: Server-Sent Events endpoint streaming LLM tokens directly over HTTP (`media_type="text/event-stream"`) without artificial sleep delays.
 - **Stream Controller**: Supports frontend response cancellation via circular `Stop` button / `AbortController`.
 
-### E. Professional NLE Export (FCP XML & EDL)
+### G. Professional NLE Export (FCP XML & EDL)
 - **Final Cut Pro XML (`.fcpxml`)**: Generates structured XML sequences with markers, duration metadata, and editorial notes compatible with **Adobe Premiere Pro**, **DaVinci Resolve**, and **Final Cut Pro**.
 - **Edit Decision List (`.edl`)**: CMX3600-compliant EDL generator for legacy post-production suites.
 
@@ -82,9 +89,11 @@ This document details the production architecture of **Frame Sense**, detailing 
 
 ```
 1. Browser Player / Simulator -> Emits ViewerEvent batch -> FastAPI /telemetry/batch -> ClickHouse
-2. GET /audience/anomalies -> Runs Joint Gating & Wilson Bounds -> Returns candidate anomalies
-3. User clicks "Investigate Anomaly" -> FFmpeg extracts keyframe at timecode
-4. Gemini 3.5 Flash / Gemini 3.5 Flash-Lite -> Analyzes keyframe + telemetry -> Constructs 4-part taxonomy report
-5. Report saved in SQLite -> Rendered in Editorial Findings Workspace
-6. Click "Export XML/EDL" -> Generates FCP XML/EDL file for NLE timeline
+2. GET /audience/anomalies -> Runs Joint Gating & Dual-Engine Audit -> Returns candidate anomalies & safety alerts
+3. User clicks "Inspect ClickHouse Window SQL" -> React Portal renders ClickHouseSqlInspector with live OLAP query
+4. User clicks "Investigate Anomaly" -> FFmpeg extracts keyframe at timecode
+5. Gemini 3.5 Flash / Gemini 3.5 Flash-Lite -> Analyzes keyframe + telemetry -> Constructs 4-part taxonomy report
+6. Report stored atomically in ClickHouse `investigations` table -> Rendered in Editorial Findings Workspace
+7. Click "Export XML/EDL" -> Generates FCP XML/EDL file for NLE timeline
 ```
+

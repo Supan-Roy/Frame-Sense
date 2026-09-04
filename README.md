@@ -1,26 +1,30 @@
 # Frame Sense
 
-**Autonomous Post-Production Telemetry & Multimodal Vision Intelligence System**  
+**Autonomous Post-Production Telemetry, Broadcast Quality & Multimodal Vision Intelligence System**  
 *Built for the **Agentic Cinema: The Blockbuster Hackathon***
 
 ---
 
 ## Executive Overview
 
-**Frame Sense** is an autonomous post-production intelligence system that transforms second-by-second test-screening viewer behavior into scientifically defensible, frame-accurate editorial recommendations. 
+**Frame Sense** is an autonomous post-production intelligence system that transforms second-by-second test-screening viewer behavior and technical compliance telemetry into scientifically defensible, frame-accurate editorial recommendations.
 
-By combining high-throughput columnar telemetry ingestion (**ClickHouse Cloud**), sample-aware statistical joint gating, viewer sequence trajectory reasoning, and multimodal keyframe reasoning (**Google ADK & Gemini 3.5 Flash / Gemini 3.5 Flash-Lite**), Frame Sense automatically detects audience retention drops, comprehension barriers, and pacing friction — outputting industry-standard NLE timeline exports (**Final Cut Pro XML** and **CMX3600 EDL**) for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
+By combining high-throughput columnar telemetry ingestion (**ClickHouse Cloud**), sample-aware statistical joint gating, viewer sequence trajectory reasoning, broadcast quality auditing (**Dialogue Audio Masking**, **Pacing Lulls**), and multimodal keyframe reasoning (**Google ADK & Gemini 3.5 Flash / Gemini 3.5 Flash-Lite**), Frame Sense automatically detects audience retention drops, comprehension barriers, and audio/pacing friction — outputting industry-standard NLE timeline exports (**Final Cut Pro XML** and **CMX3600 EDL**) for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 
 ---
 
-## The Problem Value & High-Stakes Impact
+## Key Differentiators & Dual-Engine Architecture
 
-In film post-production, **director cuts often suffer 30%–50% audience retention drop-offs** during test screenings before final theatrical release. Studios traditionally rely on retrospective paper survey cards and focus group discussions.
+Frame Sense operates a **Dual-Engine Technical & Behavioral Intelligence System**:
 
-### Structural Limitations of Traditional Methods
-1. **Recall Bias & Subjectivity**: Viewers report feelings minutes or hours after watching, masking exact second-by-second micro-reactions.
-2. **Lack of Frame Correlation**: Paper feedback tells filmmakers *"the middle felt slow"*, but fails to pinpoint whether the friction was caused by dialogue density, audio mix imbalance, or visual dead space at `00:26:14`.
-3. **High Remediation Cost**: Reshooting or re-editing scenes without frame-accurate telemetry risks removing high-value narrative beats while leaving actual dead space intact.
+1. **Engine 1: Viewer Retention & Cognitive Telemetry Analytics**
+   - Ingests raw second-by-second viewer telemetry (`PLAY`, `PAUSE`, `EXIT`, `REPLAY`, `SEEK`, `TAB_HIDDEN`).
+   - Evaluates ClickHouse viewer sequence trajectories (`_get_window_trajectories`) to distinguish intentional scene rewatches ($R_{\text{continuation}}$) from permanent audience exits ($R_{\text{exit}}$).
+   - Applies Laplace smoothing ($\hat{p}_{\text{smoothed}}$), Wilson score confidence bounds, and sample-aware gating ($n < 5 \rightarrow \text{INSUFFICIENT DATA}$) to eliminate false alarms.
+
+2. **Engine 2: Broadcast Quality & Technical Safety Audit Engine**
+   - **Dialogue Audio Masking Risk Audit**: Analyzes dynamic range compression, background score collision, and speech clarity to identify audio masking friction.
+   - **Pacing Lulls & Narrative Dead Space Audit**: Identifies low-engagement visual dead zones and stagnant scene pacing prior to major retention drop-offs.
 
 ---
 
@@ -28,34 +32,37 @@ In film post-production, **director cuts often suffer 30%–50% audience retenti
 
 ```mermaid
 graph TD
-    UI["React 18 / Vite Web Workspace<br/>(Screening Room & Editorial Dashboard)"] -->|HTTP / SSE Stream| API["FastAPI Backend Engine (Port 8001)"]
+    UI["React 18 / Vite Web Workspace<br/>(Screening Room, Findings & Pipeline Simulator)"] -->|HTTP / SSE Stream| API["FastAPI Backend Engine (Port 8001)"]
 
     subgraph Core ["100% ClickHouse Unified Core Architecture"]
         API --> CH["ClickHouse Unified Storage Engine<br/>(Telemetry + Studio Metadata + AI Investigations + MCP Protocol)"]
         API --> TRAJ["Viewer Sequence Trajectory Engine<br/>(_get_window_trajectories)"]
         CH --> GATE["Statistical Joint Gating Engine<br/>(Laplace & Wilson LCB Engine)"]
         TRAJ --> GATE
-        GATE --> VIS["Multimodal Vision Engine<br/>(FFmpeg Keyframes + Gemini 3.5 Flash / Gemini 3.5 Flash-Lite)"]
-        GATE --> CHAT["Sense AI Interactive Agent<br/>(Google ADK + ClickHouse MCP)"]
+        GATE --> DUAL["Dual-Engine Intelligence Framework<br/>(Behavioral Retention + Technical Safety Audit)"]
+        DUAL --> VIS["Multimodal Vision Engine<br/>(FFmpeg Keyframes + Gemini 3.5 Flash / Gemini 3.5 Flash-Lite)"]
+        DUAL --> CHAT["Sense AI Interactive Agent<br/>(Google ADK + ClickHouse MCP)"]
     end
 
+    API --> INSP["ClickHouse Window SQL Inspector<br/>(Live OLAP Query Engine & Latency Profiler)"]
     VIS --> NLE["Professional NLE Timeline Export Engine<br/>(Final Cut Pro XML .fcpxml & CMX3600 EDL)"]
     CHAT --> NLE
 ```
 
-### 2-Tier Hybrid Intelligence Architecture
+---
 
-Frame Sense uses a **2-tier hybrid intelligence pipeline** to combine deterministic high-throughput telemetry analytics with autonomous LLM agentic reasoning:
+## Core Technical Features & Interactive Tools
 
-1. **Tier 1: Deterministic Signal Processing & Trajectory Engine**
-   - Ingests raw second-by-second viewer telemetry (`PLAY`, `PAUSE`, `EXIT`, `REPLAY`, `SEEK`, `TAB_HIDDEN`).
-   - Evaluates ClickHouse viewer sequence trajectories (`_get_window_trajectories`) to calculate true permanent exit rates ($R_{\text{exit}}$) vs. intentional scene rewatches ($R_{\text{continuation}}$).
-   - Applies Laplace smoothing ($\hat{p}_{\text{smoothed}}$), Wilson score confidence bounds, and sample-aware gating ($n < 5 \rightarrow \text{INSUFFICIENT DATA}$) to eliminate false alarms.
+### 1. ClickHouse Analytical Window SQL Inspector Modal
+- **Live OLAP Window Engine**: Inspect exact production ClickHouse SQL queries executed during real-time telemetry analysis, including windowed Z-score calculations (`stddevPop`, `avg() OVER (...)`).
+- **Syntax Highlighting & Whitespace Preservation**: Custom React Portal modal with zero-blur backdrop, code block indentation preservation, and execution latency benchmarks ($< 9\text{ms}$).
 
-2. **Tier 2: Google ADK Multimodal Vision & MCP Agentic Reasoning**
-   - **Multimodal Vision Engine**: Extracts peak keyframes via FFmpeg and triggers Gemini 3.5 Flash / Flash-Lite multimodal vision analysis over framing, lighting, cut pacing, and visual clutter.
-   - **Google ADK Sense AI Agent**: Executes multi-step Model Context Protocol (MCP) tool queries against ClickHouse, validating viewer trajectories in real time and answering complex studio queries over SSE streams.
+### 2. End-to-End Intelligence Pipeline Simulator
+- **4-Stage Interactive Animation**: Visualizes the complete telemetry journey from raw playback emission $\rightarrow$ statistical joint gating $\rightarrow$ multimodal keyframe laser scan $\rightarrow$ timecode-anchored Sense AI chat response.
+- **User Interaction**: Clickable timeline pins, live playhead synchronization, and target anomaly locking.
 
+### 3. Automatic Viewport Navigation Reset
+- **Seamless Page Navigation**: Instant top-of-page scrolling (`scrollTop = 0`) on route changes to ensure editorial findings and analytical dashboards open cleanly at the header.
 
 ---
 
@@ -107,14 +114,15 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 
 ---
 
-## Behavioral Taxonomy & Editorial Decision Matrix
+## Dual-Engine Behavioral & Safety Matrix
 
-| Trajectory Condition | Taxonomy Title | Domain | Editorial Action | Professional Editor Tip |
+| Engine | Trajectory / Technical Signal | Taxonomy Title | Domain | Editorial Action |
 | :--- | :--- | :--- | :--- | :--- |
-| $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | **`Emotional Scene Replay Hotspot`** | `EMOTIONAL` | `B-ROLL REACTION INSERT` | Insert 1.2s B-Roll reaction shot at peak timecode to reward viewer curiosity. |
-| $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | **`Cognitive Comprehension Barrier`** | `COGNITIVE` | `DIALOGUE ENHANCEMENT & RE-PACE` | Boost dialogue audio clarity (+3dB), duck score (-4dB), or hold shot +1.2s — do NOT trim video. |
-| $N_{\text{exits}} \ge 1 \land N_{\text{exits}} \ge N_{\text{continued}} \land R_{\text{exit}} \ge 0.15$ | **`Critical Scene Exit Drop`** | `RETENTION` | `MATCH CUT & SHOT RE-ORDERING` | Re-anchor visual perspective. Replace static wide shot with medium close-up. |
-| $c_{\text{skips}} > 0 \land R_{\text{exit}} \ge 0.15$ | **`Dead Zone Pacing Skip`** | `PACING` | `HARD CUT TRIM` | Execute razor cut prior to scene transition to eliminate visual dead space. |
+| **Behavioral** | $N_{\text{replayed}} \ge 1 \land N_{\text{continued}} \ge N_{\text{exits}}$ | **`Emotional Scene Replay Hotspot`** | `EMOTIONAL` | Insert 1.2s B-Roll reaction shot at peak timecode to reward viewer curiosity. |
+| **Behavioral** | $N_{\text{paused}} \ge 1 \land N_{\text{continued}} > N_{\text{exits}}$ | **`Cognitive Comprehension Barrier`** | `COGNITIVE` | Boost dialogue audio clarity (+3dB), duck score (-4dB), or hold shot +1.2s — do NOT trim video. |
+| **Behavioral** | $N_{\text{exits}} \ge 1 \land N_{\text{exits}} \ge N_{\text{continued}} \land R_{\text{exit}} \ge 0.15$ | **`Critical Scene Exit Drop`** | `RETENTION` | Re-anchor visual perspective. Replace static wide shot with medium close-up. |
+| **Behavioral** | $c_{\text{skips}} > 0 \land R_{\text{exit}} \ge 0.15$ | **`Dead Zone Pacing Skip`** | `PACING` | Execute razor cut prior to scene transition to eliminate visual dead space. |
+| **Broadcast Safety** | High score loudness & dialogue spectral overlap | **`Dialogue Audio Masking Risk`** | `AUDIO` | Frequency notch filter ambient audio track (-4dB at 1-3kHz) to improve speech intelligibility. |
 
 ### 4-Part Scientific Honesty Taxonomy
 1. **`OBSERVATION`**: Pure empirical telemetry measurement (event counts, unique viewers, $z$-scores, Wilson bounds).
@@ -126,12 +134,15 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 
 ## Feature Matrix
 
+- **Dual-Engine Technical & Behavioral Audit**: Full coverage over audience behavioral telemetry AND broadcast technical safety standards.
 - **Second-by-Second Telemetry Ingestion**: Captures `PLAY`, `PAUSE`, `PROGRESS`, `EXIT`, `SEEK_FORWARD`, `SEEK_BACKWARD`, `REPLAY`, `VOLUME_CHANGE`, `TAB_HIDDEN`, `TAB_VISIBLE`, `COMPLETE`.
+- **ClickHouse Analytical Window SQL Inspector**: Real-time modal inspecting ClickHouse window SQL execution (`lagInFrame`, `stddevPop`, Z-scores) with $<9\text{ms}$ query latency.
+- **End-to-End Pipeline Simulator**: Interactive 4-stage playback animation showcasing real-time telemetry processing, joint gating, multimodal scanning, and AI chat response.
 - **Viewer Trajectory Engine**: Evaluates viewer journeys to prevent false retention drop alerts during scene replays.
 - **Multimodal Vision Investigation**: FFmpeg keyframe extraction at peak timecodes + Gemini 3.5 Flash / Gemini 3.5 Flash-Lite frame analysis.
 - **Zero-Latency Sense AI Chatbot**: Google ADK agent with ClickHouse MCP, pre-loaded context headers, and SSE token streaming.
 - **Professional NLE Export**: Export Final Cut Pro XML (`.fcpxml`) and Edit Decision List (`.edl`) files for Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro.
-- **Real-Anchored & Synthetic Simulator**: Ground-truth probabilistic viewer generator for load and regression testing.
+- **100% ClickHouse Unified Engine**: Zero SQLite dependencies; atomic storage of telemetry, screenings, comments, findings, and chat sessions.
 
 ---
 
@@ -139,7 +150,7 @@ $$z_t = \frac{x_t - \mu_{\text{local}}}{\sigma_{\text{local}} + \epsilon}$$
 
 | Layer | Technology | Key Libraries / Modules |
 | :--- | :--- | :--- |
-| **Frontend UI** | React 18, Vite 5, TypeScript 5 | Tailwind CSS, Lucide React, React Router 6 |
+| **Frontend UI** | React 18, Vite 5, TypeScript 5 | Tailwind CSS, Lucide React, React Router 6, React Portal |
 | **Backend API** | Python 3.11+, FastAPI, Uvicorn | Pydantic v2, `asyncio`, `httpx` |
 | **AI / Agent Framework** | Google ADK (Agent Development Kit) | `google-adk`, `google-genai`, Gemini 3.5 Flash / Gemini 3.5 Flash-Lite |
 | **Database & Analytics** | ClickHouse Cloud / Local Columnar DB | `clickhouse-connect`, ClickHouse MCP Server |
@@ -156,7 +167,7 @@ Frame-Sense/
 │   ├── web/                         # React 18 + Vite + TypeScript Editorial Workspace
 │   │   ├── src/
 │   │   │   ├── pages/               # Findings, Screenings, ScreeningRoom, Dashboard
-│   │   │   ├── components/          # Media player, telemetry overlays, EDL export
+│   │   │   ├── components/          # ClickHouse SQL Inspector, Pipeline Simulator, Media Player, Overlays, EDL export
 │   │   │   └── services/            # API client & SSE streaming controllers
 │   └── api/                         # FastAPI + Google ADK Backend API
 │       ├── agents/                  # ADK agent definitions (Sense AI, Investigator)
@@ -223,3 +234,4 @@ pnpm run build
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+

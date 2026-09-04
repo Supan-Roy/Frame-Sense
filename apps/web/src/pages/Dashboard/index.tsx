@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PipelineAnimation from './PipelineAnimation';
+import { ClickHouseSqlInspector } from '../../components/ClickHouseSqlInspector';
 import {
   Film, Activity, AlertTriangle, Eye, Compass, CheckCircle,
   Sparkles, Database, Layers, ArrowRight,
@@ -37,6 +38,7 @@ export default function Dashboard() {
 
   // Interactive visual animation demo player tab
   const [activeAnimDemo, setActiveAnimDemo] = useState<'ingest' | 'anomaly' | 'vision' | 'collaboration'>('ingest');
+  const [isSqlInspectorOpen, setIsSqlInspectorOpen] = useState(false);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -80,7 +82,22 @@ export default function Dashboard() {
             Real-time audience behavioral telemetry paired with automated AI vision intelligence.
           </p>
         </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSqlInspectorOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-mono text-xs font-semibold transition-all shadow-sm group"
+          >
+            <Database className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            <span>Inspect ClickHouse Window SQL</span>
+          </button>
+        </div>
       </div>
+
+      <ClickHouseSqlInspector
+        isOpen={isSqlInspectorOpen}
+        onClose={() => setIsSqlInspectorOpen(false)}
+      />
 
       {/* Grid Stats Bar */}
       {loading ? (

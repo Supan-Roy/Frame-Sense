@@ -10,6 +10,7 @@ import type { Screening, Anomaly, Reliability, RetentionData, SignalBucket, Comm
 import { FormattedMarkdown } from '../../components/common/FormattedMarkdown';
 import { SeverityBadge } from '../../components/screenings/SeverityBadge';
 import { ReliabilityBadge } from '../../components/screenings/ReliabilityBadge';
+import { ClickHouseSqlInspector } from '../../components/ClickHouseSqlInspector';
 
 interface Overview {
   screening_id: string;
@@ -1299,6 +1300,7 @@ export default function Screenings() {
   const [aiAnomalies, setAiAnomalies] = useState<AnomalyData | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isSqlInspectorOpen, setIsSqlInspectorOpen] = useState(false);
 
   const [feedbackScreening, setFeedbackScreening] = useState<Screening | null>(null);
   const [feedbackComments, setFeedbackComments] = useState<CommentInfo[]>([]);
@@ -1545,6 +1547,45 @@ interface ToastNotification {
               <span>SIMULATION MODE: {simResult.simulation_mode}</span>
             </div>
           )}
+        </div>
+
+        {/* DUAL-ENGINE AUDIT & CLICKHOUSE INSPECTOR CARD */}
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3 shadow-md">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400">
+              <Zap className="h-4 w-4 text-amber-400" />
+              <span>Dual-Engine Intelligence &amp; Technical Audit</span>
+            </div>
+            <button
+              onClick={() => setIsSqlInspectorOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-mono text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <BarChart2 className="h-3.5 w-3.5" />
+              <span>Inspect ClickHouse Window SQL</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
+            <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800 space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-mono font-bold text-emerald-400">
+                <span>Engine 1: Creative Retention</span>
+                <span>Z &gt; 2.0 Active</span>
+              </div>
+              <p className="text-zinc-300 text-[11px] leading-relaxed">
+                Vectorized Z-score outlier detection auditing viewer drop-offs, replay hotspots, and pause friction.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800 space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-mono font-bold text-indigo-400">
+                <span>Engine 2: Technical Safety Audit</span>
+                <span>Audio &amp; Pacing</span>
+              </div>
+              <p className="text-zinc-300 text-[11px] leading-relaxed">
+                Automated check for dialogue audio masking, loudness balance, and pacing lulls.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -2180,6 +2221,13 @@ interface ToastNotification {
           </div>
         </div>
       )}
+      {/* ClickHouse SQL Inspector Modal */}
+      <ClickHouseSqlInspector
+        isOpen={isSqlInspectorOpen}
+        onClose={() => setIsSqlInspectorOpen(false)}
+        screeningId={aiScreening?.screening_id}
+        screeningTitle={aiScreening?.title}
+      />
     </div>
   );
 }
