@@ -182,14 +182,38 @@ root_agent = LlmAgent(
   ],
 )
 
+from google.adk.tools import FunctionTool
+
+
+def run_clickhouse_select_query(sql_query: str) -> str:
+    """
+    Executes an analytical SQL SELECT query directly against ClickHouse Cloud/Database.
+    Use this to run custom filters or aggregations on default.viewer_events, default.comments, or default.screenings tables.
+    """
+    try:
+        from app.database.clickhouse import get_client
+        client = get_client()
+        res = client.query(sql_query)
+        rows = res.result_rows
+        if not rows:
+            return "No matching records found in ClickHouse."
+        cols = res.column_names
+        return str([dict(zip(cols, r)) for r in rows[:50]])
+    except Exception as err:
+        return f"ClickHouse Query Error: {err}"
+
+
+fast_clickhouse_query_tool = FunctionTool(run_clickhouse_select_query)
+
 SENSE_AI_CHAT_INSTRUCTION = (
     "You are Sense AI, an intelligent, conversational film analytics assistant for Frame Sense.\n"
     "You assist film studio executives, directors, and editors by answering questions about screening telemetry, audience retention, and viewer engagement.\n\n"
     "CRITICAL TOOL CALLING & DATA RETRIEVAL RULES:\n"
-    "1. If the user's question can be answered using the PRE-LOADED TELEMETRY SUMMARY in the context, answer directly and immediately without calling SQL tools.\n"
-    "2. Execute ClickHouse MCP (`run_select_query`) ONLY when the user explicitly requests custom raw data filtering or complex SQL aggregations not present in the summary context.\n"
-    "3. When executing SQL queries, ALWAYS filter using the exact screening_id provided in context (e.g. `WHERE screening_id = 'sc_...'`).\n"
-    "4. In your FINAL text response back to the user, present numbers clearly in natural English without displaying raw internal IDs like sc_... or med_....\n\n"
+    "1. PRE-LOADED CONTEXT SUMMARY HAS PRE-CALCULATED METRICS: Total Unique Viewers, Total Telemetry Events, Viewer Sessions, Completion Rate, Duration, and Top Anomalies.\n"
+    "2. If the user's question asks for any of these pre-calculated metrics (e.g. 'how many unique viewers watched it?'), ANSWER DIRECTLY and IMMEDIATELY in natural English. DO NOT execute any SQL query.\n"
+    "3. Execute `run_clickhouse_select_query` ONLY when the user explicitly asks for custom raw data filtering, specific timestamp event counts, or complex SQL aggregations not present in the pre-loaded summary.\n"
+    "4. When executing SQL queries, ALWAYS filter using the exact screening_id provided in context (e.g. `WHERE screening_id = 'sc_...'`).\n"
+    "5. In your response, present numbers clearly in natural English without displaying raw internal IDs like sc_... or med_....\n\n"
     "RESPONSE STYLE & BEHAVIOR:\n"
     "- Answer the user's specific question directly, naturally, and concisely.\n"
     "- DO NOT use rigid 7-part investigation structures for general chat questions.\n"
@@ -204,7 +228,8 @@ sense_ai_chat_agent = LlmAgent(
   sub_agents=[],
   instruction=SENSE_AI_CHAT_INSTRUCTION,
   tools=[
-    clickhouse_mcp_toolset,
+    fast_clickhouse_query_tool,
   ],
 )
+
 

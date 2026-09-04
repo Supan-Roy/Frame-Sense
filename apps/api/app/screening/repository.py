@@ -369,7 +369,7 @@ class ScreeningRepository:
         LEFT JOIN default.chat_messages m ON s.session_id = m.session_id
         WHERE s.rn = 1
         GROUP BY s.session_id, s.title, s.created_at, s.updated_at
-        HAVING count(m.message_id) = 0
+        HAVING countIf(length(m.message_id) > 0) = 0
         ORDER BY s.created_at DESC
         LIMIT 1
         """, parameters={"sid": screening_id})

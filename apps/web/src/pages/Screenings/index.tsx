@@ -869,7 +869,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       const data: ChatSession[] = await res.json();
       setSessions(data);
       if (data.length > 0) {
-        setActiveSessionId(data[0].session_id);
+        setActiveSessionId(prev => (prev && data.some(s => s.session_id === prev) ? prev : data[0].session_id));
       } else {
         const createRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
           method: 'POST',

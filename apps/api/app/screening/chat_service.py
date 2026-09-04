@@ -11,6 +11,42 @@ from app.screening.investigator_service import is_quota_exhausted_error
 logger = logging.getLogger("frame_sense.chat_service")
 
 
+def _check_fast_precomputed_answer(prompt: str, screening: Dict[str, Any], overview: Dict[str, Any]) -> str | None:
+    p = prompt.lower().strip()
+    
+    # 1. Unique Viewers
+    if any(k in p for k in ["unique viewers", "how many viewers", "viewer count", "how many people watched", "who watched"]):
+        u_cnt = overview.get("unique_viewers", 0)
+        r_cnt = overview.get("real_viewers", 0)
+        s_cnt = overview.get("synthetic_viewers", 0)
+        return (
+            f"A total of **{u_cnt} unique viewers** have watched **{screening['title']}** "
+            f"({r_cnt} real viewer session{'s' if r_cnt != 1 else ''} and {s_cnt} synthetic profile{'s' if s_cnt != 1 else ''})."
+        )
+    
+    # 2. Completion Rate
+    if any(k in p for k in ["completion rate", "completion", "how many finished", "finish rate"]):
+        c_rate = round((overview.get("completion_rate") or 0.0) * 100, 1)
+        u_sess = overview.get("unique_sessions", 0)
+        c_sess = overview.get("completed_sessions", 0)
+        return (
+            f"The overall screening completion rate for **{screening['title']}** is **{c_rate}%** "
+            f"({c_sess} completed out of {u_sess} total viewer sessions)."
+        )
+
+    # 3. Video Duration / Length
+    if any(k in p for k in ["how long", "duration", "video length", "runtime"]):
+        dur = round(float(screening.get("media_duration") or 0.0), 2)
+        return f"The total video duration for **{screening['title']}** is **{dur} seconds**."
+
+    # 4. Total Telemetry Events
+    if any(k in p for k in ["total events", "telemetry events", "event count", "how many events"]):
+        t_events = overview.get("total_events", 0)
+        return f"A total of **{t_events} viewer telemetry events** have been logged for **{screening['title']}** in ClickHouse."
+
+    return None
+
+
 async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str) -> Dict[str, Any]:
     """
     Executes Sense AI chat interaction for a screening using dedicated sense_ai_chat_agent.
@@ -48,6 +84,22 @@ async def run_sense_ai_chat(screening_id: str, session_id: str, user_prompt: str
             ])
     except Exception:
         pass
+
+    fast_reply = _check_fast_precomputed_answer(user_prompt, screening, overview)
+    if fast_reply:
+        screening_repo.save_chat_message(
+            session_id=session_id,
+            screening_id=screening_id,
+            role="assistant",
+            content=fast_reply
+        )
+        return {
+            "status": "success",
+            "quota_exhausted": False,
+            "session_id": session_id,
+            "screening_id": screening_id,
+            "messages": screening_repo.get_chat_messages(session_id)
+        }
 
     # 3. Get past messages for conversation context (keep recent 6 messages)
     past_messages = screening_repo.get_chat_messages(session_id)
@@ -183,6 +235,18 @@ async def stream_sense_ai_chat(screening_id: str, session_id: str, user_prompt: 
                 ])
         except Exception:
             pass
+
+        fast_reply = _check_fast_precomputed_answer(user_prompt, screening, overview)
+        if fast_reply:
+            screening_repo.save_chat_message(
+                session_id=session_id,
+                screening_id=screening_id,
+                role="assistant",
+                content=fast_reply
+            )
+            yield f"data: {json.dumps({'type': 'chunk', 'text': fast_reply})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'session_id': session_id, 'status': 'success'})}\n\n"
+            return
 
         past_messages = screening_repo.get_chat_messages(session_id)
         
