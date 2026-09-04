@@ -610,8 +610,8 @@ export default function Findings() {
       {selectedScreening && (
         <div className="fixed inset-0 z-50 bg-studio-950 flex flex-col overflow-hidden animate-in fade-in duration-200">
           {/* Workspace Top Header Bar */}
-          <div className="shrink-0 px-6 py-3 bg-studio-900 border-b border-studio-800 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="shrink-0 px-4 sm:px-6 py-3 bg-studio-900 border-b border-studio-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
               <button
                 onClick={() => setSelectedScreening(null)}
                 className="p-1.5 rounded-lg bg-studio-800 hover:bg-studio-700 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold"
@@ -619,7 +619,7 @@ export default function Findings() {
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to Films</span>
               </button>
-              <div className="h-5 w-px bg-studio-800" />
+              <div className="h-5 w-px bg-studio-800 hidden sm:block" />
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                   <span>{selectedScreening.title}</span>
@@ -627,24 +627,24 @@ export default function Findings() {
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent ml-2" />
                   )}
                 </h2>
-                <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground flex-wrap">
                   <span>Duration: {fmtSec(selectedScreening.media_duration || 0)}</span>
                   <span>•</span>
-                  <span>{editCues.length} Edit Cut Cues Detected</span>
+                  <span>{editCues.length} Edit Cut Cues</span>
                   <span>•</span>
-                  <span className="text-emerald-400 font-semibold">+18.4% Net Retention Recovery</span>
+                  <span className="text-emerald-400 font-semibold">+18.4% Net Recovery</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={exportXML}
                 className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition-colors flex items-center gap-2 shadow-lg shadow-amber-500/20"
                 title="Export FCPXML Timeline for Premiere Pro, DaVinci Resolve & Final Cut Pro"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Export XML (Premiere / Resolve)</span>
+                <span>Export XML</span>
               </button>
               <button
                 onClick={exportEDL}
@@ -658,9 +658,9 @@ export default function Findings() {
           </div>
 
           {/* Workspace Main Split Body */}
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
             {/* LEFT COLUMN: CUSTOM SECURE VIDEO STUDIO PLAYER */}
-            <div className="w-full md:w-1/2 bg-black border-r border-studio-800 flex flex-col justify-between relative overflow-hidden">
+            <div className="w-full md:w-1/2 bg-black border-b md:border-b-0 md:border-r border-studio-800 flex flex-col justify-between relative shrink-0 md:shrink">
               {/* Active Edit Cue Overlay Banner */}
               {activeCueId && (() => {
                 const cue = editCues.find(c => c.id === activeCueId);

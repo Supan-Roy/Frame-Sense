@@ -1095,7 +1095,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
         {/* Modal Body: Sidebar + Main Chat Thread */}
         <div className="flex-1 flex min-h-0">
           {/* Left Sidebar: Chat Sessions History */}
-          <div className="w-72 shrink-0 border-r border-white/10 bg-studio-950/80 p-4 flex flex-col gap-3">
+          <div className="hidden md:flex w-72 shrink-0 border-r border-white/10 bg-studio-950/80 p-4 flex-col gap-3">
             <button
               onClick={handleCreateSession}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer group"
@@ -1718,53 +1718,57 @@ interface ToastNotification {
         </div>
       ) : (
         <div className="rounded-lg border bg-card overflow-hidden">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b bg-studio-950/50 text-muted-foreground font-medium text-xs uppercase tracking-wider">
-                <th className="p-4">Film Screening</th><th className="p-4">Duration</th><th className="p-4">Created</th><th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {screenings.map(s => (
-                <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
-                  <td className="p-4 font-medium">
-                    <a
-                      href={`/screening/${s.public_token}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Open Targeted Audience Screening Room"
-                      className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
-                    >
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</span>
-                      <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
-                    </a>
-                    {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
-                  </td>
-                  <td className="p-4 text-muted-foreground">
-                    <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span></div>
-                  </td>
-                  <td className="p-4 text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</td>
-                  <td className="p-4 text-right space-x-2">
-                    <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
-                      {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
-                    </button>
-                    <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
-                      <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
-                    </button>
-                    <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
-                      <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
-                    </button>
-                    <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
-                      <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
-                    </button>
-                    <button onClick={() => setScreeningToDelete(s)} className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all">
-                      <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm min-w-[640px]">
+              <thead>
+                <tr className="border-b bg-studio-950/50 text-muted-foreground font-medium text-xs uppercase tracking-wider">
+                  <th className="p-4">Film Screening</th><th className="p-4">Duration</th><th className="p-4">Created</th><th className="p-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y">
+                {screenings.map(s => (
+                  <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
+                    <td className="p-4 font-medium">
+                      <a
+                        href={`/screening/${s.public_token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open Targeted Audience Screening Room"
+                        className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</span>
+                        <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
+                      </a>
+                      {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
+                    </td>
+                    <td className="p-4 text-muted-foreground">
+                      <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span></div>
+                    </td>
+                    <td className="p-4 text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</td>
+                    <td className="p-4 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
+                          {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
+                        </button>
+                        <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
+                          <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
+                        </button>
+                        <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
+                          <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
+                        </button>
+                        <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
+                          <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
+                        </button>
+                        <button onClick={() => setScreeningToDelete(s)} className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all">
+                          <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

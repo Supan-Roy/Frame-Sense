@@ -639,23 +639,23 @@ export default function ScreeningRoom() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans select-none">
       {/* Header bar */}
-      <header className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-md px-6 py-4 sticky top-0 z-20 flex items-center justify-between">
+      <header className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <Film className="h-5 w-5 text-red-600 animate-pulse" />
-          <div>
-            <h1 className="font-bold text-sm tracking-wide text-zinc-100 uppercase">{screening.title}</h1>
+          <Film className="h-5 w-5 text-red-600 animate-pulse shrink-0" />
+          <div className="min-w-0">
+            <h1 className="font-bold text-sm tracking-wide text-zinc-100 uppercase truncate">{screening.title}</h1>
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Focus Group Screening Room</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800/40">
-          <Eye className="h-3.5 w-3.5 text-red-600" />
+        <div className="self-start sm:self-auto flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800/40">
+          <Eye className="h-3.5 w-3.5 text-red-600 shrink-0" />
           <span>Anonymous Research Active</span>
         </div>
       </header>
 
       {/* Main Content Layout */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
+      <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 md:p-12">
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
           {/* Left Column: Custom Netflix Video Player */}
@@ -725,7 +725,7 @@ export default function ScreeningRoom() {
                 </div>
 
                 {/* Bottom Scrim (Seekbar and controls) */}
-                <div className="bg-gradient-to-t from-black/90 via-black/50 to-transparent px-6 pb-6 pt-12 flex flex-col gap-4 pointer-events-auto">
+                <div className="bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 sm:px-6 pb-3 sm:pb-6 pt-8 sm:pt-12 flex flex-col gap-2 sm:gap-4 pointer-events-auto">
                   
                   {/* Custom Seekbar Slider */}
                   <div className="relative group/seekbar pt-2 pb-1">

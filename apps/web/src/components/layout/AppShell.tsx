@@ -1,6 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Film, LayoutDashboard, Settings, AlertOctagon, Github, Linkedin, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Film, LayoutDashboard, Settings, AlertOctagon, Github, Linkedin, ExternalLink, Menu, X } from 'lucide-react';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -62,10 +62,18 @@ function LogoText({ className = "h-5 w-auto select-none pointer-events-none" }: 
 }
 
 export default function AppShell({ children }: AppShellProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile sidebar on route change
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground">
-      {/* Sidebar */}
-      <aside className="flex h-full w-64 flex-col border-r bg-studio-950/70 backdrop-blur-sm px-4 py-6">
+      {/* Desktop Sidebar (hidden on mobile, visible md+) */}
+      <aside className="hidden md:flex h-full w-64 flex-col border-r bg-studio-950/70 backdrop-blur-sm px-4 py-6 shrink-0">
         {/* Logo */}
         <div className="px-2 mb-8 flex items-center">
           <LogoWordmark className="h-9 w-auto select-none pointer-events-none" />
@@ -125,26 +133,121 @@ export default function AppShell({ children }: AppShellProps) {
             <Settings className="h-4 w-4" /> Settings
           </NavLink>
         </nav>
-
-
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Mobile Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+        />
+      )}
 
+      {/* Mobile Drawer (slides out when expander clicked) */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-studio-950 border-r border-border p-6 flex flex-col transition-transform duration-300 ease-in-out md:hidden ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-8">
+          <LogoWordmark className="h-8 w-auto select-none pointer-events-none" />
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+            aria-label="Close Menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1.5">
+          <NavLink
+            to="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition-all ${
+                isActive 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`
+            }
+          >
+            <LayoutDashboard className="h-4 w-4" /> Dashboard
+          </NavLink>
+
+          <NavLink
+            to="/screenings"
+            onClick={() => setMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition-all ${
+                isActive 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`
+            }
+          >
+            <Film className="h-4 w-4" /> Screenings
+          </NavLink>
+
+          <NavLink
+            to="/findings"
+            onClick={() => setMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition-all ${
+                isActive 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`
+            }
+          >
+            <AlertOctagon className="h-4 w-4" /> Editorial Findings
+          </NavLink>
+
+          <NavLink
+            to="/settings"
+            onClick={() => setMobileMenuOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-semibold transition-all ${
+                isActive 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`
+            }
+          >
+            <Settings className="h-4 w-4" /> Settings
+          </NavLink>
+        </nav>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        {/* Mobile Header Bar with Menu Expander Button */}
+        <header className="md:hidden flex items-center justify-between border-b border-border/60 bg-studio-950/90 backdrop-blur-md px-4 py-3 sticky top-0 z-30 shrink-0">
+          <LogoWordmark className="h-7 w-auto select-none pointer-events-none" />
+          
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-semibold transition-all"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            <span>Menu</span>
+          </button>
+        </header>
 
         {/* View container */}
-        <main className="flex-1 overflow-y-auto px-8 py-8">
+        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
           <div className="max-w-7xl mx-auto flex flex-col min-h-full">
             <div className="flex-1 min-h-[85vh]">
               {children}
             </div>
 
             {/* Footer */}
-            <footer className="mt-20 border-t border-border/60 pt-10 pb-6 text-xs text-muted-foreground">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <footer className="mt-16 md:mt-20 border-t border-border/60 pt-8 pb-6 text-xs text-muted-foreground">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
                 {/* Column 1: Brand & Developer Info */}
-                <div className="space-y-4 col-span-1 md:col-span-1">
+                <div className="space-y-4 col-span-1 sm:col-span-2 md:col-span-1">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 bg-studio-900 border border-border/80 rounded-lg shadow-sm select-none pointer-events-none">
                       <Logo className="h-5 w-5 select-none pointer-events-none" />
