@@ -40,13 +40,16 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Local media uploads and database files
-apps/api/data/
+# Local media uploads and database files (preserve sample seeds)
+apps/api/data/*
+!apps/api/data/screenings.json
 
-# Local root data folder (for temporary tests)
-data/
+# Local root data folder (preserve Scene 01 sample image)
+data/*
+!data/media/Scene 01.png
 
 # Temporary agent scratch files
 scratch/
+
 
 
