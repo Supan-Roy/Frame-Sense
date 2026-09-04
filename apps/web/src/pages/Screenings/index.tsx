@@ -1541,50 +1541,20 @@ interface ToastNotification {
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           {aiOverview?.reliability && <ReliabilityBadge reliability={aiOverview.reliability} />}
-          {simResult && (
-            <div className="flex items-center gap-2 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-mono font-semibold">
-              <FlaskConical className="h-3 w-3" />
-              <span>SIMULATION MODE: {simResult.simulation_mode}</span>
-            </div>
-          )}
-        </div>
-
-        {/* DUAL-ENGINE AUDIT & CLICKHOUSE INSPECTOR CARD */}
-        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3 shadow-md">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400">
-              <Zap className="h-4 w-4 text-amber-400" />
-              <span>Dual-Engine Intelligence &amp; Technical Audit</span>
-            </div>
+          <div className="flex items-center gap-2">
+            {simResult && (
+              <div className="flex items-center gap-2 text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-mono font-semibold">
+                <FlaskConical className="h-3 w-3" />
+                <span>SIMULATION MODE: {simResult.simulation_mode}</span>
+              </div>
+            )}
             <button
               onClick={() => setIsSqlInspectorOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-mono text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-mono text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
             >
               <BarChart2 className="h-3.5 w-3.5" />
               <span>Inspect ClickHouse Window SQL</span>
             </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
-            <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800 space-y-1">
-              <div className="flex items-center justify-between text-[11px] font-mono font-bold text-emerald-400">
-                <span>Engine 1: Creative Retention</span>
-                <span>Z &gt; 2.0 Active</span>
-              </div>
-              <p className="text-zinc-300 text-[11px] leading-relaxed">
-                Vectorized Z-score outlier detection auditing viewer drop-offs, replay hotspots, and pause friction.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800 space-y-1">
-              <div className="flex items-center justify-between text-[11px] font-mono font-bold text-indigo-400">
-                <span>Engine 2: Technical Safety Audit</span>
-                <span>Audio &amp; Pacing</span>
-              </div>
-              <p className="text-zinc-300 text-[11px] leading-relaxed">
-                Automated check for dialogue audio masking, loudness balance, and pacing lulls.
-              </p>
-            </div>
           </div>
         </div>
 
