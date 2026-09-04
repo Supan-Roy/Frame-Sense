@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PipelineAnimation from './PipelineAnimation';
 import {
   Film, Activity, AlertTriangle, Eye, Compass, CheckCircle,
   Sparkles, Database, Layers, ArrowRight,
@@ -234,6 +235,11 @@ export default function Dashboard() {
                 <span>AI Vision Findings</span>
               </Link>
             </div>
+          </div>
+
+          {/* END-TO-END INTELLIGENCE PIPELINE WORKFLOW ANIMATION */}
+          <div className="pt-2">
+            <PipelineAnimation />
           </div>
 
           {/* PRODUCT CAPABILITY SHOWCASE */}
