@@ -5,22 +5,35 @@
 
 ---
 
-###  Interactive Platform Demo Showcase
-
-#### 1. End-to-End Intelligence Pipeline Simulator
+###  End-to-End Intelligence Pipeline Simulator
 ![Frame Sense End-to-End Workflow Simulator](apps/web/public/workflow_simulator.gif)
 
-#### 2. Second-by-Second Audience Retention Heatmap
-![Audience Retention Heatmap](apps/web/public/heatmap.gif)
+---
 
-#### 3. AI Editorial Cut Suggestions & Taxonomy Findings
-![AI Editorial Cut Suggestions](apps/web/public/cut_suggestion.gif)
+###  Interactive Platform Demo Gallery
 
-#### 4. Sample-Aware Statistical Joint Gating & Anomaly Detection
-![Anomaly Detection & Joint Gating](apps/web/public/anomaly_detection.png)
-
-#### 5. Sense AI Co-Pilot & Studio Assistant
-![Sense AI Co-Pilot Assistant](apps/web/public/ai_copilot.png)
+<table border="0">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <h4>1. Audience Retention Heatmap</h4>
+      <img src="apps/web/public/heatmap.gif" alt="Audience Retention Heatmap" width="100%" />
+    </td>
+    <td width="50%" align="center" valign="top">
+      <h4>2. Joint Gating & Anomaly Detection</h4>
+      <img src="apps/web/public/anomaly_detection.png" alt="Anomaly Detection & Joint Gating" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <h4>3. AI Editorial Cut Suggestions</h4>
+      <img src="apps/web/public/cut_suggestion.gif" alt="AI Editorial Cut Suggestions" width="100%" />
+    </td>
+    <td width="50%" align="center" valign="top">
+      <h4>4. Sense AI Co-Pilot Assistant</h4>
+      <img src="apps/web/public/ai_copilot.png" alt="Sense AI Co-Pilot Assistant" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
