@@ -44,9 +44,8 @@ Desktop.ini
 apps/api/data/*
 !apps/api/data/screenings.json
 
-# Local root data folder (preserve Scene 01 sample image)
-data/*
-!data/media/Scene 01.png
+# Local root data folder
+data/
 
 # Temporary agent scratch files
 scratch/
