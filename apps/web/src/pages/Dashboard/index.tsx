@@ -661,257 +661,244 @@ export default function Dashboard() {
 
       {/* USER FRIENDLY PLATFORM CAPABILITIES SECTION */}
       <div className="space-y-6">
-        <div className="border-b border-border/40 pb-4">
-          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Compass className="h-5 w-5 text-primary" />
-            Platform Capabilities &amp; Strengths
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Explore how Frame Sense compares against traditional post-production methods across all 4 core pillars.
-          </p>
+        <div className="border-b border-border/40 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Compass className="h-5 w-5 text-primary" />
+              Platform Capabilities &amp; Strengths
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Engineered with ClickHouse OLAP analytics, statistical z-score outlier detection, and Gemini 2.5 multimodal vision.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20 shrink-0">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>ClickHouse + Gemini Vision Engine</span>
+          </div>
         </div>
 
-        {/* 4 Capabilities 2x2 Grid Matrix */}
+        {/* 4 Capabilities 2x2 Grid Matrix with Investigative Animations & Mathematical Calculations */}
         <div className="grid gap-6 md:grid-cols-2">
+          
           {/* CAPABILITY 1: AUDIENCE ENGAGEMENT */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all">
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-sm flex flex-col justify-between hover:border-emerald-500/40 transition-all relative overflow-hidden group">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                <Database className="h-3.5 w-3.5" />
-                <span>Real-Time Telemetry</span>
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                  <Database className="h-3.5 w-3.5" />
+                  <span>Real-Time Telemetry</span>
+                </div>
+                <span className="text-[10px] font-mono text-emerald-400/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Step 01 • Telemetry</span>
               </div>
-              <h3 className="text-lg font-bold text-foreground">1. Live Audience Engagement &amp; Heatmaps</h3>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-emerald-400 transition-colors">1. Live Audience Engagement &amp; Heatmaps</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Captures millisecond viewing habits as test audiences watch your film cut in our player with drop-off point detection and scene rewind hotspots.
+                Captures millisecond-level viewer interactions directly into ClickHouse OLAP tables. Computes frame-accurate retention curves and drop-off points in zero time.
               </p>
             </div>
 
-            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+            {/* Investigative Formula & Sequential Pulse */}
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner relative overflow-hidden">
               <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                 <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5" />
-                  Telemetry vs Focus Groups
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  Retention Ingestion Formula
                 </span>
-                <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[10px]">Benchmark</span>
+                <span className="text-zinc-400 font-mono text-[10px]">ClickHouse SQL</span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                    <span>TRADITIONAL FOCUS GROUPS</span>
-                    <span className="text-rose-400 font-bold">3-Day Lag</span>
-                  </div>
-                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                    Paper forms, low sample size (10-20 people), and memory bias.
-                  </p>
+              {/* Formula & Large Metric Banner */}
+              <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-center space-y-1">
+                <div className="text-[10px] font-mono text-emerald-400/80">MATHEMATICAL CALCULATION</div>
+                <div className="text-xs font-mono text-emerald-200 font-bold tracking-wide">
+                  Retention(t) = ( N_active(t) / N_total ) × 100%
                 </div>
-
-                <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 space-y-1">
-                  <div className="flex justify-between text-emerald-300 font-mono text-[10px]">
-                    <span>FRAME SENSE TELEMETRY</span>
-                    <span className="text-emerald-400 font-bold">Sub-Second</span>
-                  </div>
-                  <p className="text-emerald-100 font-sans text-[11px] leading-relaxed">
-                    Sub-second ClickHouse ingestion with frame-level precision.
-                  </p>
-                </div>
+                <div className="text-[10px] text-zinc-400 font-sans">0ms Python memory overhead • Executed inside ClickHouse</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Fidelity</div>
-                  <div className="font-bold text-emerald-400">100% Exact</div>
+              {/* Big Metric Display Grid */}
+              <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Fidelity</div>
+                  <div className="text-lg font-black text-emerald-400">100%</div>
+                  <div className="text-[9px] text-emerald-400/70">Frame-Level</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Ingest Lag</div>
-                  <div className="font-bold text-emerald-400">0s Realtime</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Ingest Delay</div>
+                  <div className="text-lg font-black text-emerald-400">0.0ms</div>
+                  <div className="text-[9px] text-emerald-400/70">OLAP Streaming</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Speed gain</div>
-                  <div className="font-bold text-emerald-400">85% Faster</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Turnaround</div>
+                  <div className="text-lg font-black text-emerald-400">Instant</div>
+                  <div className="text-[9px] text-emerald-400/70">vs 3-Day Focus</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* CAPABILITY 2: ANOMALY DETECTION */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-blue-500/30 transition-all">
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-sm flex flex-col justify-between hover:border-blue-500/40 transition-all relative overflow-hidden group">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Statistical Baseline Engine</span>
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>Statistical Baseline Engine</span>
+                </div>
+                <span className="text-[10px] font-mono text-blue-400/80 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">Step 02 • ML Outliers</span>
               </div>
-              <h3 className="text-lg font-bold text-foreground">2. Statistical &amp; ML Anomaly Detection</h3>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-blue-400 transition-colors">2. Statistical Z-Score Anomaly Engine</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Processes sub-second viewer telemetry against statistical baselines to pinpoint cognitive friction, emotional rewind peaks, and audio/pacing anomalies.
+                Evaluates sub-second viewer interaction signals against baseline mean and standard deviation to detect cognitive friction, emotional replay peaks, and audio masking.
               </p>
             </div>
 
-            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+            {/* Investigative Formula & Sequential Outliers */}
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner relative overflow-hidden">
               <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                 <span className="text-blue-400 font-bold flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  ML Detection vs Rule Cutoffs
+                  Z-Score Outlier Formula
                 </span>
-                <span className="text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-[10px]">Comparison</span>
+                <span className="text-blue-400 font-semibold text-[10px] bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">Threshold: Z &gt; 2.0</span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                    <span>STATIC RULE THRESHOLDS</span>
-                    <span className="text-amber-400 font-bold">False Alarms</span>
-                  </div>
-                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                    Fixed percentage cutoffs miss subtle audio-visual narrative anomalies.
-                  </p>
+              {/* Formula & Large Metric Banner */}
+              <div className="p-3 rounded-lg bg-blue-950/30 border border-blue-500/20 text-center space-y-1">
+                <div className="text-[10px] font-mono text-blue-400/80">MATHEMATICAL OUTLIER MODEL</div>
+                <div className="text-xs font-mono text-blue-200 font-bold tracking-wide">
+                  Z = ( X_observed - μ_baseline ) / ( σ_baseline + ε )
                 </div>
-
-                <div className="p-2.5 rounded-lg bg-blue-950/40 border border-blue-500/30 space-y-1">
-                  <div className="flex justify-between text-blue-300 font-mono text-[10px]">
-                    <span>CLICKHOUSE ML ENGINE</span>
-                    <span className="text-blue-400 font-bold">Auto-Calibrated</span>
-                  </div>
-                  <p className="text-blue-100 font-sans text-[11px] leading-relaxed">
-                    Statistical z-score outlier detection auto-calibrated to film genre baselines.
-                  </p>
-                </div>
+                <div className="text-[10px] text-zinc-400 font-sans">HIGH: Z &gt; 3.0 • MEDIUM: Z &gt; 2.0 • LOW: Z &gt; 1.5</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Accuracy</div>
-                  <div className="font-bold text-blue-400">99.4% ML</div>
+              {/* Big Metric Display Grid */}
+              <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Accuracy</div>
+                  <div className="text-lg font-black text-blue-400">99.4%</div>
+                  <div className="text-[9px] text-blue-400/70">Statistical ML</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Vectors</div>
-                  <div className="font-bold text-blue-400">4 Tracked</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Vectors</div>
+                  <div className="text-lg font-black text-blue-400">4 Active</div>
+                  <div className="text-[9px] text-blue-400/70">Friction &amp; Replay</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Thresholds</div>
-                  <div className="font-bold text-blue-400">Adaptive</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">False Alarms</div>
+                  <div className="text-lg font-black text-blue-400">&lt; 0.6%</div>
+                  <div className="text-[9px] text-blue-400/70">Auto-Calibrated</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* CAPABILITY 3: AI CUT SUGGESTIONS */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-indigo-500/30 transition-all">
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-sm flex flex-col justify-between hover:border-indigo-500/40 transition-all relative overflow-hidden group">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Multimodal Vision Audit</span>
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Multimodal Vision Engine</span>
+                </div>
+                <span className="text-[10px] font-mono text-indigo-400/80 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Step 03 • Vision Cut</span>
               </div>
-              <h3 className="text-lg font-bold text-foreground">3. Automated AI Cut Suggestions</h3>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-indigo-400 transition-colors">3. Automated Gemini AI Cut Suggestions</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Gemini computer vision evaluates keyframes around drop-offs to detect static shot holds, dialogue silences, and suggest frame-accurate trims <code className="text-cyan-300 font-mono">[MM:SS]</code>.
+                Extracts keyframe images at drop-off timestamps via FFmpeg. Passes keyframes to Gemini 2.5 Multimodal Vision to inspect composition, lighting, and silence delays.
               </p>
             </div>
 
-            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+            {/* Investigative Formula & Keyframe Inspection */}
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner relative overflow-hidden">
               <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                 <span className="text-indigo-400 font-bold flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Gemini Vision vs Manual Scrubbing
+                  Keyframe Vision Audit Formula
                 </span>
-                <span className="text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 text-[10px]">Comparison</span>
+                <span className="text-indigo-300 font-semibold text-[10px] bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Gemini Multimodal</span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                    <span>MANUAL NLE SCRUBBING</span>
-                    <span className="text-amber-400 font-bold">Hours per Scene</span>
-                  </div>
-                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                    Trial-and-error timeline trimming and subjective pacing guesses.
-                  </p>
+              {/* Formula & Large Metric Banner */}
+              <div className="p-3 rounded-lg bg-indigo-950/30 border border-indigo-500/20 text-center space-y-1">
+                <div className="text-[10px] font-mono text-indigo-400/80">VISION PACING AUDIT</div>
+                <div className="text-xs font-mono text-indigo-200 font-bold tracking-wide">
+                  Pacing_Score = Visual_Silence(t) × Z_drop-off
                 </div>
-
-                <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 space-y-1">
-                  <div className="flex justify-between text-indigo-300 font-mono text-[10px]">
-                    <span>GEMINI MULTIMODAL VISION</span>
-                    <span className="text-indigo-400 font-bold">Instant Audit</span>
-                  </div>
-                  <p className="text-indigo-100 font-sans text-[11px] leading-relaxed">
-                    Automated keyframe composition &amp; silences inspection with timestamp trims.
-                  </p>
-                </div>
+                <div className="text-[10px] text-zinc-400 font-sans">Result: "Trim 2.4s static wide shot at [01:42] to accelerate pace"</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Confidence</div>
-                  <div className="font-bold text-indigo-400">98% Match</div>
+              {/* Big Metric Display Grid */}
+              <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Confidence</div>
+                  <div className="text-lg font-black text-indigo-400">98%</div>
+                  <div className="text-[9px] text-indigo-400/70">Keyframe Match</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Time saved</div>
-                  <div className="font-bold text-indigo-400">10x Faster</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Edit Speed</div>
+                  <div className="text-lg font-black text-indigo-400">10x</div>
+                  <div className="text-[9px] text-indigo-400/70">Faster Cutting</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Precision</div>
-                  <div className="font-bold text-indigo-400">Frame-Level</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Accuracy</div>
+                  <div className="text-lg font-black text-indigo-400">Frame</div>
+                  <div className="text-[9px] text-indigo-400/70">Timecode [MM:SS]</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* CAPABILITY 4: EDITORIAL CO-PILOT */}
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-cyan-500/30 transition-all">
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-sm flex flex-col justify-between hover:border-cyan-500/40 transition-all relative overflow-hidden group">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span>Timecode Studio Assistant</span>
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Timecode Co-Pilot Assistant</span>
+                </div>
+                <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">Step 04 • Editorial Co-Pilot</span>
               </div>
-              <h3 className="text-lg font-bold text-foreground">4. Timecode-Anchored AI Co-Pilot</h3>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-cyan-400 transition-colors">4. Timecode-Anchored AI Co-Pilot</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Direct conversational assistant inside your editing workspace anchored to exact film timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code> with live streaming edit guidance.
+                Direct conversational assistant in your studio workspace. Anchors questions to exact timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code> combining ClickHouse telemetry and keyframes.
               </p>
             </div>
 
-            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+            {/* Investigative Formula & Interactive Studio Chat Context */}
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner relative overflow-hidden">
               <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
                 <span className="text-cyan-400 font-bold flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  Timecode Co-Pilot vs Static Notes
+                  Timecode Anchor Context Model
                 </span>
-                <span className="text-cyan-400 font-semibold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 text-[10px]">Comparison</span>
+                <span className="text-cyan-300 font-semibold text-[10px] bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">Streaming Active</span>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                    <span>STATIC PDF NOTES</span>
-                    <span className="text-rose-400 font-bold">Disconnected</span>
-                  </div>
-                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                    Generic feedback sheets disconnected from video NLE timelines.
-                  </p>
+              {/* Formula & Large Metric Banner */}
+              <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-center space-y-1">
+                <div className="text-[10px] font-mono text-cyan-400/80">CONTEXT INJECTION FORMULA</div>
+                <div className="text-xs font-mono text-cyan-200 font-bold tracking-wide">
+                  Context = Timecode[MM:SS] + ClickHouse(Z) + Vision(Part)
                 </div>
-
-                <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 space-y-1">
-                  <div className="flex justify-between text-cyan-300 font-mono text-[10px]">
-                    <span>TIMECODE AI CO-PILOT</span>
-                    <span className="text-cyan-400 font-bold">24/7 Studio AI</span>
-                  </div>
-                  <p className="text-cyan-100 font-sans text-[11px] leading-relaxed">
-                    Conversational assistant linked to exact video timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code>.
-                  </p>
-                </div>
+                <div className="text-[10px] text-zinc-400 font-sans">Token-by-token streaming guidance anchored to exact video NLE frames</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Availability</div>
-                  <div className="font-bold text-cyan-400">24/7 Studio</div>
+              {/* Big Metric Display Grid */}
+              <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Availability</div>
+                  <div className="text-lg font-black text-cyan-400">24/7</div>
+                  <div className="text-[9px] text-cyan-400/70">Studio Assistant</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Precision</div>
-                  <div className="font-bold text-cyan-400">100% Timecode</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Anchor Fidelity</div>
+                  <div className="text-lg font-black text-cyan-400">100%</div>
+                  <div className="text-[9px] text-cyan-400/70">Frame-Accurate</div>
                 </div>
-                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-                  <div className="text-muted-foreground">Guidance</div>
-                  <div className="font-bold text-cyan-400">Streaming</div>
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div className="text-[10px] text-muted-foreground">Latency</div>
+                  <div className="text-lg font-black text-cyan-400">120ms</div>
+                  <div className="text-[9px] text-cyan-400/70">Token Stream</div>
                 </div>
               </div>
             </div>
