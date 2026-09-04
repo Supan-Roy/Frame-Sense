@@ -318,7 +318,7 @@ export default function Dashboard() {
                         className="animate-wave-dash"
                       />
 
-                      {/* 4 Key Milestone Findings Markers */}
+                      {/* 4 Key Milestone Behavioral Findings Markers */}
                       <g className="animate-pulse">
                         <circle cx="130" cy="55" r="4" fill="#f43f5e" />
                         <text x="135" y="52" fill="#f43f5e" fontSize="9" fontFamily="sans-serif" fontWeight="700">Pacing Drop-off [01:42]</text>
@@ -326,7 +326,7 @@ export default function Dashboard() {
 
                       <g className="animate-pulse">
                         <circle cx="210" cy="65" r="4" fill="#f59e0b" />
-                        <text x="215" y="62" fill="#fbbf24" fontSize="9" fontFamily="sans-serif" fontWeight="700">AI Cut Suggestion [02:15]</text>
+                        <text x="215" y="62" fill="#fbbf24" fontSize="9" fontFamily="sans-serif" fontWeight="700">Scrub-Forward Spike [02:15]</text>
                       </g>
 
                       <g className="animate-pulse">
@@ -336,7 +336,7 @@ export default function Dashboard() {
 
                       <g className="animate-pulse">
                         <circle cx="410" cy="75" r="4" fill="#06b6d4" />
-                        <text x="415" y="72" fill="#22d3ee" fontSize="9" fontFamily="sans-serif" fontWeight="700">AI Co-Pilot [04:20]</text>
+                        <text x="415" y="72" fill="#22d3ee" fontSize="9" fontFamily="sans-serif" fontWeight="700">Session Exit Spike [04:20]</text>
                       </g>
                     </svg>
 
@@ -346,7 +346,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* 4 Detailed Findings Cards (2-3 lines max each) */}
+                  {/* 4 Detailed User Behavioral Findings Cards (2-3 lines max each) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono pt-1">
                     <div className="p-2.5 rounded bg-zinc-900 border border-rose-500/30 space-y-1">
                       <div className="text-rose-400 font-bold flex items-center justify-between">
@@ -354,37 +354,37 @@ export default function Dashboard() {
                         <span className="text-[9px] bg-rose-500/20 px-1.5 py-0.2 rounded">Retention Dip</span>
                       </div>
                       <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
-                        Viewer attention drops 24% during static wide shot holding without dialogue; triggers pacing alert.
+                        Viewer attention drops 24% during static wide shot holding without dialogue; triggers pacing drop-off alert.
                       </p>
                     </div>
 
                     <div className="p-2.5 rounded bg-zinc-900 border border-amber-500/30 space-y-1">
                       <div className="text-amber-400 font-bold flex items-center justify-between">
-                        <span>AI Cut Suggestion [02:15]</span>
-                        <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.2 rounded">Trim -1.8s</span>
+                        <span>Scrub-Forward Spike [02:15]</span>
+                        <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.2 rounded">Fast-Forward</span>
                       </div>
                       <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
-                        Vision model recommends cutting 1.8s from Scene 02 transition to accelerate narrative momentum.
+                        38% of test viewers scrubbed forward to skip past slow cutaway transitions and reach main dialogue.
                       </p>
                     </div>
 
                     <div className="p-2.5 rounded bg-zinc-900 border border-blue-500/30 space-y-1">
                       <div className="text-blue-400 font-bold flex items-center justify-between">
                         <span>Replay Hotspot [03:15]</span>
-                        <span className="text-[9px] bg-blue-500/20 px-1.5 py-0.2 rounded">3.2x Peak</span>
+                        <span className="text-[9px] bg-blue-500/20 px-1.5 py-0.2 rounded">3.2x Rewind</span>
                       </div>
                       <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
-                        High scene rewatch cluster (3.2x baseline) as viewers replay emotional climax revelation beat.
+                        High scene rewatch cluster (3.2x baseline) as 94% of viewers rewound to rewatch dramatic plot reveal beat.
                       </p>
                     </div>
 
                     <div className="p-2.5 rounded bg-zinc-900 border border-cyan-500/30 space-y-1">
                       <div className="text-cyan-400 font-bold flex items-center justify-between">
-                        <span>AI Co-Pilot [04:20]</span>
-                        <span className="text-[9px] bg-cyan-500/20 px-1.5 py-0.2 rounded">Audio Query</span>
+                        <span>Session Exit Spike [04:20]</span>
+                        <span className="text-[9px] bg-cyan-500/20 px-1.5 py-0.2 rounded">Abrupt Exit</span>
                       </div>
                       <p className="text-zinc-300 font-sans text-[10px] leading-relaxed">
-                        Timecode query analyzes dialogue clarity &amp; recommends -4dB score ducking during speech track.
+                        Sudden 18% session exit peak as viewers abandoned stream during loud background score masking speech track.
                       </p>
                     </div>
                   </div>
