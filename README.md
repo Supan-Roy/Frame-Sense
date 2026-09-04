@@ -3,7 +3,24 @@
 **Autonomous Post-Production Telemetry, Broadcast Quality & Multimodal Vision Intelligence System**  
 *Built for the **Agentic Cinema: The Blockbuster Hackathon***
 
+---
+
+###  Interactive Platform Demo Showcase
+
+#### 1. End-to-End Intelligence Pipeline Simulator
 ![Frame Sense End-to-End Workflow Simulator](apps/web/public/workflow_simulator.gif)
+
+#### 2. Second-by-Second Audience Retention Heatmap
+![Audience Retention Heatmap](apps/web/public/heatmap.gif)
+
+#### 3. AI Editorial Cut Suggestions & Taxonomy Findings
+![AI Editorial Cut Suggestions](apps/web/public/cut_suggestion.gif)
+
+#### 4. Sample-Aware Statistical Joint Gating & Anomaly Detection
+![Anomaly Detection & Joint Gating](apps/web/public/anomaly_detection.png)
+
+#### 5. Sense AI Co-Pilot & Studio Assistant
+![Sense AI Co-Pilot Assistant](apps/web/public/ai_copilot.png)
 
 ---
 
