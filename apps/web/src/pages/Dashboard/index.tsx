@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Film, Activity, AlertTriangle, Eye, Compass, CheckCircle,
   Sparkles, Database, Layers, ArrowRight,
-  Video, MessageSquare, PlayCircle, ChevronRight, ArrowUpRight
+  MessageSquare, PlayCircle, ChevronRight, ArrowUpRight
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -661,372 +661,261 @@ export default function Dashboard() {
 
       {/* USER FRIENDLY PLATFORM CAPABILITIES SECTION */}
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Compass className="h-5 w-5 text-primary" />
-              Platform Capabilities &amp; Strengths
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Explore how Frame Sense compares against traditional post-production methods to elevate film editing accuracy.
-            </p>
-          </div>
-
-          {/* Interactive User-Friendly Tabs */}
-          <div className="flex items-center gap-1.5 bg-secondary/60 p-1 rounded-xl border border-border/60 text-xs font-medium overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('retention')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'retention' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Activity className="h-3.5 w-3.5" />
-              <span>Audience Engagement</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('anomaly')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'anomaly' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              <span>Anomaly Detection</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('vision')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'vision' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Video className="h-3.5 w-3.5" />
-              <span>AI Cut Suggestions</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('collaboration')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'collaboration' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span>Editorial Co-Pilot</span>
-            </button>
-          </div>
+        <div className="border-b border-border/40 pb-4">
+          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Compass className="h-5 w-5 text-primary" />
+            Platform Capabilities &amp; Strengths
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Explore how Frame Sense compares against traditional post-production methods across all 4 core pillars.
+          </p>
         </div>
 
-        {/* Tab Content Display */}
-        <div className="rounded-2xl border border-border bg-card p-6 md:p-8 space-y-6 shadow-sm">
-          
-          {/* TAB 1: AUDIENCE ENGAGEMENT */}
-          {activeTab === 'retention' && (
-            <div className="grid gap-8 md:grid-cols-2 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                  <Database className="h-3.5 w-3.5" />
-                  <span>Real-Time Telemetry Advantage</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Live Audience Engagement &amp; Drop-off Heatmaps</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Say goodbye to subjective paper survey forms. Frame Sense captures exact millisecond viewing habits as test audiences watch your film cut in our cinematic player.
-                </p>
-                <ul className="space-y-3 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Drop-off Point Detection:</strong> See the exact second viewers lose interest or stop watching so you can tighten pacing.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Scene Rewind Hotspots:</strong> Discover key narrative beats audiences rewatch or scrub back to experience again.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Timecoded Sentiment Flags:</strong> Viewers drop instant emotional flags and comments anchored to specific frames.</span>
-                  </li>
-                </ul>
+        {/* 4 Capabilities 2x2 Grid Matrix */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* CAPABILITY 1: AUDIENCE ENGAGEMENT */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                <Database className="h-3.5 w-3.5" />
+                <span>Real-Time Telemetry</span>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">1. Live Audience Engagement &amp; Heatmaps</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Captures millisecond viewing habits as test audiences watch your film cut in our player with drop-off point detection and scene rewind hotspots.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+              <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5" />
+                  Telemetry vs Focus Groups
+                </span>
+                <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[10px]">Benchmark</span>
               </div>
 
-              {/* Textual Platform Benchmark Comparison Box */}
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
-                  <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5" />
-                    Telemetry vs Traditional Screenings
-                  </span>
-                  <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Benchmark</span>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
+                    <span>TRADITIONAL FOCUS GROUPS</span>
+                    <span className="text-rose-400 font-bold">3-Day Lag</span>
+                  </div>
+                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
+                    Paper forms, low sample size (10-20 people), and memory bias.
+                  </p>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                      <span>TRADITIONAL FOCUS GROUPS</span>
-                      <span className="text-rose-400 font-bold">High Delay</span>
-                    </div>
-                    <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                      Paper forms with delayed 3-day turnaround, low sample size (10-20 people), and memory bias.
-                    </p>
+                <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 space-y-1">
+                  <div className="flex justify-between text-emerald-300 font-mono text-[10px]">
+                    <span>FRAME SENSE TELEMETRY</span>
+                    <span className="text-emerald-400 font-bold">Sub-Second</span>
                   </div>
-
-                  <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/30 space-y-1">
-                    <div className="flex justify-between text-emerald-300 font-mono text-[10px]">
-                      <span>FRAME SENSE TELEMETRY</span>
-                      <span className="text-emerald-400 font-bold">Sub-Second</span>
-                    </div>
-                    <p className="text-emerald-100 font-sans text-[11px] leading-relaxed">
-                      Sub-second ClickHouse OLAP ingestion, 100+ concurrent test streams, and frame-level drop-off precision.
-                    </p>
-                  </div>
+                  <p className="text-emerald-100 font-sans text-[11px] leading-relaxed">
+                    Sub-second ClickHouse ingestion with frame-level precision.
+                  </p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono">
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Fidelity</div>
-                    <div className="text-xs font-bold text-emerald-400">100% Exact</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Ingest Lag</div>
-                    <div className="text-xs font-bold text-emerald-400">0s Realtime</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Speed gain</div>
-                    <div className="text-xs font-bold text-emerald-400">85% Faster</div>
-                  </div>
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Fidelity</div>
+                  <div className="font-bold text-emerald-400">100% Exact</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Ingest Lag</div>
+                  <div className="font-bold text-emerald-400">0s Realtime</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Speed gain</div>
+                  <div className="font-bold text-emerald-400">85% Faster</div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* TAB 2: ANOMALY DETECTION SYSTEM */}
-          {activeTab === 'anomaly' && (
-            <div className="grid gap-8 md:grid-cols-2 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
+          {/* CAPABILITY 2: ANOMALY DETECTION */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-blue-500/30 transition-all">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-semibold border border-blue-500/20">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Statistical Baseline Engine</span>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">2. Statistical &amp; ML Anomaly Detection</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Processes sub-second viewer telemetry against statistical baselines to pinpoint cognitive friction, emotional rewind peaks, and audio/pacing anomalies.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+              <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                <span className="text-blue-400 font-bold flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  <span>Statistical Baseline Advantage</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Statistical &amp; ML Anomaly Detection System</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Frame Sense processes sub-second viewer telemetry against statistical baselines to pinpoint cognitive friction, emotional replay peaks, and audio/pacing anomalies.
-                </p>
-                <ul className="space-y-3 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Cognitive Friction Detection:</strong> Flags timestamps where viewers pause, rewind, or exit at higher rates than normal baseline thresholds.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Emotional Replay Hotspots:</strong> Identifies high-engagement beats where audiences rewatch scenes multiple times.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Audio &amp; Pacing Audits:</strong> Detects background score masking dialogue and sudden exit rate spikes.</span>
-                  </li>
-                </ul>
+                  ML Detection vs Rule Cutoffs
+                </span>
+                <span className="text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-[10px]">Comparison</span>
               </div>
 
-              {/* Textual Platform Benchmark Comparison Box */}
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
-                  <span className="text-blue-400 font-bold flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    ML Detection vs Rule Thresholds
-                  </span>
-                  <span className="text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">Comparison</span>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
+                    <span>STATIC RULE THRESHOLDS</span>
+                    <span className="text-amber-400 font-bold">False Alarms</span>
+                  </div>
+                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
+                    Fixed percentage cutoffs miss subtle audio-visual narrative anomalies.
+                  </p>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                      <span>STATIC RULE THRESHOLDS</span>
-                      <span className="text-amber-400 font-bold">High False Positives</span>
-                    </div>
-                    <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                      Fixed percentage cutoffs trigger frequent false alarms and miss subtle audio-visual narrative anomalies.
-                    </p>
+                <div className="p-2.5 rounded-lg bg-blue-950/40 border border-blue-500/30 space-y-1">
+                  <div className="flex justify-between text-blue-300 font-mono text-[10px]">
+                    <span>CLICKHOUSE ML ENGINE</span>
+                    <span className="text-blue-400 font-bold">Auto-Calibrated</span>
                   </div>
-
-                  <div className="p-3 rounded-lg bg-blue-950/40 border border-blue-500/30 space-y-1">
-                    <div className="flex justify-between text-blue-300 font-mono text-[10px]">
-                      <span>CLICKHOUSE ML ENGINE</span>
-                      <span className="text-blue-400 font-bold">Auto-Calibrated</span>
-                    </div>
-                    <p className="text-blue-100 font-sans text-[11px] leading-relaxed">
-                      Statistical z-score outlier detection auto-calibrated to film genre, scene complexity, and baseline pacing curves.
-                    </p>
-                  </div>
+                  <p className="text-blue-100 font-sans text-[11px] leading-relaxed">
+                    Statistical z-score outlier detection auto-calibrated to film genre baselines.
+                  </p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono">
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Accuracy</div>
-                    <div className="text-xs font-bold text-blue-400">99.4% ML</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Vectors</div>
-                    <div className="text-xs font-bold text-blue-400">4 Tracked</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Thresholds</div>
-                    <div className="text-xs font-bold text-blue-400">Adaptive</div>
-                  </div>
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Accuracy</div>
+                  <div className="font-bold text-blue-400">99.4% ML</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Vectors</div>
+                  <div className="font-bold text-blue-400">4 Tracked</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Thresholds</div>
+                  <div className="font-bold text-blue-400">Adaptive</div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* TAB 3: AI CUT SUGGESTIONS */}
-          {activeTab === 'vision' && (
-            <div className="grid gap-8 md:grid-cols-2 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20">
+          {/* CAPABILITY 3: AI CUT SUGGESTIONS */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-indigo-500/30 transition-all">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Multimodal Vision Audit</span>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">3. Automated AI Cut Suggestions</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Gemini computer vision evaluates keyframes around drop-offs to detect static shot holds, dialogue silences, and suggest frame-accurate trims <code className="text-cyan-300 font-mono">[MM:SS]</code>.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+              <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                <span className="text-indigo-400 font-bold flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>Multimodal Vision Advantage</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Automated AI Cut Suggestions</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Frame Sense AI combines deep computer vision with audience drop-off metrics to evaluate camera composition, lighting, dialogue pacing, and transition cuts.
-                </p>
-                <ul className="space-y-3 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Visual Pacing Audits:</strong> Flags lingering static shots, slow cutaways, or awkward dialogue silences.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Actionable Trim Suggestions:</strong> Gives precise edit recommendations (e.g., *"Trim 2.4 seconds before character reaction"*).</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Prioritized Severity Scores:</strong> Recommendations are categorized into Critical, High, and Medium priorities.</span>
-                  </li>
-                </ul>
+                  Gemini Vision vs Manual Scrubbing
+                </span>
+                <span className="text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 text-[10px]">Comparison</span>
               </div>
 
-              {/* Textual Platform Benchmark Comparison Box */}
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
-                  <span className="text-indigo-400 font-bold flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Gemini Vision vs Manual Scrubbing
-                  </span>
-                  <span className="text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Comparison</span>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
+                    <span>MANUAL NLE SCRUBBING</span>
+                    <span className="text-amber-400 font-bold">Hours per Scene</span>
+                  </div>
+                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
+                    Trial-and-error timeline trimming and subjective pacing guesses.
+                  </p>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                      <span>MANUAL NLE SCRUBBING</span>
-                      <span className="text-amber-400 font-bold">Hours per Scene</span>
-                    </div>
-                    <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                      Trial-and-error timeline trimming, manual frame counting, and subjective pacing guesses.
-                    </p>
+                <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 space-y-1">
+                  <div className="flex justify-between text-indigo-300 font-mono text-[10px]">
+                    <span>GEMINI MULTIMODAL VISION</span>
+                    <span className="text-indigo-400 font-bold">Instant Audit</span>
                   </div>
-
-                  <div className="p-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30 space-y-1">
-                    <div className="flex justify-between text-indigo-300 font-mono text-[10px]">
-                      <span>GEMINI MULTIMODAL VISION</span>
-                      <span className="text-indigo-400 font-bold">Instant Keyframe Audit</span>
-                    </div>
-                    <p className="text-indigo-100 font-sans text-[11px] leading-relaxed">
-                      Automated keyframe composition, lighting, and dialogue gap inspection with recommended frame-accurate trims <code className="text-cyan-300 font-mono">[MM:SS]</code>.
-                    </p>
-                  </div>
+                  <p className="text-indigo-100 font-sans text-[11px] leading-relaxed">
+                    Automated keyframe composition &amp; silences inspection with timestamp trims.
+                  </p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono">
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Confidence</div>
-                    <div className="text-xs font-bold text-indigo-400">98% Match</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Time saved</div>
-                    <div className="text-xs font-bold text-indigo-400">10x Faster</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Precision</div>
-                    <div className="text-xs font-bold text-indigo-400">Frame-Level</div>
-                  </div>
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Confidence</div>
+                  <div className="font-bold text-indigo-400">98% Match</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Time saved</div>
+                  <div className="font-bold text-indigo-400">10x Faster</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Precision</div>
+                  <div className="font-bold text-indigo-400">Frame-Level</div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* TAB 4: EDITORIAL CO-PILOT */}
-          {activeTab === 'collaboration' && (
-            <div className="grid gap-8 md:grid-cols-2 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
+          {/* CAPABILITY 4: EDITORIAL CO-PILOT */}
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-cyan-500/30 transition-all">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>Timecode Studio Assistant</span>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">4. Timecode-Anchored AI Co-Pilot</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Direct conversational assistant inside your editing workspace anchored to exact film timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code> with live streaming edit guidance.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 shadow-inner">
+              <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
+                <span className="text-cyan-400 font-bold flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  <span>Interactive AI Co-Pilot Advantage</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-foreground">Timecode-Anchored AI Co-Pilot</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Converse directly with Gemini AI inside the studio workspace. Every message can be anchored to an exact film timestamp <code className="text-cyan-300 font-mono">[MM:SS]</code>.
-                </p>
-                <ul className="space-y-3 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Frame-Accurate Questions:</strong> Ask questions like *"Why did viewers scrub past [01:42]?"* or *"How can we trim the climax?"*</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Real-Time Streaming Responses:</strong> Get token-by-token instant suggestions as you work on edits.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <CheckCircle className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
-                    <span><strong className="text-foreground font-semibold">Full Scene &amp; Telemetry Context:</strong> AI understands both raw audience metrics and visual video keyframes simultaneously.</span>
-                  </li>
-                </ul>
+                  Timecode Co-Pilot vs Static Notes
+                </span>
+                <span className="text-cyan-400 font-semibold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 text-[10px]">Comparison</span>
               </div>
 
-              {/* Textual Platform Benchmark Comparison Box */}
-              <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-5 space-y-4 shadow-inner relative overflow-hidden">
-                <div className="flex justify-between items-center text-xs font-mono border-b border-zinc-800 pb-2">
-                  <span className="text-cyan-400 font-bold flex items-center gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    Timecode Co-Pilot vs Static Notes
-                  </span>
-                  <span className="text-cyan-400 font-semibold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">Comparison</span>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                  <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
+                    <span>STATIC PDF NOTES</span>
+                    <span className="text-rose-400 font-bold">Disconnected</span>
+                  </div>
+                  <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
+                    Generic feedback sheets disconnected from video NLE timelines.
+                  </p>
                 </div>
 
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                    <div className="flex justify-between text-zinc-400 font-mono text-[10px]">
-                      <span>STATIC PDF NOTES</span>
-                      <span className="text-rose-400 font-bold">Disconnected Notes</span>
-                    </div>
-                    <p className="text-zinc-300 font-sans text-[11px] leading-relaxed">
-                      Generic feedback sheets disconnected from NLE timelines, requiring manual timestamp searching.
-                    </p>
+                <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 space-y-1">
+                  <div className="flex justify-between text-cyan-300 font-mono text-[10px]">
+                    <span>TIMECODE AI CO-PILOT</span>
+                    <span className="text-cyan-400 font-bold">24/7 Studio AI</span>
                   </div>
-
-                  <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/30 space-y-1">
-                    <div className="flex justify-between text-cyan-300 font-mono text-[10px]">
-                      <span>TIMECODE-ANCHORED AI CO-PILOT</span>
-                      <span className="text-cyan-400 font-bold">24/7 Studio AI</span>
-                    </div>
-                    <p className="text-cyan-100 font-sans text-[11px] leading-relaxed">
-                      Direct conversational assistant linked to exact timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code> with live streaming edit guidance.
-                    </p>
-                  </div>
+                  <p className="text-cyan-100 font-sans text-[11px] leading-relaxed">
+                    Conversational assistant linked to exact video timestamps <code className="text-cyan-300 font-mono">[MM:SS]</code>.
+                  </p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono">
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Availability</div>
-                    <div className="text-xs font-bold text-cyan-400">24/7 Studio</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Precision</div>
-                    <div className="text-xs font-bold text-cyan-400">100% Timecode</div>
-                  </div>
-                  <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-                    <div className="text-[10px] text-muted-foreground">Guidance</div>
-                    <div className="text-xs font-bold text-cyan-400">Streaming</div>
-                  </div>
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800 text-center font-mono text-[10px]">
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Availability</div>
+                  <div className="font-bold text-cyan-400">24/7 Studio</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Precision</div>
+                  <div className="font-bold text-cyan-400">100% Timecode</div>
+                </div>
+                <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+                  <div className="text-muted-foreground">Guidance</div>
+                  <div className="font-bold text-cyan-400">Streaming</div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
         </div>
       </div>
