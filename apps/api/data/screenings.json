@@ -1,21 +1,10 @@
 [
   {
-    "screening_id": "sc_test_chat_123",
-    "media_id": "med_test_chat_123",
-    "title": "Test Chat Screening",
-    "description": "Chat test screening",
-    "media_filename": "non_existent_video.mp4",
-    "media_duration": 120.0,
-    "created_at": "2026-09-04T16:41:18.560000",
-    "status": "active",
-    "public_token": "kiW7t0hd0l6tK4pdhS1K6V2j2sS1lwCK"
-  },
-  {
     "screening_id": "sc_13c510b37cc8",
     "media_id": "med_9e56af862101",
     "title": "The Counter Clockmaker",
     "description": "Test Movie",
-    "media_filename": "907c8686-4612-4c4d-ba86-dfd056be66fb_The Counter Clockmaker.mp4",
+    "media_filename": "34c789d4-d61f-42d0-bbe9-748e908d3c8c_The Counter Clockmaker.mp4",
     "media_duration": 32.63399124145508,
     "created_at": "2026-08-29T17:54:16.798000",
     "status": "active",
