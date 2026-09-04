@@ -546,35 +546,39 @@ export default function Dashboard() {
           <div className="flex items-center gap-1.5 bg-secondary/60 p-1 rounded-xl border border-border/60 text-xs font-medium overflow-x-auto">
             <button
               onClick={() => setActiveTab('retention')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'retention' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              📊 Audience Engagement
+              <Activity className="h-3.5 w-3.5" />
+              <span>Audience Engagement</span>
             </button>
             <button
               onClick={() => setActiveTab('vision')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'vision' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              🎬 AI Scene Audit
+              <Video className="h-3.5 w-3.5" />
+              <span>AI Scene Audit</span>
             </button>
             <button
               onClick={() => setActiveTab('synthetic')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'synthetic' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              🎭 Focus Group Simulator
+              <Users className="h-3.5 w-3.5" />
+              <span>Focus Group Simulator</span>
             </button>
             <button
               onClick={() => setActiveTab('collaboration')}
-              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg transition-all shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'collaboration' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              💬 Editorial Co-Pilot
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>Editorial Co-Pilot</span>
             </button>
           </div>
         </div>
@@ -700,7 +704,7 @@ export default function Dashboard() {
 
                 <div className="flex items-center justify-between text-xs text-zinc-400 font-sans pt-1">
                   <span>Detected Confidence: <strong className="text-emerald-400">98% Match</strong></span>
-                  <span className="text-indigo-400 hover:underline cursor-pointer">Preview Cut Frame ➔</span>
+                  <span className="text-indigo-400 hover:underline cursor-pointer flex items-center gap-1 font-medium">Preview Cut Frame <ChevronRight className="h-3 w-3" /></span>
                 </div>
               </div>
             </div>
