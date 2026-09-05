@@ -43,6 +43,8 @@ Desktop.ini
 # Local media uploads and database files (preserve sample seeds)
 apps/api/data/*
 !apps/api/data/screenings.json
+!apps/api/data/media/
+!apps/api/data/media/34c789d4-d61f-42d0-bbe9-748e908d3c8c_The Counter Clockmaker.mp4
 
 # Local root data folder
 /data/

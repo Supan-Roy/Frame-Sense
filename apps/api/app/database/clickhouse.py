@@ -109,15 +109,15 @@ def init_db():
 
     print("ClickHouse database schema initialized successfully.")
 
-    # Seed persistent screenings from screenings.json backup if default.screenings is empty
+    # Seed persistent screenings from screenings.json backup if not already present
     try:
-        sc_cnt = client.command("SELECT count() FROM default.screenings")
-        if sc_cnt == 0:
-            json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "screenings.json")
-            if os.path.exists(json_path):
-                with open(json_path, "r", encoding="utf-8") as f:
-                    saved_screenings = json.load(f)
-                for s in saved_screenings:
+        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "screenings.json")
+        if os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+                saved_screenings = json.load(f)
+            for s in saved_screenings:
+                exists_check = client.query(f"SELECT count() FROM default.screenings WHERE screening_id = '{s['screening_id']}'").result_rows[0][0]
+                if exists_check == 0:
                     cr_dt = datetime.fromisoformat(s["created_at"].replace("Z", "+00:00")) if "created_at" in s else datetime.now(timezone.utc)
                     client.insert("screenings", [[
                         s["screening_id"], s["media_id"], s["title"], s.get("description", ""),
@@ -126,7 +126,7 @@ def init_db():
                         "screening_id", "media_id", "title", "description",
                         "media_filename", "media_duration", "created_at", "status", "public_token"
                     ])
-                print(f"Restored {len(saved_screenings)} screening(s) from persistent backup file.")
+                    print(f"Ensured screening {s['screening_id']} ({s['title']}) is seeded in default.screenings.")
     except Exception as seed_err:
         print(f"Notice during screening seed: {seed_err}")
 
