@@ -18,6 +18,7 @@ class ScreeningResponse(BaseModel):
     status: str
     public_token: str
     share_url: str
+    comment_count: int = 0
 
 class ScreeningStats(BaseModel):
     total_sessions: int

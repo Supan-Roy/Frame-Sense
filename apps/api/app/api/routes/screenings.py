@@ -35,12 +35,17 @@ def get_dashboard_stats():
 @router.get("", response_model=List[ScreeningResponse])
 def list_screenings():
     records = screening_repo.get_all()
-    # Add absolute share_url format for frontend clipboard use
     response = []
     for r in records:
+        try:
+            c_list = screening_repo.get_comments_by_screening(r['screening_id'])
+            c_cnt = len(c_list)
+        except Exception:
+            c_cnt = 0
         response.append(ScreeningResponse(
             **r,
-            share_url=f"/screening/{r['public_token']}"
+            share_url=f"/screening/{r['public_token']}",
+            comment_count=c_cnt
         ))
     return response
 

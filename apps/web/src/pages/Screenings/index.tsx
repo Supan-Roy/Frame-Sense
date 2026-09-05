@@ -1761,8 +1761,13 @@ interface ToastNotification {
                         <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
                           {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
                         </button>
-                        <button onClick={() => openFeedback(s)} className="inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
+                        <button onClick={() => openFeedback(s)} className="relative inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
                           <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
+                          {(s.comment_count ?? 0) > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950 animate-pulse">
+                              {s.comment_count! > 9 ? '9+' : s.comment_count}
+                            </span>
+                          )}
                         </button>
                         <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
                           <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
@@ -1788,11 +1793,11 @@ interface ToastNotification {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-studio-950 border rounded-xl shadow-2xl p-6 relative space-y-4">
             <button onClick={() => setShowCreateModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-            <div><h2 className="text-sm font-semibold uppercase tracking-wider">Provision Screening Room</h2><p className="text-xs text-muted-foreground mt-0.5">Upload a video file under 150MB.</p></div>
+            <div><h2 className="text-sm font-semibold uppercase tracking-wider">Provision Screening Room</h2><p className="text-xs text-muted-foreground mt-0.5">Upload a video file under 500MB.</p></div>
             <form onSubmit={handleCreateScreening} className="space-y-4">
               <div className="space-y-1"><label className="text-xs text-muted-foreground">Film Title</label><input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Horizon Line - Fine Cut v2" className="w-full bg-studio-900 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" /></div>
               <div className="space-y-1"><label className="text-xs text-muted-foreground">Description (Optional)</label><textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Focus group notes..." rows={3} className="w-full bg-studio-900 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none" /></div>
-              <div className="space-y-1"><label className="text-xs text-muted-foreground">Upload Video Cut</label><input type="file" required accept="video/mp4,video/webm,video/quicktime" onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-studio-900 file:text-primary file:cursor-pointer hover:file:bg-studio-800" /></div>
+              <div className="space-y-1"><label className="text-xs text-muted-foreground">Upload Video Cut</label><input type="file" required accept="video/mp4,video/webm,video/quicktime" onChange={e => handleFileSelect(e.target.files ? e.target.files[0] : null)} className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-studio-900 file:text-primary file:cursor-pointer hover:file:bg-studio-800" /></div>
               {uploadProgress !== null && (
                 <div className="space-y-1.5 pt-2">
                   <div className="flex justify-between text-[10px] text-muted-foreground"><span className="animate-pulse">{uploadStatus}</span><span>{uploadProgress}%</span></div>

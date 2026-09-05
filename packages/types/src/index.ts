@@ -36,6 +36,7 @@ export interface Screening {
   status?: string;
   public_token?: string;
   share_url?: string;
+  comment_count?: number;
 }
 
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
