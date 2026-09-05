@@ -2,16 +2,16 @@
 # STAGE 1: Build Web Frontend (Node.js)
 # ==========================================
 FROM node:22-alpine AS web-builder
-WORKDIR /app/apps/web
+WORKDIR /app
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
-# Copy root monorepo files & web package files
+# Copy root monorepo files & packages workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /app/
+COPY packages /app/packages
 COPY apps/web/package.json /app/apps/web/
 
-WORKDIR /app
 RUN pnpm install --frozen-lockfile || pnpm install
 
 COPY apps/web /app/apps/web
