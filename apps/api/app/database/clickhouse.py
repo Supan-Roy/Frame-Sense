@@ -11,20 +11,25 @@ import urllib3
 import clickhouse_connect.driver.httputil as httputil
 
 _db_initialized = False
+_client_instance: Client | None = None
+_pool_mgr_instance = None
 
-def _get_clickhouse_pool_mgr():
-    retries = urllib3.util.Retry(
-        total=5,
-        connect=5,
-        read=5,
-        status=5,
-        backoff_factor=0.2,
-        raise_on_status=False
-    )
-    return httputil.get_pool_manager(retries=retries, maxsize=50)
+def _get_shared_pool_mgr():
+    global _pool_mgr_instance
+    if _pool_mgr_instance is None:
+        retries = urllib3.util.Retry(
+            total=5,
+            connect=5,
+            read=5,
+            status=5,
+            backoff_factor=0.2,
+            raise_on_status=False
+        )
+        _pool_mgr_instance = httputil.get_pool_manager(retries=retries, maxsize=50)
+    return _pool_mgr_instance
 
-def get_client(auto_init: bool = True) -> Client:
-    client = clickhouse_connect.get_client(
+def _create_new_client() -> Client:
+    return clickhouse_connect.get_client(
         host=settings.CLICKHOUSE_HOST,
         port=settings.CLICKHOUSE_PORT,
         username=settings.CLICKHOUSE_USER,
@@ -33,28 +38,31 @@ def get_client(auto_init: bool = True) -> Client:
         secure=settings.CLICKHOUSE_SECURE,
         connect_timeout=15,
         send_receive_timeout=30,
-        pool_mgr=_get_clickhouse_pool_mgr()
+        pool_mgr=_get_shared_pool_mgr()
     )
-    global _db_initialized
+
+def reset_client():
+    global _client_instance
+    _client_instance = None
+
+def get_client(auto_init: bool = True) -> Client:
+    global _client_instance, _db_initialized
+    if _client_instance is None:
+        try:
+            _client_instance = _create_new_client()
+        except Exception as err:
+            reset_client()
+            _client_instance = _create_new_client()
+
     if auto_init and not _db_initialized:
-        ensure_db_initialized(client)
-    return client
+        ensure_db_initialized(_client_instance)
+    return _client_instance
 
 def ensure_db_initialized(client: Client | None = None):
     global _db_initialized
     try:
         if client is None:
-            client = clickhouse_connect.get_client(
-                host=settings.CLICKHOUSE_HOST,
-                port=settings.CLICKHOUSE_PORT,
-                username=settings.CLICKHOUSE_USER,
-                password=settings.CLICKHOUSE_PASSWORD,
-                database=settings.CLICKHOUSE_DATABASE,
-                secure=settings.CLICKHOUSE_SECURE,
-                connect_timeout=15,
-                send_receive_timeout=30,
-                pool_mgr=_get_clickhouse_pool_mgr()
-            )
+            client = get_client(auto_init=False)
         _run_schema_creation(client)
         _db_initialized = True
     except Exception as e:
@@ -311,7 +319,12 @@ def insert_events(events: List[Dict[str, Any]]):
             ensure_db_initialized(client)
             client.insert("viewer_events", data, column_names=column_names)
         else:
-            raise err
+            try:
+                reset_client()
+                fresh_client = get_client()
+                fresh_client.insert("viewer_events", data, column_names=column_names)
+            except Exception:
+                raise err
 
 def get_screening_stats(screening_id: str) -> Dict[str, Any]:
     try:

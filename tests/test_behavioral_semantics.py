@@ -7,7 +7,7 @@ rather than raw event multiplicity, preventing false "Critical Scene Exit Drop" 
 import uuid
 import time
 import pytest
-from app.database.clickhouse import get_client, insert_events
+from app.database.clickhouse import get_client, insert_events, get_screening_stats
 from app.screening.analytics import get_anomalies, get_audience_overview
 from app.screening.repository import screening_repo
 
