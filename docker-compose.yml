@@ -13,10 +13,15 @@ services:
         hard: 262144
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse_config/low_memory.xml:/etc/clickhouse-server/config.d/low_memory.xml:ro
     environment:
       - CLICKHOUSE_DB=default
       - CLICKHOUSE_USER=default
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    deploy:
+      resources:
+        limits:
+          memory: 450M
 
   mcp-clickhouse:
     image: ghcr.io/clickhouse/mcp-clickhouse:latest
