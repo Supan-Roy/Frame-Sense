@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from fastapi import UploadFile, HTTPException
 
 ALLOWED_EXTENSIONS = {"mp4", "webm", "mov"}
-MAX_FILE_SIZE_BYTES = 150 * 1024 * 1024  # 150 MB
+MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
 
 class BaseStorage(ABC):
     @abstractmethod
