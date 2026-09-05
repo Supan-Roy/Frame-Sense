@@ -1,3 +1,4 @@
+import mimetypes
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from app.screening.repository import screening_repo
@@ -27,9 +28,13 @@ def stream_screening_media(public_token: str):
         
     try:
         file_path = storage_backend.get_file_path(record["media_filename"])
+        media_type, _ = mimetypes.guess_type(file_path)
+        if not media_type:
+            media_type = "video/mp4"
+
         return FileResponse(
             file_path,
-            media_type="video/mp4",
+            media_type=media_type,
             headers={
                 "Accept-Ranges": "bytes",
             }
