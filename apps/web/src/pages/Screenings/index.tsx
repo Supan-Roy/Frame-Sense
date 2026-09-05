@@ -1764,7 +1764,7 @@ interface ToastNotification {
                         <button onClick={() => openFeedback(s)} className="relative inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
                           <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
                           {(s.comment_count ?? 0) > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950 animate-pulse">
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950">
                               {s.comment_count! > 9 ? '9+' : s.comment_count}
                             </span>
                           )}
