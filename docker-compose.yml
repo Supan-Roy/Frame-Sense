@@ -13,6 +13,7 @@ services:
         hard: 262144
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse_config/low_memory.xml:/etc/clickhouse-server/config.d/low_memory.xml
     environment:
       - CLICKHOUSE_DB=default
       - CLICKHOUSE_USER=default

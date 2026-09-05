@@ -1,0 +1,18 @@
+<clickhouse>
+    <!-- Restrict total server memory limit for low-memory container instances (~300MB max) -->
+    <max_server_memory_usage>314572800</max_server_memory_usage>
+    <max_server_memory_usage_to_ram_ratio>0.4</max_server_memory_usage_to_ram_ratio>
+
+    <!-- Shrink Mark Cache from 5GB default to 32MB -->
+    <mark_cache_size>33554432</mark_cache_size>
+
+    <!-- Shrink Uncompressed Block Cache to 32MB -->
+    <uncompressed_cache_size>33554432</uncompressed_cache_size>
+
+    <!-- Reduce background thread pools for small instance sizes -->
+    <background_pool_size>2</background_pool_size>
+    <background_schedule_pool_size>2</background_schedule_pool_size>
+
+    <!-- Limit concurrent query execution threads -->
+    <max_concurrent_queries>16</max_concurrent_queries>
+</clickhouse>
