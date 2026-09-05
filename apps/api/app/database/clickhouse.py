@@ -17,7 +17,6 @@ def get_client(auto_init: bool = True) -> Client:
         password=settings.CLICKHOUSE_PASSWORD,
         database=settings.CLICKHOUSE_DATABASE,
         secure=settings.CLICKHOUSE_SECURE,
-        pool_maxsize=50,
         connect_timeout=15,
         send_receive_timeout=30
     )
@@ -37,7 +36,6 @@ def ensure_db_initialized(client: Client | None = None):
                 password=settings.CLICKHOUSE_PASSWORD,
                 database=settings.CLICKHOUSE_DATABASE,
                 secure=settings.CLICKHOUSE_SECURE,
-                pool_maxsize=50,
                 connect_timeout=15,
                 send_receive_timeout=30
             )
