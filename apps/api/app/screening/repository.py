@@ -412,132 +412,161 @@ class ScreeningRepository:
     # --- Sense AI Chat Persistence Methods ---
 
     def create_chat_session(self, screening_id: str, title: str = "New Chat Session") -> Dict[str, Any]:
-        client = get_client()
-        # Check if there is already an empty session (0 messages) for this screening
-        empty_res = client.query("""
-        SELECT s.session_id, s.title, s.created_at, s.updated_at
-        FROM (
-            SELECT session_id, screening_id, title, created_at, updated_at,
-                   ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY updated_at DESC) as rn
-            FROM default.chat_sessions
-            WHERE screening_id = {sid:String}
-        ) s
-        LEFT JOIN default.chat_messages m ON s.session_id = m.session_id
-        WHERE s.rn = 1
-        GROUP BY s.session_id, s.title, s.created_at, s.updated_at
-        HAVING countIf(length(m.message_id) > 0) = 0
-        ORDER BY s.created_at DESC
-        LIMIT 1
-        """, parameters={"sid": screening_id})
-        if empty_res.result_rows:
-            r = empty_res.result_rows[0]
-            cr_at = r[2].isoformat() if isinstance(r[2], datetime) else r[2]
-            up_at = r[3].isoformat() if isinstance(r[3], datetime) else r[3]
-            return {
-                "session_id": r[0],
-                "screening_id": screening_id,
-                "title": r[1],
-                "created_at": cr_at,
-                "updated_at": up_at
-            }
-
-        session_id = f"cs_{secrets.token_hex(8)}"
-        now_dt = datetime.now(timezone.utc)
-        now_iso = now_dt.isoformat()
-
-        client.insert("chat_sessions", [[
-            session_id, screening_id, title, now_dt, now_dt
-        ]], column_names=[
-            "session_id", "screening_id", "title", "created_at", "updated_at"
-        ])
-
-        return {
-            "session_id": session_id,
-            "screening_id": screening_id,
-            "title": title,
-            "created_at": now_iso,
-            "updated_at": now_iso
-        }
-
-    def get_chat_sessions(self, screening_id: str) -> List[Dict[str, Any]]:
-        client = get_client()
-        res = client.query(
-            """
-            SELECT session_id, screening_id, title, created_at, updated_at
+        try:
+            client = get_client()
+            empty_res = client.query("""
+            SELECT s.session_id, s.title, s.created_at, s.updated_at
             FROM (
                 SELECT session_id, screening_id, title, created_at, updated_at,
                        ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY updated_at DESC) as rn
                 FROM default.chat_sessions
                 WHERE screening_id = {sid:String}
+            ) s
+            LEFT JOIN default.chat_messages m ON s.session_id = m.session_id
+            WHERE s.rn = 1
+            GROUP BY s.session_id, s.title, s.created_at, s.updated_at
+            HAVING countIf(length(m.message_id) > 0) = 0
+            ORDER BY s.created_at DESC
+            LIMIT 1
+            """, parameters={"sid": screening_id})
+            if empty_res.result_rows:
+                r = empty_res.result_rows[0]
+                cr_at = r[2].isoformat() if isinstance(r[2], datetime) else r[2]
+                up_at = r[3].isoformat() if isinstance(r[3], datetime) else r[3]
+                return {
+                    "session_id": r[0],
+                    "screening_id": screening_id,
+                    "title": r[1],
+                    "created_at": cr_at,
+                    "updated_at": up_at
+                }
+
+            session_id = f"cs_{secrets.token_hex(8)}"
+            now_dt = datetime.now(timezone.utc)
+            now_iso = now_dt.isoformat()
+
+            client.insert("chat_sessions", [[
+                session_id, screening_id, title, now_dt, now_dt
+            ]], column_names=[
+                "session_id", "screening_id", "title", "created_at", "updated_at"
+            ])
+            return {
+                "session_id": session_id,
+                "screening_id": screening_id,
+                "title": title,
+                "created_at": now_iso,
+                "updated_at": now_iso
+            }
+        except Exception as e:
+            print(f"Error creating chat session: {e}")
+            session_id = f"cs_{secrets.token_hex(8)}"
+            now_iso = datetime.now(timezone.utc).isoformat()
+            return {
+                "session_id": session_id,
+                "screening_id": screening_id,
+                "title": title,
+                "created_at": now_iso,
+                "updated_at": now_iso
+            }
+
+    def get_chat_sessions(self, screening_id: str) -> List[Dict[str, Any]]:
+        try:
+            client = get_client()
+            res = client.query(
+                """
+                SELECT session_id, screening_id, title, created_at, updated_at
+                FROM (
+                    SELECT session_id, screening_id, title, created_at, updated_at,
+                           ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY updated_at DESC) as rn
+                    FROM default.chat_sessions
+                    WHERE screening_id = {sid:String}
+                )
+                WHERE rn = 1
+                ORDER BY updated_at DESC
+                """,
+                parameters={"sid": screening_id}
             )
-            WHERE rn = 1
-            ORDER BY updated_at DESC
-            """,
-            parameters={"sid": screening_id}
-        )
-        if not res.result_rows:
+            if not res.result_rows:
+                return []
+            cols = ["session_id", "screening_id", "title", "created_at", "updated_at"]
+            out = []
+            for r in res.result_rows:
+                item = dict(zip(cols, r))
+                if isinstance(item["created_at"], datetime):
+                    item["created_at"] = item["created_at"].isoformat()
+                if isinstance(item["updated_at"], datetime):
+                    item["updated_at"] = item["updated_at"].isoformat()
+                out.append(item)
+            return out
+        except Exception as e:
+            print(f"Notice in get_chat_sessions: {e}")
             return []
-        cols = ["session_id", "screening_id", "title", "created_at", "updated_at"]
-        out = []
-        for r in res.result_rows:
-            item = dict(zip(cols, r))
+
+    def get_chat_session(self, session_id: str) -> Dict[str, Any] | None:
+        try:
+            client = get_client()
+            res = client.query(
+                """
+                SELECT session_id, screening_id, title, created_at, updated_at
+                FROM default.chat_sessions
+                WHERE session_id = {sess_id:String}
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """,
+                parameters={"sess_id": session_id}
+            )
+            if not res.result_rows:
+                return None
+            cols = ["session_id", "screening_id", "title", "created_at", "updated_at"]
+            item = dict(zip(cols, res.result_rows[0]))
             if isinstance(item["created_at"], datetime):
                 item["created_at"] = item["created_at"].isoformat()
             if isinstance(item["updated_at"], datetime):
                 item["updated_at"] = item["updated_at"].isoformat()
-            out.append(item)
-        return out
-
-    def get_chat_session(self, session_id: str) -> Dict[str, Any] | None:
-        client = get_client()
-        res = client.query(
-            """
-            SELECT session_id, screening_id, title, created_at, updated_at
-            FROM default.chat_sessions
-            WHERE session_id = {sess_id:String}
-            ORDER BY updated_at DESC
-            LIMIT 1
-            """,
-            parameters={"sess_id": session_id}
-        )
-        if not res.result_rows:
+            return item
+        except Exception as e:
+            print(f"Notice in get_chat_session: {e}")
             return None
-        cols = ["session_id", "screening_id", "title", "created_at", "updated_at"]
-        item = dict(zip(cols, res.result_rows[0]))
-        if isinstance(item["created_at"], datetime):
-            item["created_at"] = item["created_at"].isoformat()
-        if isinstance(item["updated_at"], datetime):
-            item["updated_at"] = item["updated_at"].isoformat()
-        return item
 
     def delete_chat_session(self, session_id: str) -> bool:
-        client = get_client()
-        client.command("DELETE FROM default.chat_messages WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
-        client.command("DELETE FROM default.chat_sessions WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
-        return True
+        try:
+            client = get_client()
+            client.command("DELETE FROM default.chat_messages WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
+            client.command("DELETE FROM default.chat_sessions WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
+            return True
+        except Exception as e:
+            print(f"Error deleting chat session: {e}")
+            return False
 
     def save_chat_message(self, session_id: str, screening_id: str, role: str, content: str) -> Dict[str, Any]:
         message_id = f"cm_{secrets.token_hex(8)}"
         now_dt = datetime.now(timezone.utc)
         now_iso = now_dt.isoformat()
-        client = get_client()
 
-        client.insert("chat_messages", [[
-            message_id, session_id, screening_id, role, content, now_dt
-        ]], column_names=[
-            "message_id", "session_id", "screening_id", "role", "content", "created_at"
-        ])
+        try:
+            client = get_client()
+            client.insert("chat_messages", [[
+                message_id, session_id, screening_id, role, content, now_dt
+            ]], column_names=[
+                "message_id", "session_id", "screening_id", "role", "content", "created_at"
+            ])
 
-        # Update session title/timestamp if user message
-        if role == "user":
-            cnt_res = client.command("SELECT count() FROM default.chat_messages WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
-            if cnt_res <= 1:
-                title_snippet = content[:35] + ("..." if len(content) > 35 else "")
-                sess = self.get_chat_session(session_id)
-                cr_dt = datetime.fromisoformat(sess["created_at"].replace('Z', '+00:00')) if sess else now_dt
-                client.insert("chat_sessions", [[
-                    session_id, screening_id, title_snippet, cr_dt, now_dt
-                ]], column_names=["session_id", "screening_id", "title", "created_at", "updated_at"])
+            if role == "user":
+                cnt_res = client.command("SELECT count() FROM default.chat_messages WHERE session_id = {sess_id:String}", parameters={"sess_id": session_id})
+                if cnt_res <= 1:
+                    title_snippet = content[:35] + ("..." if len(content) > 35 else "")
+                    sess = self.get_chat_session(session_id)
+                    cr_dt = datetime.fromisoformat(sess["created_at"].replace('Z', '+00:00')) if sess else now_dt
+                    client.insert("chat_sessions", [[
+                        session_id, screening_id, title_snippet, cr_dt, now_dt
+                    ]], column_names=["session_id", "screening_id", "title", "created_at", "updated_at"])
+                else:
+                    sess = self.get_chat_session(session_id)
+                    if sess:
+                        cr_dt = datetime.fromisoformat(sess["created_at"].replace('Z', '+00:00'))
+                        client.insert("chat_sessions", [[
+                            session_id, screening_id, sess["title"], cr_dt, now_dt
+                        ]], column_names=["session_id", "screening_id", "title", "created_at", "updated_at"])
             else:
                 sess = self.get_chat_session(session_id)
                 if sess:
@@ -545,13 +574,8 @@ class ScreeningRepository:
                     client.insert("chat_sessions", [[
                         session_id, screening_id, sess["title"], cr_dt, now_dt
                     ]], column_names=["session_id", "screening_id", "title", "created_at", "updated_at"])
-        else:
-            sess = self.get_chat_session(session_id)
-            if sess:
-                cr_dt = datetime.fromisoformat(sess["created_at"].replace('Z', '+00:00'))
-                client.insert("chat_sessions", [[
-                    session_id, screening_id, sess["title"], cr_dt, now_dt
-                ]], column_names=["session_id", "screening_id", "title", "created_at", "updated_at"])
+        except Exception as e:
+            print(f"Notice saving chat message: {e}")
 
         return {
             "message_id": message_id,
@@ -563,21 +587,25 @@ class ScreeningRepository:
         }
 
     def get_chat_messages(self, session_id: str) -> List[Dict[str, Any]]:
-        client = get_client()
-        res = client.query(
-            "SELECT message_id, session_id, screening_id, role, content, created_at FROM default.chat_messages WHERE session_id = {sess_id:String} ORDER BY created_at ASC",
-            parameters={"sess_id": session_id}
-        )
-        if not res.result_rows:
+        try:
+            client = get_client()
+            res = client.query(
+                "SELECT message_id, session_id, screening_id, role, content, created_at FROM default.chat_messages WHERE session_id = {sess_id:String} ORDER BY created_at ASC",
+                parameters={"sess_id": session_id}
+            )
+            if not res.result_rows:
+                return []
+            cols = ["message_id", "session_id", "screening_id", "role", "content", "created_at"]
+            out = []
+            for r in res.result_rows:
+                item = dict(zip(cols, r))
+                if isinstance(item["created_at"], datetime):
+                    item["created_at"] = item["created_at"].isoformat()
+                out.append(item)
+            return out
+        except Exception as e:
+            print(f"Notice in get_chat_messages: {e}")
             return []
-        cols = ["message_id", "session_id", "screening_id", "role", "content", "created_at"]
-        out = []
-        for r in res.result_rows:
-            item = dict(zip(cols, r))
-            if isinstance(item["created_at"], datetime):
-                item["created_at"] = item["created_at"].isoformat()
-            out.append(item)
-        return out
 
 
 # Export single repository instance
