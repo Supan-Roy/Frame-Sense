@@ -232,17 +232,17 @@ export default function AppShell({ children }: AppShellProps) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* Mobile Header Bar with Menu Expander Button */}
-        <header className="md:hidden flex items-center justify-between border-b border-border/60 bg-studio-950/90 backdrop-blur-md px-4 py-2.5 sticky top-0 z-30 shrink-0">
+        <header className="md:hidden flex items-center justify-between border-b border-border/80 bg-studio-950 px-4 py-3 sticky top-0 z-30 shrink-0">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg bg-studio-900 border border-studio-800 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+            className="p-2 rounded-lg bg-studio-900 border border-studio-800 text-foreground hover:bg-studio-800 transition-all cursor-pointer shadow-sm"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
 
           <Link to="/" className="group inline-flex items-center cursor-pointer" title="Return to Dashboard">
-            <LogoWordmark className="h-6 w-auto opacity-50 group-hover:opacity-100 transition-opacity select-none" />
+            <LogoWordmark className="h-7 w-auto select-none group-hover:opacity-90 transition-opacity" />
           </Link>
         </header>
 

@@ -1705,12 +1705,12 @@ interface ToastNotification {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Studio Screening Room Manager</h1>
-          <p className="text-sm text-muted-foreground">Provision private screenings, upload cut sequences, and collect ClickHouse telemetry.</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Studio Screening Room Manager</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Provision private screenings, upload cut sequences, and collect ClickHouse telemetry.</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded text-sm hover:bg-primary/95 transition-all shadow-md">
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-primary/95 transition-all shadow-md shrink-0 w-full sm:w-auto">
           <Plus className="h-4 w-4" /> Provision Screening
         </button>
       </div>
@@ -1728,64 +1728,119 @@ interface ToastNotification {
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm min-w-[640px]">
-              <thead>
-                <tr className="border-b bg-studio-950/50 text-muted-foreground font-medium text-xs uppercase tracking-wider">
-                  <th className="p-4">Film Screening</th><th className="p-4">Duration</th><th className="p-4">Created</th><th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {screenings.map(s => (
-                  <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
-                    <td className="p-4 font-medium">
-                      <a
-                        href={`/screening/${s.public_token}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open Targeted Audience Screening Room"
-                        className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
-                      >
-                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</span>
-                        <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
-                      </a>
-                      {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
-                    </td>
-                    <td className="p-4 text-muted-foreground">
-                      <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span></div>
-                    </td>
-                    <td className="p-4 text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
-                          {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
-                        </button>
-                        <button onClick={() => openFeedback(s)} className="relative inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
-                          <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
-                          {(s.comment_count ?? 0) > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950">
-                              {s.comment_count! > 9 ? '9+' : s.comment_count}
-                            </span>
-                          )}
-                        </button>
-                        <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
-                          <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
-                        </button>
-                        <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
-                          <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
-                        </button>
-                        <button onClick={() => setScreeningToDelete(s)} className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all">
-                          <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Mobile Cards View (< md) */}
+          <div className="block md:hidden space-y-3">
+            {screenings.map(s => (
+              <div key={s.screening_id} className="rounded-xl border bg-card p-4 space-y-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <a
+                    href={`/screening/${s.public_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open Targeted Audience Screening Room"
+                    className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors text-base">{s.title}</span>
+                    <ExternalLink className="h-4 w-4 opacity-70 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
+                  </a>
+                </div>
+                {s.description && <div className="text-xs text-muted-foreground leading-relaxed">{s.description}</div>}
+                
+                <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border/40">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-primary/80" />
+                    <span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span>
+                  </div>
+                  <div>{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</div>
+                </div>
+
+                <div className="pt-2 border-t border-border/40 flex flex-wrap gap-2">
+                  <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="flex-1 min-w-[130px] inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded-lg px-3 py-2 transition-all">
+                    {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
+                  </button>
+                  <button onClick={() => openFeedback(s)} className="relative flex-1 min-w-[110px] inline-flex items-center justify-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded-lg px-3 py-2 transition-all">
+                    <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
+                    {(s.comment_count ?? 0) > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950">
+                        {s.comment_count! > 9 ? '9+' : s.comment_count}
+                      </span>
+                    )}
+                  </button>
+                  <button onClick={() => setSenseAIScreening(s)} className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded-lg px-3 py-2 transition-all cursor-pointer">
+                    <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
+                  </button>
+                  <button onClick={() => openAI(s)} className="w-full inline-flex items-center justify-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded-lg px-3 py-2 transition-all">
+                    <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
+                  </button>
+                  <button onClick={() => setScreeningToDelete(s)} className="w-full inline-flex items-center justify-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded-lg px-3 py-2 transition-all">
+                    <Trash2 className="h-3.5 w-3.5" /><span>Delete Screening</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+
+          {/* Desktop Table View (>= md) */}
+          <div className="hidden md:block rounded-lg border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm min-w-[640px]">
+                <thead>
+                  <tr className="border-b bg-studio-950/50 text-muted-foreground font-medium text-xs uppercase tracking-wider">
+                    <th className="p-4">Film Screening</th><th className="p-4">Duration</th><th className="p-4">Created</th><th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {screenings.map(s => (
+                    <tr key={s.screening_id} className="hover:bg-studio-900/10 transition-colors">
+                      <td className="p-4 font-medium">
+                        <a
+                          href={`/screening/${s.public_token}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open Targeted Audience Screening Room"
+                          className="group inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{s.title}</span>
+                          <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100 text-primary transition-opacity shrink-0" />
+                        </a>
+                        {s.description && <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">{s.description}</div>}
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /><span>{s.media_duration ? `${Math.floor(s.media_duration/60)}m ${Math.round(s.media_duration%60)}s` : '0m 0s'}</span></div>
+                      </td>
+                      <td className="p-4 text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : 'Recent'}</td>
+                      <td className="p-4 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <button onClick={() => s.public_token && handleCopyLink(s.public_token)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground border hover:text-foreground rounded px-3 py-1.5 transition-all">
+                            {s.public_token && copiedToken === s.public_token ? (<><ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-500">Copied!</span></>) : (<><LinkIcon className="h-3.5 w-3.5" /><span>Get Share Link</span></>)}
+                          </button>
+                          <button onClick={() => openFeedback(s)} className="relative inline-flex items-center gap-1.5 text-xs text-sky-400 border border-sky-500/20 hover:bg-sky-500/10 rounded px-3 py-1.5 transition-all">
+                            <MessageSquare className="h-3.5 w-3.5" /><span>Feedback</span>
+                            {(s.comment_count ?? 0) > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-md ring-2 ring-studio-950">
+                                {s.comment_count! > 9 ? '9+' : s.comment_count}
+                              </span>
+                            )}
+                          </button>
+                          <button onClick={() => setSenseAIScreening(s)} className="inline-flex items-center gap-1.5 text-xs text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10 rounded px-3 py-1.5 transition-all cursor-pointer">
+                            <Sparkles className="h-3.5 w-3.5 text-cyan-400" /><span>Sense AI</span>
+                          </button>
+                          <button onClick={() => openAI(s)} className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/20 hover:bg-primary/10 rounded px-3 py-1.5 transition-all">
+                            <Eye className="h-3.5 w-3.5" /><span>Audience Intelligence</span>
+                          </button>
+                          <button onClick={() => setScreeningToDelete(s)} className="inline-flex items-center gap-1.5 text-xs text-rose-500 border border-rose-500/20 hover:bg-rose-500/10 rounded px-3 py-1.5 transition-all">
+                            <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Create Modal */}
