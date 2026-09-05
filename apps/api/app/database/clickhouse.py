@@ -150,7 +150,101 @@ def _run_schema_creation(client: Client):
     except Exception as seed_err:
         print(f"Notice during screening seed: {seed_err}")
 
+    # Seed demo telemetry events, comments, and AI investigations for sc_13c510b37cc8 if empty
+    try:
+        _seed_demo_telemetry_if_needed(client)
+    except Exception as seed_ev_err:
+        print(f"Notice during telemetry demo seed: {seed_ev_err}")
+
     print("ClickHouse database schema initialized successfully.")
+
+def _seed_demo_telemetry_if_needed(client: Client):
+    screening_id = "sc_13c510b37cc8"
+    video_id = "med_9e56af862101"
+    
+    check_res = client.query(f"SELECT count() FROM default.viewer_events WHERE screening_id = '{screening_id}'")
+    if check_res.result_rows and check_res.result_rows[0][0] > 0:
+        return
+
+    print(f"Seeding initial telemetry & AI investigations for {screening_id}...")
+    base_dt = datetime.now(timezone.utc) - timedelta(hours=2)
+
+    # 1. Generate core telemetry events for 2,500 viewers
+    rows = []
+    total_viewers = 2500
+    for idx in range(total_viewers):
+        v_id = f"synth_v_{idx:06d}"
+        sess_id = f"sess_{v_id}"
+        v_dt = base_dt + timedelta(seconds=(idx % 3600))
+
+        rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "PLAY", 0.0, v_dt, v_dt])
+        for s in range(1, 15):
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "PROGRESS", float(s), v_dt + timedelta(seconds=s), v_dt + timedelta(seconds=s)])
+        
+        # 14s-17s: Dark screen skip for 67%
+        if idx % 3 != 0:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "SEEK_FORWARD", 15.0, v_dt + timedelta(seconds=14.5), v_dt + timedelta(seconds=14.5)])
+        else:
+            for s in [15, 16, 17]:
+                rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "PROGRESS", float(s), v_dt + timedelta(seconds=s), v_dt + timedelta(seconds=s)])
+
+        # 18s-25s: Slow screenplay pacing split
+        if idx % 3 == 0:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "SEEK_FORWARD", 19.0, v_dt + timedelta(seconds=19), v_dt + timedelta(seconds=19)])
+        else:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "PAUSE", 18.0, v_dt + timedelta(seconds=18), v_dt + timedelta(seconds=18)])
+            for s in range(19, 25):
+                rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "PROGRESS", float(s), v_dt + timedelta(seconds=s), v_dt + timedelta(seconds=s)])
+
+        # 25s-29s: Dialogue scene replay hotspot
+        if idx % 4 != 0:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "SEEK_BACKWARD", 25.0, v_dt + timedelta(seconds=27.5), v_dt + timedelta(seconds=27.5)])
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "REPLAY", 25.0, v_dt + timedelta(seconds=28.0), v_dt + timedelta(seconds=28.0)])
+
+        # 29s-32s: Exit vs Complete
+        if idx % 3 == 0:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "EXIT", 30.0, v_dt + timedelta(seconds=30), v_dt + timedelta(seconds=30)])
+        else:
+            rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "COMPLETE", 32.0, v_dt + timedelta(seconds=32), v_dt + timedelta(seconds=32)])
+
+    client.insert("viewer_events", rows, column_names=[
+        "event_id", "screening_id", "session_id", "anonymous_viewer_id",
+        "video_id", "event_type", "video_timecode_sec", "client_timestamp", "server_timestamp"
+    ])
+
+    # 2. Seed Editorial Comments
+    comments_data = [
+        ["cmt_demo_01", screening_id, "dir_supan", "Director Supan", 15.0, "Dark Screen Transition: 'The Next Day' dark screen scene transition triggers 66.7% fast-forward skip rate. Cut dark screen transition by 1.5 seconds.", base_dt, base_dt],
+        ["cmt_demo_02", screening_id, "ed_clara", "Lead Editor Clara", 18.0, "Slow Screenplay Pacing: Audience pauses and fast-forwards across 18s-25s due to slow screenplay pacing. Speed up scene pacing.", base_dt, base_dt],
+        ["cmt_demo_03", screening_id, "dir_supan", "Director Supan", 28.5, "Tail Exit Drop: Viewers exit near scene resolution (28s-32s). Improve narrative hook to attract and hold viewer attention.", base_dt, base_dt],
+    ]
+    client.insert("comments", comments_data, column_names=[
+        "comment_id", "screening_id", "viewer_id", "display_name", "video_timecode_sec", "content", "created_at", "updated_at"
+    ])
+
+    # 3. Seed AI Vision Investigations
+    inv_rows = [
+        [
+            screening_id, "anm_dark_screen_15s",
+            "### 1. OBSERVED AUDIENCE BEHAVIOR\nA major pacing transition anomaly occurred between 14.0s and 18.0s, where **84,216 viewers (66.7% skip rate)** fast-forwarded across the dark screen scene transition ('The Next Day').\n\n### 2. QUANTITATIVE EVIDENCE\n- **Fast-Forward Skip Rate**: 66.7%\n- **Transition Retention Dip**: 33.3% at 15.0s – 17.0s\n- **Z-Score Deviation**: +4.82σ above baseline\n\n### 3. VISUAL EVIDENCE\nVisual frame inspection at 14.5s - 17.0s reveals a static dark screen transition displaying text: *'The Next Day'*.\n\n### 4. TELEMETRY ↔ VISUAL CORRELATION\nThe length of the dark screen transition creates a visual pause causing viewers to actively skip forward to the next scene.\n\n### 5. PLAUSIBLE EXPLANATIONS\nStatic dark screen transitions create pacing friction that prompts audience fast-forwarding.\n\n### 6. CONFIDENCE\n**HIGH** (Statistical Power: 126,324 viewers).\n\n### 7. VALIDATION EVIDENCE\nCutting the dark screen transition between 14s – 18s will eliminate viewer skip friction and preserve narrative momentum.",
+            json.dumps([{"query": f"SELECT count() FROM viewer_events WHERE screening_id='{screening_id}' AND video_timecode_sec BETWEEN 14 AND 18"}]),
+            json.dumps([{"frame_timecode_sec": 15.0, "description": "Dark Screen Scene Transition ('The Next Day')"}]),
+            "### Recommended AI Editorial Cut\n**Action**: Cut 1.5 seconds from the 14s – 18s dark screen scene transition.\n**Impact**: Eliminates viewer skip friction and preserves narrative momentum through Scene 2.",
+            base_dt
+        ],
+        [
+            screening_id, "anm_slow_pacing_18s",
+            "### 1. OBSERVED AUDIENCE BEHAVIOR\nSlow screenplay pacing friction occurred between 18.0s and 25.0s, causing **48,000 viewers to pause** and **42,108 viewers to fast-forward**.\n\n### 2. QUANTITATIVE EVIDENCE\n- **Pause Rate**: 38.0%\n- **Fast-Forward Rate**: 33.3%\n- **Z-Score Deviation**: +3.65σ above baseline\n\n### 3. VISUAL EVIDENCE\nShot inspection at 18.0s – 25.0s shows a slow wide shot of the clockmaker workshop with extended silent pauses between action beats.\n\n### 4. TELEMETRY ↔ VISUAL CORRELATION\nExtended static beats in the screenplay create pacing lag, prompting viewers to seek ahead or pause.\n\n### 5. PLAUSIBLE EXPLANATIONS\nScreenplay execution in this window is overly slow relative to audience engagement expectations.\n\n### 6. CONFIDENCE\n**HIGH** (Statistical Power: 126,324 viewers).\n\n### 7. VALIDATION EVIDENCE\nSpeeding up screenplay pacing between 18s – 25s will maintain continuous audience momentum.",
+            json.dumps([{"query": f"SELECT count() FROM viewer_events WHERE screening_id='{screening_id}' AND video_timecode_sec BETWEEN 18 AND 25"}]),
+            json.dumps([{"frame_timecode_sec": 19.0, "description": "Workshop Shot Pacing Lag"}]),
+            "### Recommended AI Editorial Cut\n**Action**: Speed up screenplay pacing between 18s – 25s by tightening shot transitions and dialogue beats.\n**Impact**: Maintains continuous audience momentum and heightens visual engagement.",
+            base_dt
+        ]
+    ]
+    client.insert("investigations", inv_rows, column_names=[
+        "screening_id", "anomaly_id", "investigation_report", "mcp_queries_json", "extracted_frames_json", "elaborated_report", "updated_at"
+    ])
+    print(f"Seeded demo telemetry, comments, and AI investigations for {screening_id} successfully!")
 
 def init_db(client: Client | None = None):
     ensure_db_initialized(client)
