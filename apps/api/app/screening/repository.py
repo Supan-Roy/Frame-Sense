@@ -292,11 +292,14 @@ class ScreeningRepository:
         mcp_json = json.dumps(mcp_queries or [])
         frames_json = json.dumps(extracted_frames or [])
 
-        client.insert("investigations", [[
-            screening_id, anomaly_id, investigation_report, mcp_json, frames_json, "", now_dt
-        ]], column_names=[
-            "screening_id", "anomaly_id", "investigation_report", "mcp_queries_json", "extracted_frames_json", "elaborated_report", "updated_at"
-        ])
+        try:
+            client.insert("investigations", [[
+                screening_id, anomaly_id, investigation_report, mcp_json, frames_json, "", now_dt
+            ]], column_names=[
+                "screening_id", "anomaly_id", "investigation_report", "mcp_queries_json", "extracted_frames_json", "elaborated_report", "updated_at"
+            ])
+        except Exception as e:
+            print(f"Error persisting investigation: {e}")
 
         return {
             "screening_id": screening_id,
@@ -308,47 +311,55 @@ class ScreeningRepository:
         }
 
     def get_investigation(self, screening_id: str, anomaly_id: str) -> Optional[Dict[str, Any]]:
-        client = get_client()
-        res = client.query(
-            "SELECT screening_id, anomaly_id, investigation_report, mcp_queries_json, extracted_frames_json, elaborated_report, updated_at FROM default.investigations WHERE screening_id = {sid:String} AND anomaly_id = {aid:String}",
-            parameters={"sid": screening_id, "aid": anomaly_id}
-        )
-        if not res.result_rows:
-            return None
-        r = res.result_rows[0]
-        up_at = r[6].isoformat() if isinstance(r[6], datetime) else r[6]
-        return {
-            "screening_id": r[0],
-            "anomaly_id": r[1],
-            "investigation_report": r[2],
-            "mcp_queries_executed": json.loads(r[3] or "[]"),
-            "extracted_frames": json.loads(r[4] or "[]"),
-            "elaborated_report": r[5] or None,
-            "updated_at": up_at
-        }
-
-    def get_all_investigations(self, screening_id: str) -> Dict[str, Dict[str, Any]]:
-        client = get_client()
-        res = client.query(
-            "SELECT screening_id, anomaly_id, investigation_report, mcp_queries_json, extracted_frames_json, elaborated_report, updated_at FROM default.investigations WHERE screening_id = {sid:String} ORDER BY updated_at DESC",
-            parameters={"sid": screening_id}
-        )
-        if not res.result_rows:
-            return {}
-        results = {}
-        for r in res.result_rows:
-            aid = r[1]
+        try:
+            client = get_client()
+            res = client.query(
+                "SELECT screening_id, anomaly_id, investigation_report, mcp_queries_json, extracted_frames_json, elaborated_report, updated_at FROM default.investigations WHERE screening_id = {sid:String} AND anomaly_id = {aid:String}",
+                parameters={"sid": screening_id, "aid": anomaly_id}
+            )
+            if not res.result_rows:
+                return None
+            r = res.result_rows[0]
             up_at = r[6].isoformat() if isinstance(r[6], datetime) else r[6]
-            results[aid] = {
+            return {
                 "screening_id": r[0],
-                "anomaly_id": aid,
+                "anomaly_id": r[1],
                 "investigation_report": r[2],
                 "mcp_queries_executed": json.loads(r[3] or "[]"),
                 "extracted_frames": json.loads(r[4] or "[]"),
                 "elaborated_report": r[5] or None,
                 "updated_at": up_at
             }
-        return results
+        except Exception as e:
+            print(f"Notice in get_investigation: {e}")
+            return None
+
+    def get_all_investigations(self, screening_id: str) -> Dict[str, Dict[str, Any]]:
+        try:
+            client = get_client()
+            res = client.query(
+                "SELECT screening_id, anomaly_id, investigation_report, mcp_queries_json, extracted_frames_json, elaborated_report, updated_at FROM default.investigations WHERE screening_id = {sid:String} ORDER BY updated_at DESC",
+                parameters={"sid": screening_id}
+            )
+            if not res.result_rows:
+                return {}
+            results = {}
+            for r in res.result_rows:
+                aid = r[1]
+                up_at = r[6].isoformat() if isinstance(r[6], datetime) else r[6]
+                results[aid] = {
+                    "screening_id": r[0],
+                    "anomaly_id": aid,
+                    "investigation_report": r[2],
+                    "mcp_queries_executed": json.loads(r[3] or "[]"),
+                    "extracted_frames": json.loads(r[4] or "[]"),
+                    "elaborated_report": r[5] or None,
+                    "updated_at": up_at
+                }
+            return results
+        except Exception as e:
+            print(f"Notice in get_all_investigations: {e}")
+            return {}
 
     def save_elaborated_report(
         self,
@@ -363,12 +374,16 @@ class ScreeningRepository:
         now_dt = datetime.now(timezone.utc)
         now_iso = now_dt.isoformat()
 
-        client = get_client()
-        client.insert("investigations", [[
-            screening_id, anomaly_id, report_text, mcp_json, frames_json, elaborated_report, now_dt
-        ]], column_names=[
-            "screening_id", "anomaly_id", "investigation_report", "mcp_queries_json", "extracted_frames_json", "elaborated_report", "updated_at"
-        ])
+        try:
+            client = get_client()
+            client.insert("investigations", [[
+                screening_id, anomaly_id, report_text, mcp_json, frames_json, elaborated_report, now_dt
+            ]], column_names=[
+                "screening_id", "anomaly_id", "investigation_report", "mcp_queries_json", "extracted_frames_json", "elaborated_report", "updated_at"
+            ])
+        except Exception as e:
+            print(f"Error saving elaborated report: {e}")
+
         return self.get_investigation(screening_id, anomaly_id) or {
             "screening_id": screening_id,
             "anomaly_id": anomaly_id,
@@ -377,14 +392,22 @@ class ScreeningRepository:
         }
 
     def delete_investigation(self, screening_id: str, anomaly_id: str) -> bool:
-        client = get_client()
-        client.command("DELETE FROM default.investigations WHERE screening_id = {sid:String} AND anomaly_id = {aid:String}", parameters={"sid": screening_id, "aid": anomaly_id})
-        return True
+        try:
+            client = get_client()
+            client.command("DELETE FROM default.investigations WHERE screening_id = {sid:String} AND anomaly_id = {aid:String}", parameters={"sid": screening_id, "aid": anomaly_id})
+            return True
+        except Exception as e:
+            print(f"Error deleting investigation: {e}")
+            return False
 
     def delete_all_investigations(self, screening_id: str) -> bool:
-        client = get_client()
-        client.command("DELETE FROM default.investigations WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
-        return True
+        try:
+            client = get_client()
+            client.command("DELETE FROM default.investigations WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
+            return True
+        except Exception as e:
+            print(f"Error deleting all investigations: {e}")
+            return False
 
     # --- Sense AI Chat Persistence Methods ---
 
