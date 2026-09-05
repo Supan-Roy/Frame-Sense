@@ -43,8 +43,6 @@ Desktop.ini
 # Local media uploads and database files (preserve sample seeds)
 apps/api/data/*
 !apps/api/data/screenings.json
-!apps/api/data/media/
-!apps/api/data/media/*
 
 # Local root data folder
 /data/

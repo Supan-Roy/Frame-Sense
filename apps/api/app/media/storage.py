@@ -74,10 +74,6 @@ class LocalStorage(BaseStorage):
         safe_filename = os.path.basename(filename)
         target_path = os.path.join(self.base_dir, safe_filename)
         if not os.path.exists(target_path):
-            # Fall back to sample video if specific uploaded file was lost during container redeploy
-            fallback_files = [f for f in os.listdir(self.base_dir) if f.endswith(('.mp4', '.webm', '.mov'))] if os.path.exists(self.base_dir) else []
-            if fallback_files:
-                return os.path.join(self.base_dir, fallback_files[0])
             raise HTTPException(status_code=404, detail="File not found")
         return target_path
 
