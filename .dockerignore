@@ -1,0 +1,15 @@
+.git
+.gitignore
+.vscode
+.pytest_cache
+node_modules
+apps/web/node_modules
+apps/web/dist
+apps/api/.venv
+apps/api/__pycache__
+apps/api/app/__pycache__
+apps/api/app/*/__pycache__
+scratch
+*.pyc
+*.pyo
+*.log
