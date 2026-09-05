@@ -16,7 +16,10 @@ def get_client(auto_init: bool = True) -> Client:
         username=settings.CLICKHOUSE_USER,
         password=settings.CLICKHOUSE_PASSWORD,
         database=settings.CLICKHOUSE_DATABASE,
-        secure=settings.CLICKHOUSE_SECURE
+        secure=settings.CLICKHOUSE_SECURE,
+        pool_maxsize=50,
+        connect_timeout=15,
+        send_receive_timeout=30
     )
     global _db_initialized
     if auto_init and not _db_initialized:
@@ -33,7 +36,10 @@ def ensure_db_initialized(client: Client | None = None):
                 username=settings.CLICKHOUSE_USER,
                 password=settings.CLICKHOUSE_PASSWORD,
                 database=settings.CLICKHOUSE_DATABASE,
-                secure=settings.CLICKHOUSE_SECURE
+                secure=settings.CLICKHOUSE_SECURE,
+                pool_maxsize=50,
+                connect_timeout=15,
+                send_receive_timeout=30
             )
         _run_schema_creation(client)
         _db_initialized = True
@@ -207,10 +213,13 @@ def _seed_demo_telemetry_if_needed(client: Client):
         else:
             rows.append([uuid.uuid4(), screening_id, sess_id, v_id, video_id, "COMPLETE", 32.0, v_dt + timedelta(seconds=32), v_dt + timedelta(seconds=32)])
 
-    client.insert("viewer_events", rows, column_names=[
-        "event_id", "screening_id", "session_id", "anonymous_viewer_id",
-        "video_id", "event_type", "video_timecode_sec", "client_timestamp", "server_timestamp"
-    ])
+    chunk_size = 10000
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i:i + chunk_size]
+        client.insert("viewer_events", chunk, column_names=[
+            "event_id", "screening_id", "session_id", "anonymous_viewer_id",
+            "video_id", "event_type", "video_timecode_sec", "client_timestamp", "server_timestamp"
+        ])
 
     # 2. Seed Editorial Comments
     comments_data = [
