@@ -7,8 +7,10 @@ import clickhouse_connect
 from clickhouse_connect.driver.client import Client
 from app.core.config import settings
 
-def get_client() -> Client:
-    return clickhouse_connect.get_client(
+_db_initialized = False
+
+def get_client(auto_init: bool = True) -> Client:
+    client = clickhouse_connect.get_client(
         host=settings.CLICKHOUSE_HOST,
         port=settings.CLICKHOUSE_PORT,
         username=settings.CLICKHOUSE_USER,
@@ -16,9 +18,29 @@ def get_client() -> Client:
         database=settings.CLICKHOUSE_DATABASE,
         secure=settings.CLICKHOUSE_SECURE
     )
+    global _db_initialized
+    if auto_init and not _db_initialized:
+        ensure_db_initialized(client)
+    return client
 
-def init_db():
-    client = get_client()
+def ensure_db_initialized(client: Client | None = None):
+    global _db_initialized
+    try:
+        if client is None:
+            client = clickhouse_connect.get_client(
+                host=settings.CLICKHOUSE_HOST,
+                port=settings.CLICKHOUSE_PORT,
+                username=settings.CLICKHOUSE_USER,
+                password=settings.CLICKHOUSE_PASSWORD,
+                database=settings.CLICKHOUSE_DATABASE,
+                secure=settings.CLICKHOUSE_SECURE
+            )
+        _run_schema_creation(client)
+        _db_initialized = True
+    except Exception as e:
+        print(f"ClickHouse schema initialization notice: {e}")
+
+def _run_schema_creation(client: Client):
     # Create tables for telemetry events and 100% ClickHouse metadata storage
 
     # Raw telemetry events
@@ -107,8 +129,6 @@ def init_db():
     ORDER BY (screening_id, session_id, created_at);
     """)
 
-    print("ClickHouse database schema initialized successfully.")
-
     # Seed persistent screenings from screenings.json backup if not already present
     try:
         json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "screenings.json")
@@ -129,6 +149,11 @@ def init_db():
                     print(f"Ensured screening {s['screening_id']} ({s['title']}) is seeded in default.screenings.")
     except Exception as seed_err:
         print(f"Notice during screening seed: {seed_err}")
+
+    print("ClickHouse database schema initialized successfully.")
+
+def init_db(client: Client | None = None):
+    ensure_db_initialized(client)
 
 def insert_events(events: List[Dict[str, Any]]):
     client = get_client()
@@ -162,7 +187,14 @@ def insert_events(events: List[Dict[str, Any]]):
         "event_id", "screening_id", "session_id", "anonymous_viewer_id",
         "video_id", "event_type", "video_timecode_sec", "client_timestamp", "server_timestamp"
     ]
-    client.insert("viewer_events", data, column_names=column_names)
+    try:
+        client.insert("viewer_events", data, column_names=column_names)
+    except Exception as err:
+        if "UNKNOWN_TABLE" in str(err) or "60" in str(err):
+            ensure_db_initialized(client)
+            client.insert("viewer_events", data, column_names=column_names)
+        else:
+            raise err
 
 def get_screening_stats(screening_id: str) -> Dict[str, Any]:
     try:
