@@ -7,7 +7,21 @@ import clickhouse_connect
 from clickhouse_connect.driver.client import Client
 from app.core.config import settings
 
+import urllib3
+import clickhouse_connect.driver.httputil as httputil
+
 _db_initialized = False
+
+def _get_clickhouse_pool_mgr():
+    retries = urllib3.util.Retry(
+        total=5,
+        connect=5,
+        read=5,
+        status=5,
+        backoff_factor=0.2,
+        raise_on_status=False
+    )
+    return httputil.get_pool_manager(retries=retries, maxsize=50)
 
 def get_client(auto_init: bool = True) -> Client:
     client = clickhouse_connect.get_client(
@@ -18,7 +32,8 @@ def get_client(auto_init: bool = True) -> Client:
         database=settings.CLICKHOUSE_DATABASE,
         secure=settings.CLICKHOUSE_SECURE,
         connect_timeout=15,
-        send_receive_timeout=30
+        send_receive_timeout=30,
+        pool_mgr=_get_clickhouse_pool_mgr()
     )
     global _db_initialized
     if auto_init and not _db_initialized:
@@ -37,7 +52,8 @@ def ensure_db_initialized(client: Client | None = None):
                 database=settings.CLICKHOUSE_DATABASE,
                 secure=settings.CLICKHOUSE_SECURE,
                 connect_timeout=15,
-                send_receive_timeout=30
+                send_receive_timeout=30,
+                pool_mgr=_get_clickhouse_pool_mgr()
             )
         _run_schema_creation(client)
         _db_initialized = True
