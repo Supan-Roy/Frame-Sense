@@ -14,47 +14,80 @@ class ScreeningRepository:
         except Exception as e:
             print(f"ClickHouse initialization notice: {e}")
 
+    def _load_screenings_file_fallback(self) -> List[Dict[str, Any]]:
+        try:
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+            json_path = os.path.join(data_dir, "screenings.json")
+            if os.path.exists(json_path):
+                with open(json_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return []
+
     def get_all(self) -> List[Dict[str, Any]]:
-        client = get_client()
-        res = client.query("SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings ORDER BY created_at DESC")
-        if not res.result_rows:
-            return []
-        cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
-        out = []
-        for r in res.result_rows:
-            item = dict(zip(cols, r))
-            if isinstance(item["created_at"], datetime):
-                item["created_at"] = item["created_at"].isoformat()
-            out.append(item)
-        return out
+        try:
+            client = get_client()
+            res = client.query("SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings ORDER BY created_at DESC")
+            if not res.result_rows:
+                return self._load_screenings_file_fallback()
+            cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
+            out = []
+            for r in res.result_rows:
+                item = dict(zip(cols, r))
+                if isinstance(item["created_at"], datetime):
+                    item["created_at"] = item["created_at"].isoformat()
+                out.append(item)
+            return out
+        except Exception as e:
+            print(f"Notice in get_all screenings: {e}")
+            return self._load_screenings_file_fallback()
 
     def get_by_id(self, screening_id: str) -> Dict[str, Any] | None:
-        client = get_client()
-        res = client.query(
-            "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE screening_id = {sid:String}",
-            parameters={"sid": screening_id}
-        )
-        if not res.result_rows:
+        try:
+            client = get_client()
+            res = client.query(
+                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE screening_id = {sid:String}",
+                parameters={"sid": screening_id}
+            )
+            if not res.result_rows:
+                for s in self._load_screenings_file_fallback():
+                    if s.get("screening_id") == screening_id:
+                        return s
+                return None
+            cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
+            item = dict(zip(cols, res.result_rows[0]))
+            if isinstance(item["created_at"], datetime):
+                item["created_at"] = item["created_at"].isoformat()
+            return item
+        except Exception as e:
+            for s in self._load_screenings_file_fallback():
+                if s.get("screening_id") == screening_id:
+                    return s
             return None
-        cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
-        item = dict(zip(cols, res.result_rows[0]))
-        if isinstance(item["created_at"], datetime):
-            item["created_at"] = item["created_at"].isoformat()
-        return item
 
     def get_by_token(self, public_token: str) -> Dict[str, Any] | None:
-        client = get_client()
-        res = client.query(
-            "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE public_token = {token:String}",
-            parameters={"token": public_token}
-        )
-        if not res.result_rows:
+        try:
+            client = get_client()
+            res = client.query(
+                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE public_token = {token:String}",
+                parameters={"token": public_token}
+            )
+            if not res.result_rows:
+                for s in self._load_screenings_file_fallback():
+                    if s.get("public_token") == public_token:
+                        return s
+                return None
+            cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
+            item = dict(zip(cols, res.result_rows[0]))
+            if isinstance(item["created_at"], datetime):
+                item["created_at"] = item["created_at"].isoformat()
+            return item
+        except Exception as e:
+            for s in self._load_screenings_file_fallback():
+                if s.get("public_token") == public_token:
+                    return s
             return None
-        cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
-        item = dict(zip(cols, res.result_rows[0]))
-        if isinstance(item["created_at"], datetime):
-            item["created_at"] = item["created_at"].isoformat()
-        return item
 
     def create(
         self,
