@@ -386,6 +386,10 @@ def delete_screening_events(screening_id: str):
         client.command("DELETE FROM investigations WHERE screening_id = {sid:String}", parameters=params)
         client.command("DELETE FROM chat_sessions WHERE screening_id = {sid:String}", parameters=params)
         client.command("DELETE FROM chat_messages WHERE screening_id = {sid:String}", parameters=params)
+        try:
+            client.command("OPTIMIZE TABLE viewer_events FINAL CLEANUP")
+        except Exception:
+            pass
     except Exception as e:
         print(f"Error executing ClickHouse delete for {screening_id}: {e}")
 
