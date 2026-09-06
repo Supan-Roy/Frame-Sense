@@ -299,9 +299,9 @@ export default function AppShell({ children }: AppShellProps) {
                 <div className="space-y-2.5 col-span-1">
                   <div className="font-semibold text-foreground uppercase tracking-wider text-[10px] font-mono">Resources</div>
                   <div className="flex flex-col gap-1.5 text-xs">
-                    <a href="#" className="hover:text-primary transition-colors">Docs</a>
-                    <a href="#" className="hover:text-primary transition-colors">Help Center</a>
-                    <a href="#" className="hover:text-primary transition-colors">API Reference</a>
+                    <a href="https://github.com/Supan-Roy/Frame-Sense/tree/main/docs" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline-flex items-center gap-1">Docs <ExternalLink className="h-2.5 w-2.5 opacity-60" /></a>
+                    <a href="https://github.com/Supan-Roy/Frame-Sense/blob/main/docs/development.md" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline-flex items-center gap-1">Help Center <ExternalLink className="h-2.5 w-2.5 opacity-60" /></a>
+                    <a href="https://github.com/Supan-Roy/Frame-Sense/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline-flex items-center gap-1">API Reference <ExternalLink className="h-2.5 w-2.5 opacity-60" /></a>
                   </div>
                 </div>
 
@@ -309,8 +309,8 @@ export default function AppShell({ children }: AppShellProps) {
                 <div className="space-y-2.5 col-span-2 sm:col-span-1">
                   <div className="font-semibold text-foreground uppercase tracking-wider text-[10px] font-mono">Legal</div>
                   <div className="flex flex-col sm:flex-col flex-row gap-x-4 gap-y-1.5 text-xs">
-                    <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-                    <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+                    <NavLink to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</NavLink>
+                    <NavLink to="/terms" className="hover:text-primary transition-colors">Terms of Service</NavLink>
                   </div>
                 </div>
               </div>

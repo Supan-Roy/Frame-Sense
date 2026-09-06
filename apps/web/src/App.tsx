@@ -6,6 +6,9 @@ import Findings from './pages/Findings';
 import Settings from './pages/Settings';
 import ScreeningRoom from './pages/ScreeningRoom';
 
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+
 export default function App() {
   return (
     <Router>
@@ -23,6 +26,8 @@ export default function App() {
                 <Route path="/screenings" element={<Screenings />} />
                 <Route path="/findings" element={<Findings />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
               </Routes>
             </AppShell>
           }
