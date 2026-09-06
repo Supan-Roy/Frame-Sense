@@ -126,7 +126,7 @@ class ScreeningRepository:
             "status": status,
             "public_token": public_token
         }
-        self._sync_screenings_file()
+        self._sync_screenings_file(res)
         return res
 
     def delete(self, screening_id: str) -> bool:
@@ -149,15 +149,17 @@ class ScreeningRepository:
             pass
         return True
 
-    def _sync_screenings_file(self):
+    def _sync_screenings_file(self, item: Optional[Dict[str, Any]] = None):
         try:
-            import json, os
             data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
             json_path = os.path.join(data_dir, "screenings.json")
-            screenings = self.get_all()
+            existing = self._load_screenings_file_fallback()
+            if item:
+                existing = [s for s in existing if s.get("screening_id") != item.get("screening_id")]
+                existing.insert(0, item)
             os.makedirs(data_dir, exist_ok=True)
             with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(screenings, f, indent=2)
+                json.dump(existing, f, indent=2)
         except Exception:
             pass
 
