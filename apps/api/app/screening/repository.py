@@ -103,14 +103,17 @@ class ScreeningRepository:
         created_at_dt = datetime.now(timezone.utc)
         created_at_iso = created_at_dt.isoformat()
 
-        client = get_client()
-        client.insert("screenings", [[
-            screening_id, media_id, title, description or "",
-            media_filename, float(media_duration), created_at_dt, status, public_token
-        ]], column_names=[
-            "screening_id", "media_id", "title", "description",
-            "media_filename", "media_duration", "created_at", "status", "public_token"
-        ])
+        try:
+            client = get_client()
+            client.insert("screenings", [[
+                screening_id, media_id, title, description or "",
+                media_filename, float(media_duration), created_at_dt, status, public_token
+            ]], column_names=[
+                "screening_id", "media_id", "title", "description",
+                "media_filename", "media_duration", "created_at", "status", "public_token"
+            ])
+        except Exception as err:
+            print(f"Notice in create screening ClickHouse insert: {err}")
 
         res = {
             "screening_id": screening_id,
@@ -125,6 +128,26 @@ class ScreeningRepository:
         }
         self._sync_screenings_file()
         return res
+
+    def delete(self, screening_id: str) -> bool:
+        try:
+            client = get_client()
+            client.command("ALTER TABLE default.screenings DELETE WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
+            client.command("ALTER TABLE default.viewer_events DELETE WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
+        except Exception as e:
+            print(f"Notice in delete screening ClickHouse: {e}")
+
+        try:
+            screenings = self._load_screenings_file_fallback()
+            updated = [s for s in screenings if s.get("screening_id") != screening_id]
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data")
+            json_path = os.path.join(data_dir, "screenings.json")
+            os.makedirs(data_dir, exist_ok=True)
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(updated, f, indent=2)
+        except Exception:
+            pass
+        return True
 
     def _sync_screenings_file(self):
         try:

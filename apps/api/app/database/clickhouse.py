@@ -36,8 +36,8 @@ def _create_new_client() -> Client:
         password=settings.CLICKHOUSE_PASSWORD,
         database=settings.CLICKHOUSE_DATABASE,
         secure=settings.CLICKHOUSE_SECURE,
-        connect_timeout=15,
-        send_receive_timeout=30,
+        connect_timeout=5,
+        send_receive_timeout=15,
         pool_mgr=_get_shared_pool_mgr()
     )
 
@@ -48,11 +48,7 @@ def reset_client():
 def get_client(auto_init: bool = True) -> Client:
     global _client_instance, _db_initialized
     if _client_instance is None:
-        try:
-            _client_instance = _create_new_client()
-        except Exception as err:
-            reset_client()
-            _client_instance = _create_new_client()
+        _client_instance = _create_new_client()
 
     if auto_init and not _db_initialized:
         ensure_db_initialized(_client_instance)
