@@ -1,5 +1,7 @@
 # Frame Sense System Architecture
 
+![Frame Sense System Architecture Diagram](assets/system_architecture.jpg)
+
 This document details the production architecture of **Frame Sense**, detailing data flow, statistical gating, agent orchestration, multimodal vision investigation, ClickHouse OLAP windowing, and professional NLE export.
 
 ---
