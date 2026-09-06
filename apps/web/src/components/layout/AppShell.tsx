@@ -258,15 +258,12 @@ export default function AppShell({ children }: AppShellProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6 mb-8">
                 {/* Column 1: Brand & Developer Info */}
                 <div className="space-y-3 col-span-2 md:col-span-1">
-                  <Link to="/" className="inline-flex items-center gap-2.5 group cursor-pointer" title="Return to Dashboard">
-                    <div className="p-1.5 bg-studio-900 border border-border/80 rounded-lg shadow-sm group-hover:border-primary/50 transition-colors">
-                      <Logo className="h-4.5 w-4.5" />
-                    </div>
-                    <div>
-                      <LogoText className="h-[16px] w-auto block" />
-                      <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">Post-Production Intelligence</div>
-                    </div>
-                  </Link>
+                  <div className="space-y-1">
+                    <Link to="/" className="inline-flex items-center group cursor-pointer" title="Return to Dashboard">
+                      <LogoWordmark className="h-6 w-auto select-none group-hover:opacity-90 transition-opacity" />
+                    </Link>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Post-Production Intelligence</div>
+                  </div>
 
                   <div className="text-[10px] text-muted-foreground/75 font-mono">
                     &copy; {new Date().getFullYear()} Frame Sense. All rights reserved.
