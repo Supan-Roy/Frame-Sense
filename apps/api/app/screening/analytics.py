@@ -39,77 +39,113 @@ def _reliability(unique_viewers: int) -> Dict[str, str]:
 
 
 def get_audience_overview(screening_id: str) -> Dict[str, Any]:
-    client = get_client()
-    params = {"sid": screening_id}
-    unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
-    real_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id NOT LIKE 'synth_v_%'", parameters=params))
-    synthetic_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String} AND anonymous_viewer_id LIKE 'synth_v_%'", parameters=params))
-    unique_sessions = int(client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
-    total_events = int(client.command("SELECT count() FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
-    completed_sessions = int(client.command("SELECT count(DISTINCT session_id) FROM viewer_events WHERE screening_id = {sid:String} AND event_type = 'COMPLETE'", parameters=params))
-    completion_rate = round(completed_sessions / unique_sessions, 4) if unique_sessions > 0 else None
-    return {
-        "screening_id": screening_id,
-        "unique_viewers": unique_viewers,
-        "real_viewers": real_viewers,
-        "synthetic_viewers": synthetic_viewers,
-        "unique_sessions": unique_sessions,
-        "total_events": total_events,
-        "completed_sessions": completed_sessions,
-        "completion_rate": completion_rate,
-        "reliability": _reliability(unique_viewers),
-    }
+    try:
+        client = get_client()
+        params = {"sid": screening_id}
+        query = """
+        SELECT
+            toUInt64(count(DISTINCT anonymous_viewer_id)) AS unique_viewers,
+            toUInt64(count(DISTINCT if(anonymous_viewer_id NOT LIKE 'synth_v_%', anonymous_viewer_id, NULL))) AS real_viewers,
+            toUInt64(count(DISTINCT if(anonymous_viewer_id LIKE 'synth_v_%', anonymous_viewer_id, NULL))) AS synthetic_viewers,
+            toUInt64(count(DISTINCT session_id)) AS unique_sessions,
+            toUInt64(count()) AS total_events,
+            toUInt64(count(DISTINCT if(event_type = 'COMPLETE', session_id, NULL))) AS completed_sessions
+        FROM viewer_events
+        WHERE screening_id = {sid:String}
+        """
+        res = client.query(query, parameters=params)
+        if res.result_rows:
+            uv, rv, sv, us, te, cs = res.result_rows[0]
+            unique_viewers = int(uv or 0)
+            real_viewers = int(rv or 0)
+            synthetic_viewers = int(sv or 0)
+            unique_sessions = int(us or 0)
+            total_events = int(te or 0)
+            completed_sessions = int(cs or 0)
+        else:
+            unique_viewers = real_viewers = synthetic_viewers = unique_sessions = total_events = completed_sessions = 0
+
+        completion_rate = round(completed_sessions / unique_sessions, 4) if unique_sessions > 0 else None
+        return {
+            "screening_id": screening_id,
+            "unique_viewers": unique_viewers,
+            "real_viewers": real_viewers,
+            "synthetic_viewers": synthetic_viewers,
+            "unique_sessions": unique_sessions,
+            "total_events": total_events,
+            "completed_sessions": completed_sessions,
+            "completion_rate": completion_rate,
+            "reliability": _reliability(unique_viewers),
+        }
+    except Exception as e:
+        print(f"Notice in get_audience_overview: {e}")
+        return {
+            "screening_id": screening_id,
+            "unique_viewers": 0,
+            "real_viewers": 0,
+            "synthetic_viewers": 0,
+            "unique_sessions": 0,
+            "total_events": 0,
+            "completed_sessions": 0,
+            "completion_rate": None,
+            "reliability": _reliability(0),
+        }
 
 
 def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
-    """Retention curve calculated in ClickHouse."""
-    client = get_client()
-    params = {"sid": screening_id}
-
-    total_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
-    if total_viewers == 0:
-        return {"screening_id": screening_id, "bucket_sec": bucket_sec, "total_starters": 0, "curve": []}
-
-    from app.screening.repository import screening_repo
-    screening = screening_repo.get_by_id(screening_id)
-    video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
-
-    max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0", parameters=params)
-    event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
-
-    max_dur = max(video_dur, event_max) or 60.0
+    """Retention curve calculated in ClickHouse efficiently."""
     b = max(1, min(5, int(bucket_sec)))
+    try:
+        client = get_client()
+        params = {"sid": screening_id}
 
-    query = f"""
-    WITH watched_buckets AS (
+        total_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+        if total_viewers == 0:
+            return {"screening_id": screening_id, "bucket_sec": b, "total_starters": 0, "curve": []}
+
+        from app.screening.repository import screening_repo
+        screening = screening_repo.get_by_id(screening_id)
+        video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
+
+        max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0 AND video_timecode_sec <= 14400", parameters=params)
+        event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
+
+        max_dur = min(14400.0, max(video_dur, event_max) or 60.0)
+
+        query = f"""
+        WITH watched_buckets AS (
+            SELECT
+                toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
+                uniqExact(anonymous_viewer_id) AS active_viewers
+            FROM viewer_events
+            WHERE screening_id = {{sid:String}} 
+              AND video_timecode_sec >= 0 
+              AND video_timecode_sec <= {int(max_dur)}
+              AND event_type IN ('PLAY', 'PROGRESS', 'PAUSE', 'REPLAY')
+            GROUP BY bucket
+        )
         SELECT
-            toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
-            uniqExact(anonymous_viewer_id) AS active_viewers
-        FROM viewer_events
-        WHERE screening_id = {{sid:String}} 
-          AND video_timecode_sec >= 0 
-          AND event_type IN ('PLAY', 'PROGRESS', 'PAUSE', 'REPLAY')
-        GROUP BY bucket
-    )
-    SELECT
-        b.bucket,
-        coalesce(w.active_viewers, 0) AS active_viewers
-    FROM (
-        SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
-    ) AS b
-    LEFT JOIN watched_buckets AS w ON w.bucket = b.bucket
-    ORDER BY b.bucket
-    """
-    res = client.query(query, parameters=params)
-    buckets = []
-    for row in res.result_rows:
-        bucket_t, active_v = row
-        if int(bucket_t) > int(max_dur):
-            continue
-        retention = round(int(active_v) / max(1, total_viewers), 4)
-        buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
+            b.bucket,
+            coalesce(w.active_viewers, 0) AS active_viewers
+        FROM (
+            SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
+        ) AS b
+        LEFT JOIN watched_buckets AS w ON w.bucket = b.bucket
+        ORDER BY b.bucket
+        """
+        res = client.query(query, parameters=params)
+        buckets = []
+        for row in res.result_rows:
+            bucket_t, active_v = row
+            if int(bucket_t) > int(max_dur):
+                continue
+            retention = round(int(active_v) / max(1, total_viewers), 4)
+            buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
 
-    return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
+        return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
+    except Exception as e:
+        print(f"Notice in get_retention_data: {e}")
+        return {"screening_id": screening_id, "bucket_sec": b, "total_starters": 0, "curve": []}
 
 
 get_retention_curve = get_retention_data
@@ -117,77 +153,80 @@ get_retention_curve = get_retention_data
 
 def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """Per-time-bucket behavioral event rates. All aggregation in ClickHouse."""
-    client = get_client()
-    params = {"sid": screening_id}
     b = max(1, int(bucket_sec))
+    try:
+        client = get_client()
+        params = {"sid": screening_id}
 
-    unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
-    if unique_viewers == 0:
-        return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
+        unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+        if unique_viewers == 0:
+            return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
 
-    from app.screening.repository import screening_repo
-    screening = screening_repo.get_by_id(screening_id)
-    video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
+        from app.screening.repository import screening_repo
+        screening = screening_repo.get_by_id(screening_id)
+        video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
 
-    max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0", parameters=params)
-    event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
-    max_dur = max(video_dur, event_max) or 60.0
+        max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0 AND video_timecode_sec <= 14400", parameters=params)
+        event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
+        max_dur = min(14400.0, max(video_dur, event_max) or 60.0)
 
-    query = f"""
-    WITH event_buckets AS (
+        query = f"""
+        WITH event_buckets AS (
+            SELECT
+                toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
+                countIf(event_type = 'PAUSE')         AS pauses,
+                countIf(event_type = 'SEEK_BACKWARD') AS rewinds,
+                countIf(event_type = 'SEEK_FORWARD')  AS skips,
+                countIf(event_type = 'REPLAY')        AS replays,
+                countIf(event_type = 'VOLUME_CHANGE') AS volume_changes,
+                countIf(event_type = 'TAB_HIDDEN')    AS tab_hides,
+                countIf(event_type = 'EXIT')          AS exits,
+                countIf(event_type = 'COMPLETE')      AS completions,
+                count(DISTINCT session_id)             AS sessions_active
+            FROM viewer_events
+            WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0 AND video_timecode_sec <= {int(max_dur)}
+            GROUP BY bucket
+        )
         SELECT
-            toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
-            countIf(event_type = 'PAUSE')         AS pauses,
-            countIf(event_type = 'SEEK_BACKWARD') AS rewinds,
-            countIf(event_type = 'SEEK_FORWARD')  AS skips,
-            countIf(event_type = 'REPLAY')        AS replays,
-            countIf(event_type = 'VOLUME_CHANGE') AS volume_changes,
-            countIf(event_type = 'TAB_HIDDEN')    AS tab_hides,
-            countIf(event_type = 'EXIT')          AS exits,
-            countIf(event_type = 'COMPLETE')      AS completions,
-            count(DISTINCT session_id)             AS sessions_active
-        FROM viewer_events
-        WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
-        GROUP BY bucket
-    )
-    SELECT
-        b.bucket,
-        coalesce(e.pauses, 0),
-        coalesce(e.rewinds, 0),
-        coalesce(e.skips, 0),
-        coalesce(e.replays, 0),
-        coalesce(e.volume_changes, 0),
-        coalesce(e.tab_hides, 0),
-        coalesce(e.exits, 0),
-        coalesce(e.completions, 0),
-        coalesce(e.sessions_active, 0)
-    FROM (
-        SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
-    ) AS b
-    LEFT JOIN event_buckets AS e ON e.bucket = b.bucket
-    ORDER BY b.bucket
-    """
-    result = client.query(query, parameters=params)
-    denom = max(1, unique_viewers)
-    signals = []
-    for row in result.result_rows:
-        bucket_t, pauses, rewinds, skips, replays, vol, tabs, exits, completions, sessions = row
-        if int(bucket_t) > int(max_dur):
-            continue
-        signals.append({
-            "time_sec": int(bucket_t),
-            "sessions_active": int(sessions),
-            "pauses": int(pauses), "rewinds": int(rewinds),
-            "skips": int(skips), "replays": int(replays),
-            "volume_changes": int(vol), "tab_hides": int(tabs),
-            "exits": int(exits), "completions": int(completions),
-            "pause_rate":  round(int(pauses)  / denom, 4),
-            "rewind_rate": round(int(rewinds) / denom, 4),
-            "skip_rate":   round(int(skips)   / denom, 4),
-            "replay_rate": round(int(replays) / denom, 4),
-            "exit_rate":   round(int(exits)   / denom, 4),
-        })
-    return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": unique_viewers, "reliability": _reliability(unique_viewers), "signals": signals}
+            b.bucket,
+            coalesce(e.pauses, 0),
+            coalesce(e.rewinds, 0),
+            coalesce(e.skips, 0),
+            coalesce(e.replays, 0),
+            coalesce(e.volume_changes, 0),
+            coalesce(e.tab_hides, 0),
+            coalesce(e.exits, 0),
+            coalesce(e.completions, 0),
+            coalesce(e.sessions_active, 0)
+        FROM (
+            SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
+        ) AS b
+        LEFT JOIN event_buckets AS e ON e.bucket = b.bucket
+        ORDER BY b.bucket
+        """
+        res = client.query(query, parameters=params)
+        signals = []
+        denom = max(1, unique_viewers)
+        for row in res.result_rows:
+            bucket_t, pauses, rewinds, skips, replays, vol, tabs, exits, completions, sessions_active = row
+            if int(bucket_t) > int(max_dur):
+                continue
+            signals.append({
+                "time_sec": int(bucket_t),
+                "pauses": int(pauses), "rewinds": int(rewinds),
+                "skips": int(skips), "replays": int(replays),
+                "volume_changes": int(vol), "tab_hides": int(tabs),
+                "exits": int(exits), "completions": int(completions),
+                "pause_rate":  round(int(pauses)  / denom, 4),
+                "rewind_rate": round(int(rewinds) / denom, 4),
+                "skip_rate":   round(int(skips)   / denom, 4),
+                "replay_rate": round(int(replays) / denom, 4),
+                "exit_rate":   round(int(exits)   / denom, 4),
+            })
+        return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": unique_viewers, "reliability": _reliability(unique_viewers), "signals": signals}
+    except Exception as e:
+        print(f"Notice in get_behavioral_signals: {e}")
+        return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
 
 
 def _mean_std(values: List[float]):
