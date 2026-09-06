@@ -198,23 +198,25 @@ Frame-Sense/
 ├── apps/
 │   ├── web/                         # React 18 + Vite + TypeScript Editorial Workspace
 │   │   ├── src/
-│   │   │   ├── pages/               # Findings, Screenings, ScreeningRoom, Dashboard
+│   │   │   ├── pages/               # Findings, Screenings, ScreeningRoom, Dashboard, Settings
 │   │   │   ├── components/          # ClickHouse SQL Inspector, Pipeline Simulator, Media Player, Overlays, EDL export
 │   │   │   └── services/            # API client & SSE streaming controllers
 │   └── api/                         # FastAPI + Google ADK Backend API
-│       ├── agents/                  # ADK agent definitions (Sense AI, Investigator)
+│       ├── agents/                  # ADK agent definitions (Frame_Sense_Investigator)
 │       ├── app/
-│       │   ├── api/routes/          # REST & SSE endpoints
-│       │   ├── database/            # ClickHouse client & schema initializers
-│       │   ├── screening/           # Trajectory analytics, simulator, chat, investigator
-│       │   └── media/               # FFmpeg frame extraction & Gemini Vision service
-│       └── main.py                  # Server entry point
+│       │   ├── api/routes/          # REST & SSE endpoints (Screenings, Audience, Chat, Export)
+│       │   ├── database/            # ClickHouse Cloud client, connection pools & schema initializers
+│       │   ├── screening/           # Trajectory analytics, simulator, chat service & investigator
+│       │   └── media/               # FFmpeg frame extraction & Gemini 3.5 Flash Vision service
+│       └── dev.py                   # FastAPI server entry point (Port 8001)
 ├── packages/
 │   ├── types/                       # Shared TypeScript domain contracts (@frame-sense/types)
 │   ├── config/                      # Shared workspace configuration
 │   └── ui/                          # Shared UI primitives
 ├── docs/                            # Deep technical architecture & specifications
+│   └── assets/                      # System architecture diagram & media assets
 ├── tests/                           # Complete Pytest integration test suite (76 tests)
+├── docker-compose.yml               # Local ClickHouse & service orchestration
 ├── package.json                     # Monorepo root configuration
 └── pnpm-workspace.yaml              # pnpm workspace definition
 ```
