@@ -38,18 +38,27 @@ def _reliability(unique_viewers: int) -> Dict[str, str]:
     return {"status": "STRONG_SIGNAL", "label": f"Strong screening signal ({unique_viewers} viewers)."}
 
 
-def get_audience_overview(screening_id: str) -> Dict[str, Any]:
+def _safe_ch_query(query_fn):
     try:
-        client = get_client()
+        return query_fn(get_client())
+    except Exception as err:
+        print(f"Notice: retrying ClickHouse query due to connection reset: {err}")
+        from app.database.clickhouse import reset_client
+        reset_client()
+        return query_fn(get_client())
+
+
+def get_audience_overview(screening_id: str) -> Dict[str, Any]:
+    def _fetch(client):
         params = {"sid": screening_id}
         query = """
         SELECT
-            toUInt64(count(DISTINCT anonymous_viewer_id)) AS unique_viewers,
-            toUInt64(count(DISTINCT if(anonymous_viewer_id NOT LIKE 'synth_v_%', anonymous_viewer_id, NULL))) AS real_viewers,
-            toUInt64(count(DISTINCT if(anonymous_viewer_id LIKE 'synth_v_%', anonymous_viewer_id, NULL))) AS synthetic_viewers,
-            toUInt64(count(DISTINCT session_id)) AS unique_sessions,
+            toUInt64(uniqExact(anonymous_viewer_id)) AS unique_viewers,
+            toUInt64(uniqExactIf(anonymous_viewer_id, NOT startsWith(anonymous_viewer_id, 'synth_v_'))) AS real_viewers,
+            toUInt64(uniqExactIf(anonymous_viewer_id, startsWith(anonymous_viewer_id, 'synth_v_'))) AS synthetic_viewers,
+            toUInt64(uniqExact(session_id)) AS unique_sessions,
             toUInt64(count()) AS total_events,
-            toUInt64(count(DISTINCT if(event_type = 'COMPLETE', session_id, NULL))) AS completed_sessions
+            toUInt64(uniqExactIf(session_id, event_type = 'COMPLETE')) AS completed_sessions
         FROM viewer_events
         WHERE screening_id = {sid:String}
         """
@@ -77,6 +86,9 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
             "completion_rate": completion_rate,
             "reliability": _reliability(unique_viewers),
         }
+
+    try:
+        return _safe_ch_query(_fetch)
     except Exception as e:
         print(f"Notice in get_audience_overview: {e}")
         return {
@@ -93,10 +105,10 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
 
 
 def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
-    """Retention curve calculated in ClickHouse efficiently."""
+    """Retention curve calculated in ClickHouse based on maximum watched timecode per viewer."""
     b = max(1, min(5, int(bucket_sec)))
-    try:
-        client = get_client()
+
+    def _fetch(client):
         params = {"sid": screening_id}
 
         total_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
@@ -113,24 +125,23 @@ def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]
         max_dur = min(14400.0, max(video_dur, event_max) or 60.0)
 
         query = f"""
-        WITH watched_buckets AS (
+        WITH viewer_max AS (
             SELECT
-                toUInt32(floor(video_timecode_sec / {b}) * {b}) AS bucket,
-                uniqExact(anonymous_viewer_id) AS active_viewers
+                anonymous_viewer_id,
+                max(video_timecode_sec) AS max_tc
             FROM viewer_events
-            WHERE screening_id = {{sid:String}} 
-              AND video_timecode_sec >= 0 
-              AND video_timecode_sec <= {int(max_dur)}
-              AND event_type IN ('PLAY', 'PROGRESS', 'PAUSE', 'REPLAY')
-            GROUP BY bucket
+            WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
+            GROUP BY anonymous_viewer_id
+        ),
+        buckets AS (
+            SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
         )
         SELECT
             b.bucket,
-            coalesce(w.active_viewers, 0) AS active_viewers
-        FROM (
-            SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
-        ) AS b
-        LEFT JOIN watched_buckets AS w ON w.bucket = b.bucket
+            toUInt64(countIf(v.max_tc >= b.bucket)) AS active_viewers
+        FROM buckets AS b
+        CROSS JOIN viewer_max AS v
+        GROUP BY b.bucket
         ORDER BY b.bucket
         """
         res = client.query(query, parameters=params)
@@ -143,6 +154,9 @@ def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]
             buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
 
         return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
+
+    try:
+        return _safe_ch_query(_fetch)
     except Exception as e:
         print(f"Notice in get_retention_data: {e}")
         return {"screening_id": screening_id, "bucket_sec": b, "total_starters": 0, "curve": []}
@@ -154,8 +168,8 @@ get_retention_curve = get_retention_data
 def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, Any]:
     """Per-time-bucket behavioral event rates. All aggregation in ClickHouse."""
     b = max(1, int(bucket_sec))
-    try:
-        client = get_client()
+
+    def _fetch(client):
         params = {"sid": screening_id}
 
         unique_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
@@ -224,6 +238,9 @@ def get_behavioral_signals(screening_id: str, bucket_sec: int = 2) -> Dict[str, 
                 "exit_rate":   round(int(exits)   / denom, 4),
             })
         return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": unique_viewers, "reliability": _reliability(unique_viewers), "signals": signals}
+
+    try:
+        return _safe_ch_query(_fetch)
     except Exception as e:
         print(f"Notice in get_behavioral_signals: {e}")
         return {"screening_id": screening_id, "bucket_sec": b, "unique_viewers": 0, "reliability": _reliability(0), "signals": []}
