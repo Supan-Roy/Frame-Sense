@@ -35,31 +35,13 @@ class GlobalGemini(Gemini):
 def get_clickhouse_cloud_access_token() -> Optional[str]:
     """
     Obtains the authentication header token for ClickHouse Cloud MCP.
-    - Returns CLICKHOUSE_CLOUD_ACCESS_TOKEN / CLICKHOUSE_MCP_TOKEN if set.
-    - Formats Basic auth (base64 encoded service_id:refresh_token) for hosted ClickHouse Cloud MCP.
-    - Formats Basic auth (base64 encoded user:password) as direct DB fallback.
+    Returns CLICKHOUSE_CLOUD_ACCESS_TOKEN / CLICKHOUSE_MCP_TOKEN if non-empty.
     """
     token = os.getenv("CLICKHOUSE_CLOUD_ACCESS_TOKEN") or os.getenv("CLICKHOUSE_MCP_TOKEN")
-    if token:
+    if token and token.strip():
         if token.startswith("Bearer ") or token.startswith("Basic "):
-            return token
-        return f"Bearer {token}"
-        
-    refresh_token = os.getenv("CLICKHOUSE_CLOUD_REFRESH_TOKEN")
-    service_id = os.getenv("CLICKHOUSE_CLOUD_SERVICE_ID")
-    
-    if refresh_token and service_id:
-        import base64
-        creds = base64.b64encode(f"{service_id}:{refresh_token}".encode()).decode()
-        return f"Basic {creds}"
-
-    user = os.getenv("CLICKHOUSE_USER", "default")
-    password = os.getenv("CLICKHOUSE_PASSWORD", "")
-    if password:
-        import base64
-        creds = base64.b64encode(f"{user}:{password}".encode()).decode()
-        return f"Basic {creds}"
-
+            return token.strip()
+        return f"Bearer {token.strip()}"
     return None
 
 
@@ -167,21 +149,6 @@ INVESTIGATOR_INSTRUCTION = (
     "### 7. VALIDATION EVIDENCE\n"
 )
 
-root_agent = LlmAgent(
-  name='Frame_Sense_Investigator',
-  model=GlobalGemini(model=DEFAULT_MODEL),
-  description=(
-      'Investigates audience behavior anomalies detected during film screenings by correlating viewer telemetry with media and narrative evidence.'
-  ),
-  sub_agents=[],
-  instruction=INVESTIGATOR_INSTRUCTION,
-  tools=[
-    clickhouse_mcp_toolset,
-    agent_tool.AgentTool(agent=frame_sense_investigator_google_search_agent),
-    agent_tool.AgentTool(agent=frame_sense_investigator_url_context_agent)
-  ],
-)
-
 from google.adk.tools import FunctionTool
 
 
@@ -204,6 +171,21 @@ def run_clickhouse_select_query(sql_query: str) -> str:
 
 
 fast_clickhouse_query_tool = FunctionTool(run_clickhouse_select_query)
+
+investigator_tools = [fast_clickhouse_query_tool]
+if get_clickhouse_cloud_access_token():
+    investigator_tools.append(clickhouse_mcp_toolset)
+
+root_agent = LlmAgent(
+  name='Frame_Sense_Investigator',
+  model=GlobalGemini(model=DEFAULT_MODEL),
+  description=(
+      'Investigates audience behavior anomalies detected during film screenings by correlating viewer telemetry with media and narrative evidence.'
+  ),
+  sub_agents=[],
+  instruction=INVESTIGATOR_INSTRUCTION,
+  tools=investigator_tools,
+)
 
 SENSE_AI_CHAT_INSTRUCTION = (
     "You are Sense AI, an intelligent, conversational film analytics assistant for Frame Sense.\n"

@@ -229,7 +229,11 @@ def audience_anomalies(
 
 
 @router.post("/{screening_id}/audience/anomalies/{anomaly_id}/investigate")
-async def investigate_screening_anomaly(screening_id: str, anomaly_id: str):
+async def investigate_screening_anomaly(
+    screening_id: str,
+    anomaly_id: str,
+    force_refresh: bool = Query(default=False, description="Force re-running Gemini vision analysis even if report is saved")
+):
     """
     Executes the Frame Sense Investigator agent via ClickHouse Cloud MCP & FFmpeg Vision to analyze a detected anomaly.
     Persists findings into SQLite and returns structured response.
@@ -239,7 +243,7 @@ async def investigate_screening_anomaly(screening_id: str, anomaly_id: str):
         raise HTTPException(status_code=404, detail="Screening not found")
     try:
         from app.screening.investigator_service import run_anomaly_investigation
-        return await run_anomaly_investigation(screening_id, anomaly_id)
+        return await run_anomaly_investigation(screening_id, anomaly_id, force_refresh=force_refresh)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation error: {e}")
 

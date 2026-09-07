@@ -91,7 +91,7 @@ async def test_investigate_anomaly_service_context_passing(integration_test_scre
         anomalies = anm_data.get("anomalies", []) + anm_data.get("exceptional_engagement", [])
         target_anm_id = anomalies[0]["anomaly_id"] if anomalies else "anm_mock_123"
 
-        result = await run_anomaly_investigation(sid, target_anm_id)
+        result = await run_anomaly_investigation(sid, target_anm_id, force_refresh=True)
 
         assert result["status"] == "success"
         assert result["screening_id"] == sid

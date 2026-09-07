@@ -48,14 +48,15 @@ def extract_anomaly_frames(
         out_filename = f"frame_{t:.1f}s.jpg"
         out_path = os.path.join(temp_dir, out_filename)
         
-        # FFmpeg command: fast seek with -ss before -i, extract 1 frame with high JPEG quality (-q:v 2)
+        # FFmpeg command: fast seek with -ss before -i, scale image to max 640px width (-vf), and set lightweight JPEG quality (-q:v 5)
         cmd = [
             ffmpeg_bin,
             "-y",
             "-ss", str(t),
             "-i", video_path,
+            "-vf", "scale='min(640,iw)':-1",
             "-vframes", "1",
-            "-q:v", "2",
+            "-q:v", "5",
             out_path
         ]
         
