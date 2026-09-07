@@ -502,14 +502,39 @@ export default function ScreeningRoom() {
     return percent * totalDuration;
   };
 
+  const drawPreviewFrame = () => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pVid = previewVideoRef.current;
+    const mVid = videoRef.current;
+
+    const sourceVid = (pVid && pVid.readyState >= 2 && pVid.videoWidth > 0) ? pVid 
+      : (mVid && mVid.readyState >= 2 && mVid.videoWidth > 0 ? mVid : null);
+
+    if (sourceVid) {
+      try {
+        ctx.drawImage(sourceVid, 0, 0, canvas.width, canvas.height);
+      } catch (err) {
+        console.warn("Could not draw frame to preview canvas", err);
+      }
+    }
+  };
+
   const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!seekbarRef.current) return;
     setIsHoveringSeek(true);
     const time = getSeekTimeFromX(e.clientX);
     setHoverTime(time);
-    if (previewVideoRef.current && previewVideoRef.current.readyState >= 1) {
+    if (previewVideoRef.current) {
+      if (!previewVideoRef.current.src && videoRef.current?.src) {
+        previewVideoRef.current.src = videoRef.current.src;
+      }
       previewVideoRef.current.currentTime = time;
     }
+    drawPreviewFrame();
   };
 
   const handleSeekMouseLeave = () => {
@@ -561,9 +586,13 @@ export default function ScreeningRoom() {
       const time = pct * durationRef.current;
       scrubTimeRef.current = time;
       setScrubTime(time);
-      if (previewVideoRef.current && previewVideoRef.current.readyState >= 1) {
+      if (previewVideoRef.current) {
+        if (!previewVideoRef.current.src && videoRef.current?.src) {
+          previewVideoRef.current.src = videoRef.current.src;
+        }
         previewVideoRef.current.currentTime = time;
       }
+      drawPreviewFrame();
     };
 
     window.addEventListener("mouseup", handleGlobalMouseUp);
@@ -576,12 +605,7 @@ export default function ScreeningRoom() {
   }, []); // stable: reads all mutable values from refs, never stale
 
   const handlePreviewSeeked = () => {
-    if (!previewVideoRef.current || !previewCanvasRef.current) return;
-    const canvas = previewCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(previewVideoRef.current, 0, 0, canvas.width, canvas.height);
-    }
+    drawPreviewFrame();
   };
 
   // Overlay control inactivity timeout handler
@@ -669,16 +693,20 @@ export default function ScreeningRoom() {
               onContextMenu={handleContextMenu}
               className={`w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black relative shadow-2xl group flex items-center justify-center ${showControls ? 'cursor-default' : 'cursor-none'}`}
             >
-              {/* Hidden frame-preview player — src assigned lazily after main video loads metadata
-                  to avoid competing for bandwidth during initial buffering */}
+              {/* Frame-preview video element - positioned offscreen so browsers render video texture for canvas drawImage */}
               <video
                 ref={previewVideoRef}
-                className="hidden"
-                preload="none"
+                preload="auto"
                 muted
+                playsInline
+                aria-hidden="true"
+                tabIndex={-1}
+                className="absolute -top-[9999px] -left-[9999px] w-1 h-1 opacity-0 pointer-events-none"
                 controlsList="nodownload noRemotePlayback"
                 disablePictureInPicture
                 onSeeked={handlePreviewSeeked}
+                onCanPlay={handlePreviewSeeked}
+                onLoadedData={handlePreviewSeeked}
               />
 
               {/* Main Cinematic Video Player with anti-download attributes */}
