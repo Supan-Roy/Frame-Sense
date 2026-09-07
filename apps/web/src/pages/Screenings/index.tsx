@@ -570,7 +570,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                 </div>
                 <p className="text-[11px] leading-relaxed opacity-90">{error}</p>
                 <div className="text-[10px] text-amber-300/80 pt-1 border-t border-amber-500/20">
-                  📍 <strong>Location Called</strong>: <code>apps/api/agents/frame_sense_investigator.py</code> (Google ADK MCP + Vision) &amp; <code>investigator_service.py</code> (Gemini 2.5 Flash).
+                  📍 <strong>Location Called</strong>: <code>apps/api/agents/frame_sense_investigator.py</code> (Google ADK MCP + Vision) &amp; <code>investigator_service.py</code> (Gemini 3.5 Flash-lite).
                 </div>
               </div>
             )}
