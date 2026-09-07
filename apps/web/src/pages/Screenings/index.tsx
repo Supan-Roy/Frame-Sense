@@ -1501,6 +1501,14 @@ interface ToastNotification {
       xhr.send(fd);
     });
 
+  const handleFileSelect = (file: File | null) => {
+    setSelectedFile(file);
+    if (file) {
+      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      setTitle(nameWithoutExt);
+    }
+  };
+
   const handleCreateScreening = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !title) return;
