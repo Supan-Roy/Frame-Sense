@@ -400,15 +400,44 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
     }
   }, [savedFinding]);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const elaborateAbortRef = useRef<AbortController | null>(null);
+
+  const handleStopInvestigation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setInvestigating(false);
+  };
+
+  const handleStopElaboration = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (elaborateAbortRef.current) {
+      elaborateAbortRef.current.abort();
+      elaborateAbortRef.current = null;
+    }
+    setElaborating(false);
+  };
+
   const handleInvestigate = async (e: React.MouseEvent, forceRefresh: boolean = false) => {
     e.stopPropagation();
     if (!screeningId) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setInvestigating(true);
     setError(null);
     try {
       const url = `/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/investigate${forceRefresh ? '?force_refresh=true' : ''}`;
       const res = await fetch(url, {
         method: 'POST',
+        signal: controller.signal
       });
       if (!res.ok) {
         throw new Error(`Server returned status ${res.status}`);
@@ -419,8 +448,12 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
       setExtractedFrames(data.extracted_frames || []);
       if (onUpdate) onUpdate();
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       setError(err.message || 'Investigation failed');
     } finally {
+      abortControllerRef.current = null;
       setInvestigating(false);
     }
   };
@@ -428,11 +461,19 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
   const handleElaborate = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!screeningId) return;
+
+    if (elaborateAbortRef.current) {
+      elaborateAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    elaborateAbortRef.current = controller;
+
     setElaborating(true);
     setError(null);
     try {
       const res = await fetch(`/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/elaborate`, {
         method: 'POST',
+        signal: controller.signal
       });
       if (!res.ok) {
         throw new Error(`Server returned status ${res.status}`);
@@ -441,8 +482,12 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
       setElaboratedReport(data.elaborated_report || 'No creative recommendations returned.');
       if (onUpdate) onUpdate();
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       setError(err.message || 'Elaboration failed');
     } finally {
+      elaborateAbortRef.current = null;
       setElaborating(false);
     }
   };
@@ -552,10 +597,20 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
               </button>
             )}
 
-            {investigating && (
-              <div className="flex items-center justify-center gap-2 py-3 px-3 rounded-lg bg-sky-950/40 border border-sky-500/30 text-sky-300 text-xs font-mono animate-pulse">
-                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                <span>Extracting Video Frames via FFmpeg & Running Multimodal Investigator...</span>
+            {investigating && !report && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-sky-950/40 border border-sky-500/30 text-sky-300 text-xs font-mono">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Loader2 className="h-4 w-4 animate-spin text-sky-400 shrink-0" />
+                  <span className="truncate">Extracting Video Frames via FFmpeg & Running Multimodal Investigator...</span>
+                </div>
+                <button
+                  onClick={handleStopInvestigation}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-semibold font-mono transition-all cursor-pointer shrink-0 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                  title="Cancel Gemini Vision AI investigation request"
+                >
+                  <Square className="h-3.5 w-3.5 fill-rose-400 text-rose-400" />
+                  <span>Stop</span>
+                </button>
               </div>
             )}
 
@@ -589,24 +644,47 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                         ⚡ {mcpQueries.length} ClickHouse MCP query executed
                       </span>
                     )}
-                    <button
-                      onClick={(e) => handleInvestigate(e, true)}
-                      disabled={investigating || deleting || elaborating}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
-                      title="Re-run Gemini Vision & ClickHouse MCP investigation"
-                    >
-                      <RotateCcw className={`h-3 w-3 ${investigating ? 'animate-spin' : ''}`} />
-                      <span>{investigating ? 'Regenerating...' : 'Regenerate'}</span>
-                    </button>
-                    <button
-                      onClick={handleElaborate}
-                      disabled={investigating || deleting || elaborating}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
-                      title="Ask Gemini to elaborate & suggest creative post-production edits"
-                    >
-                      <Lightbulb className={`h-3 w-3 text-amber-400 ${elaborating ? 'animate-bounce' : ''}`} />
-                      <span>{elaborating ? 'Elaborating...' : 'More Detail'}</span>
-                    </button>
+                    {investigating ? (
+                      <button
+                        onClick={handleStopInvestigation}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-[10px] font-semibold font-mono transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                        title="Stop & cancel current Gemini regeneration"
+                      >
+                        <Square className="h-3 w-3 fill-rose-400 text-rose-400 animate-pulse" />
+                        <span>Stop</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => handleInvestigate(e, true)}
+                        disabled={deleting || elaborating}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                        title="Re-run Gemini Vision & ClickHouse MCP investigation"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Regenerate</span>
+                      </button>
+                    )}
+
+                    {elaborating ? (
+                      <button
+                        onClick={handleStopElaboration}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-[10px] font-semibold font-mono transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                        title="Stop & cancel Gemini elaboration request"
+                      >
+                        <Square className="h-3 w-3 fill-rose-400 text-rose-400 animate-pulse" />
+                        <span>Stop</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleElaborate}
+                        disabled={investigating || deleting}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
+                        title="Ask Gemini to elaborate & suggest creative post-production edits"
+                      >
+                        <Lightbulb className="h-3 w-3 text-amber-400" />
+                        <span>More Detail</span>
+                      </button>
+                    )}
                     <button
                       onClick={handleDeleteFinding}
                       disabled={investigating || deleting || elaborating}
