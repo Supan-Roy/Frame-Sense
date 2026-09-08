@@ -400,13 +400,14 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
     }
   }, [savedFinding]);
 
-  const handleInvestigate = async (e: React.MouseEvent) => {
+  const handleInvestigate = async (e: React.MouseEvent, forceRefresh: boolean = false) => {
     e.stopPropagation();
     if (!screeningId) return;
     setInvestigating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/investigate`, {
+      const url = `/api/v1/screenings/${screeningId}/audience/anomalies/${anomaly.anomaly_id}/investigate${forceRefresh ? '?force_refresh=true' : ''}`;
+      const res = await fetch(url, {
         method: 'POST',
       });
       if (!res.ok) {
@@ -589,7 +590,7 @@ function AnomalyCard({ anomaly, isEngagement = false, screeningId, savedFinding,
                       </span>
                     )}
                     <button
-                      onClick={handleInvestigate}
+                      onClick={(e) => handleInvestigate(e, true)}
                       disabled={investigating || deleting || elaborating}
                       className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-[10px] font-semibold font-mono transition-all disabled:opacity-50 cursor-pointer"
                       title="Re-run Gemini Vision & ClickHouse MCP investigation"
