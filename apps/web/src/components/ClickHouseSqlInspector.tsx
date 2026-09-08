@@ -72,76 +72,91 @@ export function ClickHouseSqlInspector({
 
   if (!isOpen) return null;
 
-  const zScoreSql = `-- Frame Sense ClickHouse OLAP Vectorized Z-Score Anomaly Engine
+  const zScoreSql = `-- Frame Sense Vectorized ClickHouse Trajectory & Z-Score Anomaly Engine
 -- Target Screening: ${screeningTitle} [ID: ${screeningId}]
 
-WITH windowed_telemetry AS (
+WITH event_buckets AS (
     SELECT 
-        toUnixTimestamp(timestamp) AS timestamp_sec,
-        event_type,
-        count() OVER (
-            ORDER BY toUnixTimestamp(timestamp) 
-            ROWS BETWEEN 5 PRECEDING AND CURRENT ROW
-        ) AS drop_window_5s,
-        avg(count()) OVER (
-            ORDER BY toUnixTimestamp(timestamp) 
-            ROWS BETWEEN 30 PRECEDING AND 30 FOLLOWING
-        ) AS baseline_mean_60s,
-        stddevPop(count()) OVER (
-            ORDER BY toUnixTimestamp(timestamp) 
-            ROWS BETWEEN 30 PRECEDING AND 30 FOLLOWING
-        ) AS baseline_std_60s
-    FROM audience_events
-    WHERE screening_id = '${screeningId}'
-    GROUP BY timestamp_sec, event_type
+        toUInt32(floor(video_timecode_sec / 2) * 2) AS bucket,
+        countIf(event_type = 'PAUSE')         AS pauses,
+        countIf(event_type = 'SEEK_BACKWARD') AS rewinds,
+        countIf(event_type = 'SEEK_FORWARD')  AS skips,
+        countIf(event_type = 'REPLAY')        AS replays,
+        countIf(event_type = 'EXIT')          AS exits,
+        count(DISTINCT session_id)             AS sessions_active
+    FROM default.viewer_events
+    WHERE screening_id = '${screeningId}' AND video_timecode_sec >= 0
+    GROUP BY bucket
+),
+stats AS (
+    SELECT 
+        bucket,
+        exits,
+        pauses,
+        replays,
+        avg(exits) OVER (ORDER BY bucket ROWS BETWEEN 15 PRECEDING AND 15 FOLLOWING) AS local_mean_exit,
+        stddevPop(exits) OVER (ORDER BY bucket ROWS BETWEEN 15 PRECEDING AND 15 FOLLOWING) AS local_std_exit
+    FROM event_buckets
 ),
 scored_anomalies AS (
     SELECT 
-        timestamp_sec,
-        drop_window_5s,
-        baseline_mean_60s,
-        baseline_std_60s,
-        (drop_window_5s - baseline_mean_60s) / (baseline_std_60s + 0.0001) AS z_score
-    FROM windowed_telemetry
+        bucket AS timecode_sec,
+        exits AS raw_exit_count,
+        round((exits - local_mean_exit) / (local_std_exit + 0.0001), 3) AS z_score
+    FROM stats
 )
 SELECT 
-    timestamp_sec,
-    drop_window_5s AS drop_count,
-    round(z_score, 3) AS z_score,
+    timecode_sec,
+    raw_exit_count,
+    z_score,
     CASE 
-        WHEN z_score > 3.5 THEN 'CRITICAL_RETENTION_DROP'
-        WHEN z_score > 2.0 THEN 'MODERATE_PACING_FRICTION'
+        WHEN z_score >= 3.0 THEN 'CRITICAL_RETENTION_DROP'
+        WHEN z_score >= 2.0 THEN 'MODERATE_PACING_FRICTION'
         ELSE 'NORMAL_BEHAVIOR'
-    END AS anomaly_verdict
+    END AS anomaly_severity
 FROM scored_anomalies
-WHERE z_score >= 2.0
+WHERE z_score >= 1.5
 ORDER BY z_score DESC
 LIMIT 50;`;
 
-  const schemaSql = `-- Frame Sense Analytical Database Schemas (ClickHouse MergeTree Engine)
+  const schemaSql = `-- Frame Sense Production ClickHouse Schemas (100% Columnar OLAP Engine)
 
-CREATE TABLE IF NOT EXISTS audience_events (
-    event_id UUID DEFAULT generateUUIDv4(),
+CREATE TABLE IF NOT EXISTS default.viewer_events (
+    event_id UUID,
     screening_id String,
-    viewer_session_id String,
-    timestamp DateTime64(3),
-    event_type Enum8('play'=1, 'pause'=2, 'seek'=3, 'rewind'=4, 'heartbeat'=5, 'exit'=6),
-    video_timecode Float64,
-    x_coord UInt16,
-    y_coord UInt16
+    session_id String,
+    anonymous_viewer_id String,
+    video_id String,
+    event_type LowCardinality(String),
+    video_timecode_sec Float32,
+    client_timestamp DateTime64(3, 'UTC'),
+    server_timestamp DateTime64(3, 'UTC')
 ) ENGINE = MergeTree()
-PARTITION BY toYYYYMM(timestamp)
-ORDER BY (screening_id, event_type, timestamp);
+ORDER BY (screening_id, video_id, event_type, server_timestamp);
 
-CREATE TABLE IF NOT EXISTS frame_metrics (
+CREATE TABLE IF NOT EXISTS default.screenings (
     screening_id String,
-    frame_idx UInt32,
-    pts_time Float64,
-    yavg Float32,
-    red_ratio Float32,
-    optical_flow_magnitude Float32
-) ENGINE = MergeTree()
-ORDER BY (screening_id, frame_idx);`;
+    media_id String,
+    title String,
+    description String,
+    media_filename String,
+    media_duration Float32,
+    created_at DateTime64(3, 'UTC'),
+    status String,
+    public_token String
+) ENGINE = ReplacingMergeTree(created_at)
+ORDER BY screening_id;
+
+CREATE TABLE IF NOT EXISTS default.investigations (
+    screening_id String,
+    anomaly_id String,
+    investigation_report String,
+    mcp_queries_json String,
+    extracted_frames_json String,
+    elaborated_report String,
+    updated_at DateTime64(3, 'UTC')
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (screening_id, anomaly_id);`;
 
   const activeCode = activeTab === 'zscore' ? zScoreSql : schemaSql;
 

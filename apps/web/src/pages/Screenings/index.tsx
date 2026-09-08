@@ -919,7 +919,7 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [animatedMsgId, setAnimatedMsgId] = useState<string | null>(null);
+  const [animatedMsgId] = useState<string | null>(null);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
