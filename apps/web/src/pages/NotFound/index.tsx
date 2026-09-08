@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Film, AlertOctagon, ArrowLeft, Clapperboard, Compass } from 'lucide-react';
 
@@ -10,13 +9,14 @@ export default function NotFound() {
       {/* Ambient background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      {/* 404 Visual Icon Graphic */}
-      <div className="relative mb-6">
-        <div className="w-24 h-24 rounded-2xl bg-studio-900/90 border border-primary/30 flex items-center justify-center text-primary shadow-2xl shadow-primary/20 backdrop-blur-md">
+      {/* 404 Visual Icon Graphic & Clean Status Badge */}
+      <div className="flex flex-col items-center mb-6 space-y-3">
+        <div className="w-24 h-24 rounded-2xl bg-studio-900/90 border border-primary/30 flex items-center justify-center text-primary shadow-2xl shadow-primary/20 backdrop-blur-md relative">
           <Clapperboard className="w-12 h-12 stroke-[1.5] text-primary animate-pulse" />
         </div>
-        <div className="absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider">
-          404 ERROR
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-[11px] font-semibold tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          HTTP 404 &bull; SCENE MISSING
         </div>
       </div>
 
