@@ -28,9 +28,9 @@ class ScreeningRepository:
     def get_all(self) -> List[Dict[str, Any]]:
         try:
             client = get_client()
-            res = client.query("SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings ORDER BY created_at DESC")
+            res = client.query("SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings FINAL ORDER BY created_at DESC")
             if not res.result_rows:
-                return self._load_screenings_file_fallback()
+                return []
             cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
             out = []
             for r in res.result_rows:
@@ -47,13 +47,10 @@ class ScreeningRepository:
         try:
             client = get_client()
             res = client.query(
-                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE screening_id = {sid:String}",
+                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings FINAL WHERE screening_id = {sid:String}",
                 parameters={"sid": screening_id}
             )
             if not res.result_rows:
-                for s in self._load_screenings_file_fallback():
-                    if s.get("screening_id") == screening_id:
-                        return s
                 return None
             cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
             item = dict(zip(cols, res.result_rows[0]))
@@ -70,13 +67,10 @@ class ScreeningRepository:
         try:
             client = get_client()
             res = client.query(
-                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings WHERE public_token = {token:String}",
+                "SELECT screening_id, media_id, title, description, media_filename, media_duration, created_at, status, public_token FROM default.screenings FINAL WHERE public_token = {token:String}",
                 parameters={"token": public_token}
             )
             if not res.result_rows:
-                for s in self._load_screenings_file_fallback():
-                    if s.get("public_token") == public_token:
-                        return s
                 return None
             cols = ["screening_id", "media_id", "title", "description", "media_filename", "media_duration", "created_at", "status", "public_token"]
             item = dict(zip(cols, res.result_rows[0]))
@@ -132,8 +126,8 @@ class ScreeningRepository:
     def delete(self, screening_id: str) -> bool:
         try:
             client = get_client()
-            client.command("ALTER TABLE default.screenings DELETE WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
-            client.command("ALTER TABLE default.viewer_events DELETE WHERE screening_id = {sid:String}", parameters={"sid": screening_id})
+            client.command("DELETE FROM default.screenings WHERE screening_id = {sid:String}", parameters={"sid": screening_id}, settings={"mutations_sync": "1"})
+            client.command("DELETE FROM default.viewer_events WHERE screening_id = {sid:String}", parameters={"sid": screening_id}, settings={"mutations_sync": "1"})
         except Exception as e:
             print(f"Notice in delete screening ClickHouse: {e}")
 

@@ -46,13 +46,11 @@ def reset_client():
     _client_instance = None
 
 def get_client(auto_init: bool = True) -> Client:
-    global _client_instance, _db_initialized
-    if _client_instance is None:
-        _client_instance = _create_new_client()
-
+    global _db_initialized
+    client = _create_new_client()
     if auto_init and not _db_initialized:
-        ensure_db_initialized(_client_instance)
-    return _client_instance
+        ensure_db_initialized(client)
+    return client
 
 def ensure_db_initialized(client: Client | None = None):
     global _db_initialized
@@ -164,8 +162,8 @@ def _run_schema_creation(client: Client):
                 if exists_check == 0:
                     cr_dt = datetime.fromisoformat(s["created_at"].replace("Z", "+00:00")) if "created_at" in s else datetime.now(timezone.utc)
                     client.insert("screenings", [[
-                        s["screening_id"], s["media_id"], s["title"], s.get("description", ""),
-                        s["media_filename"], float(s["media_duration"]), cr_dt, s.get("status", "active"), s["public_token"]
+                        s["screening_id"], s["media_id"], s["title"], s.get("description") or "",
+                        s["media_filename"], float(s["media_duration"]), cr_dt, s.get("status") or "active", s["public_token"]
                     ]], column_names=[
                         "screening_id", "media_id", "title", "description",
                         "media_filename", "media_duration", "created_at", "status", "public_token"

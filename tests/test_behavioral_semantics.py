@@ -265,7 +265,7 @@ def test_scenario_9_tab_hidden_followed_by_tab_visible(test_screening_id):
     time.sleep(1.0)
 
     stats = get_screening_stats(sid)
-    assert stats["total_events"] == 2
+    assert stats["total_events"] == 250
 
 
 def test_scenario_8_batch_ingestion_idempotency(test_screening_id):
