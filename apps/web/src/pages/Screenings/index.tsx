@@ -1029,10 +1029,27 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       });
       if (!res.ok) throw new Error('Failed to delete session');
       const updated = sessions.filter(s => s.session_id !== sid);
-      setSessions(updated);
-      if (activeSessionId === sid) {
-        setActiveSessionId(updated.length > 0 ? updated[0].session_id : null);
-        if (updated.length === 0) setMessages([]);
+      if (updated.length > 0) {
+        setSessions(updated);
+        if (activeSessionId === sid) {
+          setActiveSessionId(updated[0].session_id);
+        }
+      } else {
+        const createRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New Chat Session' }),
+        });
+        if (createRes.ok) {
+          const freshSession: ChatSession = await createRes.json();
+          setSessions([freshSession]);
+          setActiveSessionId(freshSession.session_id);
+          setMessages([]);
+        } else {
+          setSessions([]);
+          setActiveSessionId(null);
+          setMessages([]);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -1215,15 +1232,13 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                         <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-muted-foreground'}`} />
                         <span className="truncate">{s.title || 'Untitled Chat'}</span>
                       </div>
-                      {sessions.length > 1 && (
-                        <button
-                          onClick={(e) => handleDeleteSession(e, s.session_id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
-                          title="Delete session"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => handleDeleteSession(e, s.session_id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity cursor-pointer"
+                        title="Delete session"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                   );
                 })
@@ -1298,12 +1313,19 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
                             </div>
                             <p className="text-[11px] leading-relaxed opacity-90">{m.content}</p>
                           </div>
-                        ) : (
+                        ) : (sending && idx === messages.length - 1 && m.role === 'assistant') ? (
+                          <div className="relative">
+                            <FormattedMarkdown text={m.content} />
+                            <span className="inline-block w-2 h-4 bg-cyan-400 animate-pulse ml-1 align-middle rounded-sm shadow-sm shadow-cyan-400" />
+                          </div>
+                        ) : m.message_id === animatedMsgId ? (
                           <TypewriterMarkdown
                             text={m.content}
-                            animate={m.message_id === animatedMsgId || (sending && idx === messages.length - 1 && m.role === 'assistant')}
+                            animate={true}
                             onProgress={() => scrollToBottom('auto')}
                           />
+                        ) : (
+                          <FormattedMarkdown text={m.content} />
                         )}
                       </div>
                     </div>
