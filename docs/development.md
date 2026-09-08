@@ -48,7 +48,7 @@ pnpm run dev
 The backend includes a comprehensive pytest integration suite testing statistical joint gating, viewer sequence trajectory semantics, ClickHouse MCP integration, agent orchestration, and vision frame extraction:
 
 ```bash
-# Run full backend test suite (76 tests)
+# Run full backend test suite (78 tests)
 apps/api/.venv/Scripts/pytest tests/ -v
 
 # Run viewer behavioral semantics regression suite specifically (12 adversarial scenarios)
@@ -73,7 +73,7 @@ pnpm --filter web build
 ## 5. Gemini API Error Handling, Caching & Request Cancellation
 
 ### A. Caching & `force_refresh=true` Cache Bypass
-- **Fast SQLite/ClickHouse Cache Check**: When viewing an anomaly investigation, the backend first checks stored database records (`screening_repo.get_investigation`). If a report exists and does not contain a quota error, it returns in **$< 70\text{ms}$** without calling Gemini.
+- **Fast ClickHouse Database Cache Check**: When viewing an anomaly investigation, the backend first checks stored database records (`screening_repo.get_investigation`). If a report exists and does not contain a quota error, it returns in **$< 70\text{ms}$** without calling Gemini.
 - **Force Regeneration Endpoint**: Calling `POST /api/v1/screenings/{screening_id}/audience/anomalies/{anomaly_id}/investigate?force_refresh=true` explicitly bypasses the database cache, forcing fresh FFmpeg frame extraction, ClickHouse MCP query execution, and live Gemini Vision reasoning.
 
 ### B. Interactive Request Cancellation (`AbortController`)
