@@ -106,12 +106,26 @@ def get_audience_overview(screening_id: str) -> Dict[str, Any]:
 
 def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]:
     """Retention curve calculated in ClickHouse based on maximum watched timecode per viewer."""
+    import bisect
     b = max(1, min(5, int(bucket_sec)))
 
     def _fetch(client):
         params = {"sid": screening_id}
 
-        total_viewers = int(client.command("SELECT count(DISTINCT anonymous_viewer_id) FROM viewer_events WHERE screening_id = {sid:String}", parameters=params))
+        # 1. Fetch max watched timecode per viewer in 1 single fast query
+        query = """
+        SELECT
+            max(video_timecode_sec) AS max_tc
+        FROM viewer_events
+        WHERE screening_id = {sid:String} AND video_timecode_sec >= 0 AND video_timecode_sec <= 14400
+        GROUP BY anonymous_viewer_id
+        """
+        res = client.query(query, parameters=params)
+        if not res.result_rows:
+            return {"screening_id": screening_id, "bucket_sec": b, "total_starters": 0, "curve": []}
+
+        max_tcs = [float(r[0]) for r in res.result_rows if r[0] is not None]
+        total_viewers = len(max_tcs)
         if total_viewers == 0:
             return {"screening_id": screening_id, "bucket_sec": b, "total_starters": 0, "curve": []}
 
@@ -119,39 +133,18 @@ def get_retention_data(screening_id: str, bucket_sec: int = 5) -> Dict[str, Any]
         screening = screening_repo.get_by_id(screening_id)
         video_dur = float(screening["media_duration"]) if screening and screening.get("media_duration") and float(screening.get("media_duration")) > 0 else 0.0
 
-        max_dur_res = client.query("SELECT max(video_timecode_sec) FROM viewer_events WHERE screening_id = {sid:String} AND video_timecode_sec >= 0 AND video_timecode_sec <= 14400", parameters=params)
-        event_max = float(max_dur_res.result_rows[0][0]) if max_dur_res.result_rows and max_dur_res.result_rows[0][0] else 0.0
-
+        event_max = max(max_tcs) if max_tcs else 0.0
         max_dur = min(14400.0, max(video_dur, event_max) or 60.0)
 
-        query = f"""
-        WITH viewer_max AS (
-            SELECT
-                anonymous_viewer_id,
-                max(video_timecode_sec) AS max_tc
-            FROM viewer_events
-            WHERE screening_id = {{sid:String}} AND video_timecode_sec >= 0
-            GROUP BY anonymous_viewer_id
-        ),
-        buckets AS (
-            SELECT arrayJoin(range(0, toUInt32({int(max_dur)}) + 1, {b})) AS bucket
-        )
-        SELECT
-            b.bucket,
-            toUInt64(countIf(v.max_tc >= b.bucket)) AS active_viewers
-        FROM buckets AS b
-        CROSS JOIN viewer_max AS v
-        GROUP BY b.bucket
-        ORDER BY b.bucket
-        """
-        res = client.query(query, parameters=params)
+        # Sort max timecodes and use O(log N) binary search per bucket
+        max_tcs.sort()
+        n = total_viewers
         buckets = []
-        for row in res.result_rows:
-            bucket_t, active_v = row
-            if int(bucket_t) > int(max_dur):
-                continue
-            retention = round(int(active_v) / max(1, total_viewers), 4)
-            buckets.append({"time_sec": int(bucket_t), "viewers": int(active_v), "retention_rate": retention})
+        for bucket_t in range(0, int(max_dur) + 1, b):
+            idx = bisect.bisect_left(max_tcs, float(bucket_t))
+            active_v = n - idx
+            retention = round(active_v / total_viewers, 4)
+            buckets.append({"time_sec": bucket_t, "viewers": active_v, "retention_rate": retention})
 
         return {"screening_id": screening_id, "bucket_sec": b, "total_starters": total_viewers, "curve": buckets}
 

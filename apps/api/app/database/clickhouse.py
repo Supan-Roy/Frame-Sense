@@ -46,11 +46,12 @@ def reset_client():
     _client_instance = None
 
 def get_client(auto_init: bool = True) -> Client:
-    global _db_initialized
-    client = _create_new_client()
+    global _db_initialized, _client_instance
+    if _client_instance is None:
+        _client_instance = _create_new_client()
     if auto_init and not _db_initialized:
-        ensure_db_initialized(client)
-    return client
+        ensure_db_initialized(_client_instance)
+    return _client_instance
 
 def ensure_db_initialized(client: Client | None = None):
     global _db_initialized

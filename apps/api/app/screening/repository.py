@@ -99,15 +99,14 @@ class ScreeningRepository:
         created_at_iso = created_at_dt.isoformat()
 
         try:
-            if not ("pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST")):
-                client = get_client()
-                client.insert("screenings", [[
-                    screening_id, media_id, title, description or "",
-                    media_filename, float(media_duration), created_at_dt, status, public_token
-                ]], column_names=[
-                    "screening_id", "media_id", "title", "description",
-                    "media_filename", "media_duration", "created_at", "status", "public_token"
-                ])
+            client = get_client()
+            client.insert("screenings", [[
+                screening_id, media_id, title, description or "",
+                media_filename, float(media_duration), created_at_dt, status, public_token
+            ]], column_names=[
+                "screening_id", "media_id", "title", "description",
+                "media_filename", "media_duration", "created_at", "status", "public_token"
+            ])
         except Exception as err:
             print(f"Notice in create screening ClickHouse insert: {err}")
 
