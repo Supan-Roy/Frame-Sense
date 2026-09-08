@@ -868,16 +868,22 @@ message_id: string;
 
 function TypewriterMarkdown({ text, animate = false, onProgress }: { text: string; animate?: boolean; onProgress?: () => void }) {
   const [visibleLength, setVisibleLength] = useState(animate ? 0 : text.length);
+  const prevAnimateRef = useRef(animate);
   const isTyping = animate && visibleLength < text.length;
 
   useEffect(() => {
     if (!animate) {
       setVisibleLength(text.length);
+      prevAnimateRef.current = false;
       return;
     }
 
-    setVisibleLength(0);
-    const chunkSize = 3;
+    if (!prevAnimateRef.current) {
+      setVisibleLength(0);
+      prevAnimateRef.current = true;
+    }
+
+    const chunkSize = 4;
     const interval = setInterval(() => {
       setVisibleLength((prev) => {
         const next = Math.min(prev + chunkSize, text.length);
@@ -1118,12 +1124,6 @@ function SenseAIChatModal({ screening, onClose }: { screening: Screening; onClos
       const fetchMsgRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions/${activeSessionId}/messages`);
       if (fetchMsgRes.ok) {
         const finalMsgs: ChatMessage[] = await fetchMsgRes.json();
-        if (finalMsgs.length > 0) {
-          const lastMsg = finalMsgs[finalMsgs.length - 1];
-          if (lastMsg.role === 'assistant') {
-            setAnimatedMsgId(lastMsg.message_id);
-          }
-        }
         setMessages(finalMsgs);
       }
       const sessRes = await fetch(`/api/v1/screenings/${screening.screening_id}/chat/sessions`);
