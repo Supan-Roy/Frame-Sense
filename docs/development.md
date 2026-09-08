@@ -68,3 +68,21 @@ Or for the web workspace specifically:
 pnpm --filter web build
 ```
 
+---
+
+## 5. Gemini API Error Handling, Caching & Request Cancellation
+
+### A. Caching & `force_refresh=true` Cache Bypass
+- **Fast SQLite/ClickHouse Cache Check**: When viewing an anomaly investigation, the backend first checks stored database records (`screening_repo.get_investigation`). If a report exists and does not contain a quota error, it returns in **$< 70\text{ms}$** without calling Gemini.
+- **Force Regeneration Endpoint**: Calling `POST /api/v1/screenings/{screening_id}/audience/anomalies/{anomaly_id}/investigate?force_refresh=true` explicitly bypasses the database cache, forcing fresh FFmpeg frame extraction, ClickHouse MCP query execution, and live Gemini Vision reasoning.
+
+### B. Interactive Request Cancellation (`AbortController`)
+- **React Signal Binding**: The web workspace maintains `useRef<AbortController | null>(null)` references for investigation and creative elaboration requests.
+- **Dynamic Stop Button**: While an investigation or regeneration is running (`investigating === true`), the UI transforms the generation/regeneration button into a **Stop** button.
+- **Abort Error Handling**: Clicking **Stop** calls `abortControllerRef.current.abort()`. The browser aborts the HTTP request (`AbortError`), and the backend socket disconnect cancels the running task without corrupting database state.
+
+### C. Quota & Rate Limit Fault Tolerance (HTTP 429)
+- **640px JPEG Optimization**: Extracted keyframes are downscaled to 640px JPEGs (`-vf "scale='min(640,iw)':-1" -q:v 5`), cutting image token payload from ~500KB to ~25KB per frame.
+- **Exponential Backoff**: Transient `429` / `RESOURCE_EXHAUSTED` errors trigger automated retries (1.5s, 3.0s, 4.5s backoff delays).
+- **Graceful Error UI**: If quota is permanently exhausted, the application displays a styled amber warning banner highlighting the exact file location called (`apps/api/agents/frame_sense_investigator.py`).
+

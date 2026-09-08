@@ -67,8 +67,11 @@ This document details the production architecture of **Frame Sense**, detailing 
 - **4-Stage Interactive Animation**: Visualizes raw telemetry emission, statistical joint gating, keyframe laser scanning, and timecode-anchored AI Co-Pilot chat responses.
 
 ### E. Multimodal Vision Investigation Engine
-- **Keyframe Extraction**: Extracts keyframes at exact peak anomaly timecodes using FFmpeg.
+- **Keyframe Extraction & Token Optimization**: Extracts keyframes at exact peak anomaly timecodes using FFmpeg. To protect against token quota limits, frame images are downscaled to 640px JPEGs (`-vf "scale='min(640,iw)':-1" -q:v 5`), reducing payload size from ~500KB to ~25KB per frame (85-90% token reduction).
 - **Gemini 3.5 Flash / Gemini 3.5 Flash-Lite Reasoning**: Sends extracted image frames to Gemini alongside raw telemetry evidence for visual cut analysis, scene pacing, and framing investigation.
+- **Fast Cache & `force_refresh=true` Bypass**: Saved investigation reports are cached in database storage. Initial requests return pre-calculated reports in $< 70\text{ms}$. When film editors click **Regenerate**, the web app passes `?force_refresh=true` to bypass the cache and force live FFmpeg keyframe extraction, ClickHouse MCP query execution, and Gemini Vision model reasoning.
+- **Interactive Request Cancellation (`AbortController`)**: Generation and regeneration buttons dynamically transform into interactive **Stop** controls during execution. Client-side HTTP requests are bound to a web `AbortController` signal; clicking **Stop** aborts the fetch request and terminates backend processing cleanly without data corruption.
+- **Quota & Rate Limit Fault Tolerance (HTTP 429)**: Implements exponential backoff retries (1.5s, 3.0s, 4.5s delays) for transient `RESOURCE_EXHAUSTED` / `429` API errors. If quotas remain exhausted, structured user-facing rate-limit notices are surfaced with clear diagnostic origin locations (`apps/api/agents/frame_sense_investigator.py`).
 - **Scientific Honesty Taxonomy**:
   - **`OBSERVATION`**: Pure empirical telemetry evidence (counts, rates, z-scores, trajectory metrics).
   - **`INTERPRETATION`**: Behavioral meaning of signals (e.g. cognitive comprehension vs. audience abandonment).
