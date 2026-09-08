@@ -6,27 +6,6 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-function Logo({ className = "h-6 w-6" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#3b82f6" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="20" height="20" rx="4" stroke="url(#logo-grad)" strokeWidth="2" />
-      <rect x="5" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <rect x="11" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <rect x="17" y="5" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <rect x="5" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <rect x="11" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <rect x="17" y="17" width="1.5" height="1.5" rx="0.3" fill="#8e8e93" />
-      <path d="M6 12H9L11 9L13 15L15 12H18" stroke="url(#logo-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function LogoWordmark({ className = "h-8 w-auto select-none" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 170 30" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -48,15 +27,6 @@ function LogoWordmark({ className = "h-8 w-auto select-none" }: { className?: st
       </g>
       <text x="32" y="20" fill="#ffffff" fontFamily="'Sofia Sans', sans-serif" fontSize="13" fontWeight="800" letterSpacing="0.08em">FRAME</text>
       <text x="86" y="20" fill="#3b82f6" fontFamily="'Sofia Sans', sans-serif" fontSize="13" fontWeight="400" letterSpacing="0.12em">SENSE</text>
-    </svg>
-  );
-}
-
-function LogoText({ className = "h-5 w-auto select-none" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 130 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="15" fill="#ffffff" fontFamily="'Sofia Sans', sans-serif" fontSize="12" fontWeight="800" letterSpacing="0.08em">FRAME</text>
-      <text x="54" y="15" fill="#3b82f6" fontFamily="'Sofia Sans', sans-serif" fontSize="12" fontWeight="400" letterSpacing="0.12em">SENSE</text>
     </svg>
   );
 }

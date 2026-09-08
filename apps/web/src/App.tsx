@@ -8,6 +8,7 @@ import ScreeningRoom from './pages/ScreeningRoom';
 
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </AppShell>
           }
